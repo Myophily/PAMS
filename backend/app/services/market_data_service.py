@@ -1,8 +1,7 @@
 """
 Market data service for fetching and caching stock prices and exchange rates.
 
-PHASE 2: Manual entry only (MVP)
-PHASE 8: External API integration (Yahoo Finance / Alpha Vantage)
+PHASE 4: External API integration with Yahoo Finance (yfinance)
 """
 
 from sqlalchemy.orm import Session
@@ -10,8 +9,10 @@ from app.models.market_data import MarketData
 from app.utils.decimal_helpers import to_decimal
 from app.utils.date_helpers import get_previous_business_day, is_weekend
 from decimal import Decimal
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
+import yfinance as yf
+import pandas as pd
 
 
 class MarketDataService:
@@ -281,10 +282,10 @@ class MarketDataService:
         target_date: date
     ) -> Optional[Decimal]:
         """
-        Fetch stock price from external API (Yahoo Finance or Alpha Vantage).
+        Fetch stock price from Yahoo Finance.
 
-        PHASE 2: Returns None (manual entry required)
-        PHASE 8: Full external API integration
+        Handles both US tickers (AAPL) and Korean tickers (005930).
+        Korean numeric tickers are automatically converted to .KS format.
 
         Args:
             ticker: Stock ticker
@@ -292,9 +293,46 @@ class MarketDataService:
 
         Returns:
             Stock price or None
+
+        Examples:
+            >>> price = service._fetch_stock_price_from_api("AAPL", date(2024, 1, 15))
+            >>> price
+            Decimal('185.50')
         """
-        # TODO: Implement external API integration in Phase 8
-        return None
+        try:
+            # Normalize ticker format (Korean stocks need .KS suffix)
+            normalized_ticker = self._normalize_ticker(ticker)
+
+            # Fetch data from yfinance
+            stock = yf.Ticker(normalized_ticker)
+
+            # Get historical data (request 5 days window to handle weekends)
+            end_date = target_date + timedelta(days=1)
+            start_date = target_date - timedelta(days=5)
+
+            hist = stock.history(start=start_date, end=end_date)
+
+            if hist.empty:
+                return None
+
+            # Get closest date (handles weekends automatically)
+            # Convert to timezone-naive for comparison
+            target_timestamp = pd.Timestamp(target_date).tz_localize(None)
+            hist_index_naive = hist.index.tz_localize(None)
+
+            closest_dates = hist_index_naive[hist_index_naive <= target_timestamp]
+            if len(closest_dates) == 0:
+                return None
+
+            # Use the index position to get the price from original hist
+            closest_idx = len(closest_dates) - 1
+            price = hist.iloc[closest_idx]['Close']
+
+            return to_decimal(price, precision=4)
+
+        except Exception as e:
+            print(f"Error fetching price for {ticker}: {e}")
+            return None
 
     def _fetch_exchange_rate_from_api(
         self,
@@ -303,10 +341,12 @@ class MarketDataService:
         target_date: date
     ) -> Optional[Decimal]:
         """
-        Fetch exchange rate from external API.
+        Fetch exchange rate from Yahoo Finance.
 
-        PHASE 2: Returns None (manual entry required)
-        PHASE 8: Full external API integration
+        Format: 1 from_currency = X to_currency
+        Example: USD/KRW returns 1300 (1 USD = 1300 KRW)
+
+        Tries direct pair first (USDKRW=X), then inverse if not available.
 
         Args:
             from_currency: Source currency
@@ -315,9 +355,64 @@ class MarketDataService:
 
         Returns:
             Exchange rate or None
+
+        Examples:
+            >>> rate = service._fetch_exchange_rate_from_api("USD", "KRW", date.today())
+            >>> rate
+            Decimal('1300.0000')
         """
-        # TODO: Implement external API integration in Phase 8
-        return None
+        try:
+            # Construct forex pair symbol for yfinance
+            pair_symbol = f"{from_currency}{to_currency}=X"
+
+            # Fetch data
+            pair = yf.Ticker(pair_symbol)
+
+            end_date = target_date + timedelta(days=1)
+            start_date = target_date - timedelta(days=5)
+
+            hist = pair.history(start=start_date, end=end_date)
+
+            if hist.empty:
+                # Try inverse pair
+                inverse_symbol = f"{to_currency}{from_currency}=X"
+                pair = yf.Ticker(inverse_symbol)
+                hist = pair.history(start=start_date, end=end_date)
+
+                if hist.empty:
+                    return None
+
+                # Get closest date and invert the rate
+                # Convert to timezone-naive for comparison
+                target_timestamp = pd.Timestamp(target_date).tz_localize(None)
+                hist_index_naive = hist.index.tz_localize(None)
+
+                closest_dates = hist_index_naive[hist_index_naive <= target_timestamp]
+                if len(closest_dates) == 0:
+                    return None
+
+                # Use the index position to get the rate from original hist
+                closest_idx = len(closest_dates) - 1
+                inverse_rate = hist.iloc[closest_idx]['Close']
+                return to_decimal(1 / inverse_rate, precision=6)
+
+            # Direct pair found
+            # Convert to timezone-naive for comparison
+            target_timestamp = pd.Timestamp(target_date).tz_localize(None)
+            hist_index_naive = hist.index.tz_localize(None)
+
+            closest_dates = hist_index_naive[hist_index_naive <= target_timestamp]
+            if len(closest_dates) == 0:
+                return None
+
+            # Use the index position to get the rate from original hist
+            closest_idx = len(closest_dates) - 1
+            rate = hist.iloc[closest_idx]['Close']
+            return to_decimal(rate, precision=6)
+
+        except Exception as e:
+            print(f"Error fetching rate for {from_currency}/{to_currency}: {e}")
+            return None
 
     def get_latest_price(self, ticker: str, db: Session) -> Optional[Decimal]:
         """
@@ -362,3 +457,26 @@ class MarketDataService:
         ).order_by(MarketData.date.desc()).first()
 
         return latest.exchange_rate if latest else None
+
+    def _normalize_ticker(self, ticker: str) -> str:
+        """
+        Normalize ticker format for yfinance.
+
+        Korean stocks: numeric code → add .KS suffix (KOSPI)
+        US stocks: use as-is
+
+        Args:
+            ticker: Stock ticker symbol
+
+        Returns:
+            Normalized ticker for yfinance
+
+        Examples:
+            >>> service._normalize_ticker("AAPL")
+            'AAPL'
+            >>> service._normalize_ticker("005930")
+            '005930.KS'
+        """
+        if ticker.isdigit() and len(ticker) == 6:
+            return f"{ticker}.KS"  # KOSPI stocks
+        return ticker.upper()

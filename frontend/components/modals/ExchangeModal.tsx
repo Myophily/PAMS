@@ -61,9 +61,10 @@ export function ExchangeModal({
   // Auto-calculate amounts when rate or amount changes
   useEffect(() => {
     if (rateData?.rate && fromAmount > 0) {
-      const calculated = fromAmount / rateData.rate;
+      const rateNumber = parseFloat(rateData.rate);
+      const calculated = fromAmount / rateNumber;
       setValue('to_amount', parseFloat(calculated.toFixed(2)));
-      setValue('exchange_rate', rateData.rate);
+      setValue('exchange_rate', rateNumber);
     }
   }, [rateData, fromAmount, setValue]);
 
@@ -151,7 +152,7 @@ export function ExchangeModal({
         {rateData?.rate && (
           <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
             <span className="font-medium">Exchange Rate:</span> 1 {fromTicker} ={' '}
-            {rateData.rate.toFixed(4)} {toTicker}
+            {parseFloat(rateData.rate).toFixed(4)} {toTicker}
           </div>
         )}
 

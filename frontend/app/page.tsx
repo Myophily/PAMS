@@ -55,7 +55,7 @@ export default function HomePage() {
           />
         </div>
         <ExchangeRateDisplay
-          rate={summary.current_exchange_rate.usd_to_krw}
+          rate={parseFloat(summary.current_exchange_rate.usd_to_krw)}
           updatedAt={summary.current_exchange_rate.updated_at}
         />
       </div>

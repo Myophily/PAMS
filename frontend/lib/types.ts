@@ -65,7 +65,7 @@ export interface DashboardSummary {
     usd: number;
   };
   current_exchange_rate: {
-    usd_to_krw: number;
+    usd_to_krw: string;  // Decimal as string from backend (e.g., "1300.0000")
     updated_at: string;
   };
   changes: {
@@ -144,7 +144,7 @@ export interface StockPrice {
 export interface ExchangeRate {
   from: string;
   to: string;
-  rate: number;
+  rate: string;  // Decimal as string from backend (e.g., "1300.0000")
   date: string;
   source: string;
 }
