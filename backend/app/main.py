@@ -30,6 +30,18 @@ app.include_router(market_data.router)
 app.include_router(snapshots.router)
 
 
+@app.on_event("startup")
+def on_startup():
+    """Initialize database and run migrations on startup."""
+    from app.database import init_db, migrate_account_types, engine
+
+    # Initialize database schema
+    init_db()
+
+    # Run account type migration
+    migrate_account_types(engine)
+
+
 @app.get("/api/health")
 def health_check():
     """Health check endpoint to verify API and database connection."""

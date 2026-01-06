@@ -48,7 +48,7 @@ class AccountService:
 
         Args:
             name: Account name
-            account_type: Account type (Checking, Brokerage, Foreign, MMF)
+            account_type: Account type (Deposit, Securities, ForeignCurrency, MoneyMarket)
             currency: Currency code (KRW, USD, EUR, etc.)
             initial_balance: Initial balance (default: 0)
             initial_balance_date: Date for initial balance (default: today)
@@ -61,7 +61,7 @@ class AccountService:
             ValueError: If validation fails
         """
         # Validate account type
-        valid_types = ["Checking", "Brokerage", "Foreign", "MMF"]
+        valid_types = ["Deposit", "Securities", "ForeignCurrency", "MoneyMarket"]
         if account_type not in valid_types:
             raise ValueError(f"Invalid account type. Must be one of: {valid_types}")
 
@@ -88,9 +88,12 @@ class AccountService:
                 amount=initial_balance,
                 transaction_date=balance_date,
                 description="Initial balance",
-                db=db
+                db=db,
+                auto_commit=False  # Let parent handle commit
             )
 
+        # Refresh to ensure account is bound to session
+        db.refresh(account)
         db.commit()
         return account
 

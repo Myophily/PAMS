@@ -5,19 +5,13 @@ import { useRouter } from 'next/navigation';
 import type { AccountWithBalance } from '@/lib/types';
 import { Badge } from '@/components/ui/Badge';
 import { formatCurrency } from '@/lib/utils/format';
+import { getAccountTypeConfig } from '@/lib/config/accountTypeConfig';
 
 interface AccountCardProps {
   account: AccountWithBalance;
 }
 
-// Configuration-driven action buttons
-const ACCOUNT_ACTIONS: Record<string, string[]> = {
-  Checking: ['transfer', 'deposit', 'withdrawal'],
-  Brokerage: ['buy', 'sell', 'dividend', 'transfer'],
-  Foreign: ['exchange', 'transfer'],
-  MMF: ['interest', 'transfer'],
-};
-
+// Action labels for buttons
 const ACTION_LABELS: Record<string, string> = {
   transfer: 'Transfer',
   deposit: 'Deposit',
@@ -43,7 +37,8 @@ const ACTION_TO_MODAL: Record<string, string> = {
 
 export function AccountCard({ account }: AccountCardProps) {
   const router = useRouter();
-  const actions = ACCOUNT_ACTIONS[account.type] || [];
+  const accountConfig = getAccountTypeConfig(account.type);
+  const actions = accountConfig.primaryActions;
 
   const handleAction = (action: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -61,7 +56,7 @@ export function AccountCard({ account }: AccountCardProps) {
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xl font-bold">{account.name}</h3>
-            <Badge variant="default">{account.type}</Badge>
+            <Badge variant="default">{accountConfig.displayName}</Badge>
           </div>
           <span className="text-sm text-gray-500">{account.currency}</span>
         </div>

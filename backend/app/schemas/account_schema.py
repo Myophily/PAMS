@@ -9,7 +9,7 @@ from typing import Optional
 class AccountCreateRequest(BaseModel):
     """Create a new account with optional initial balance."""
     name: str
-    type: str  # Checking | Brokerage | Foreign | MMF
+    type: str  # Deposit | Securities | ForeignCurrency | MoneyMarket
     currency: str  # KRW | USD | EUR | etc.
     initial_balance: Optional[Decimal] = Decimal("0")
     initial_balance_date: Optional[date] = None  # Defaults to today

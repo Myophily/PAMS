@@ -31,6 +31,14 @@ class DividendCreate(BaseModel):
     description: Optional[str] = None
 
 
+class InterestCreate(BaseModel):
+    """Create interest transaction for MoneyMarket accounts."""
+    account_id: int
+    amount: Decimal
+    date: date
+    description: Optional[str] = None
+
+
 # ========== PATTERN ② SIMPLE TRANSFER ==========
 
 class TransferCreate(BaseModel):

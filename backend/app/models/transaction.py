@@ -28,7 +28,7 @@ class Transaction(Base):
     __table_args__ = (
         CheckConstraint(
             type.in_(['Deposit', 'Withdrawal', 'Dividend', 'Buy', 'Sell',
-                     'Transfer_In', 'Transfer_Out', 'Exchange']),
+                     'Transfer_In', 'Transfer_Out', 'Exchange', 'Interest']),
             name='check_transaction_type'
         ),
         Index('idx_transaction_account', 'account_id'),

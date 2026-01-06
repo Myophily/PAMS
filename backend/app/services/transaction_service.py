@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.models.transaction import Transaction
 from app.models.account import Account
 from app.services.holding_service import HoldingService
+from app.services.transaction_validation import validate_transaction_type
 from app.utils.decimal_helpers import to_decimal, validate_positive
 from app.utils.date_helpers import validate_transaction_date, is_past_transaction
 from app.utils.calculation_engine import (
@@ -42,7 +43,8 @@ class TransactionService:
         amount: Decimal,
         transaction_date: date,
         description: Optional[str],
-        db: Session
+        db: Session,
+        auto_commit: bool = True
     ) -> Transaction:
         """
         Create deposit transaction (Pattern ①).
@@ -55,6 +57,7 @@ class TransactionService:
             transaction_date: Date of transaction
             description: Optional user notes
             db: Database session
+            auto_commit: Whether to commit the transaction (default: True)
 
         Returns:
             Created transaction
@@ -83,6 +86,9 @@ class TransactionService:
         if not account:
             raise ValueError(f"Account {account_id} not found")
 
+        # Validate transaction type allowed for account type
+        validate_transaction_type(account.type, "Deposit")
+
         # Create transaction
         transaction = Transaction(
             account_id=account_id,
@@ -106,7 +112,8 @@ class TransactionService:
         if is_past_transaction(transaction_date):
             self._trigger_recalculation(transaction_date, db)
 
-        db.commit()
+        if auto_commit:
+            db.commit()
         return transaction
 
     def create_withdrawal(
@@ -147,6 +154,9 @@ class TransactionService:
         account = db.query(Account).get(account_id)
         if not account:
             raise ValueError(f"Account {account_id} not found")
+
+        # Validate transaction type allowed for account type
+        validate_transaction_type(account.type, "Withdrawal")
 
         # Create transaction (negative amount)
         transaction = Transaction(
@@ -209,6 +219,9 @@ class TransactionService:
         account = db.query(Account).get(account_id)
         if not account:
             raise ValueError(f"Account {account_id} not found")
+
+        # Validate transaction type allowed for account type
+        validate_transaction_type(account.type, "Dividend")
 
         # Create transaction
         transaction = Transaction(
@@ -298,6 +311,10 @@ class TransactionService:
             raise ValueError(f"From account {from_account_id} not found")
         if not to_account:
             raise ValueError(f"To account {to_account_id} not found")
+
+        # Validate transaction types allowed for both accounts
+        validate_transaction_type(from_account.type, "Transfer_Out")
+        validate_transaction_type(to_account.type, "Transfer_In")
 
         # Check sufficient balance
         self.holding_service.validate_sufficient_balance(
@@ -411,6 +428,9 @@ class TransactionService:
         if not account:
             raise ValueError(f"Account {account_id} not found")
 
+        # Validate transaction type allowed for account type
+        validate_transaction_type(account.type, "Buy")
+
         # Calculate total cost
         total_cost = quantity * price
 
@@ -496,6 +516,9 @@ class TransactionService:
         account = db.query(Account).get(account_id)
         if not account:
             raise ValueError(f"Account {account_id} not found")
+
+        # Validate transaction type allowed for account type
+        validate_transaction_type(account.type, "Sell")
 
         # Check sufficient stock
         self.holding_service.validate_sufficient_balance(
@@ -602,6 +625,9 @@ class TransactionService:
         if not account:
             raise ValueError(f"Account {account_id} not found")
 
+        # Validate transaction type allowed for account type
+        validate_transaction_type(account.type, "Exchange")
+
         # Check sufficient balance in source currency
         self.holding_service.validate_sufficient_balance(
             account_id, from_ticker, from_amount, db
@@ -653,6 +679,82 @@ class TransactionService:
 
         db.commit()
         return tx_sell, tx_buy
+
+    def create_interest(
+        self,
+        account_id: int,
+        amount: Decimal,
+        transaction_date: date,
+        description: Optional[str],
+        db: Session
+    ) -> Transaction:
+        """
+        Create interest transaction (Pattern ①) for MoneyMarket accounts.
+
+        Interest income from money market or savings accounts. Total assets increase.
+
+        Args:
+            account_id: Account ID (must be MoneyMarket type)
+            amount: Interest amount (must be positive)
+            transaction_date: Date of transaction
+            description: Optional user notes
+            db: Database session
+
+        Returns:
+            Created transaction
+
+        Raises:
+            ValueError: If validation fails
+
+        Examples:
+            >>> tx = service.create_interest(
+            ...     account_id=4,
+            ...     amount=Decimal("5000"),
+            ...     transaction_date=date.today(),
+            ...     description="Monthly interest",
+            ...     db=db
+            ... )
+            >>> tx.type
+            'Interest'
+            >>> tx.amount
+            Decimal('5000.00')
+        """
+        # Validate
+        validate_transaction_date(transaction_date)
+        validate_positive(amount, "Interest amount")
+
+        account = db.query(Account).get(account_id)
+        if not account:
+            raise ValueError(f"Account {account_id} not found")
+
+        # Validate transaction type allowed for account type
+        validate_transaction_type(account.type, "Interest")
+
+        # Create transaction
+        transaction = Transaction(
+            account_id=account_id,
+            type="Interest",
+            ticker=None,
+            quantity=None,
+            price=None,
+            amount=to_decimal(amount, precision=2),
+            date=transaction_date,
+            linked_tx_id=None,
+            description=description
+        )
+        db.add(transaction)
+        db.flush()
+
+        # Update CASH holding (same as deposit)
+        cash_holding = self.holding_service.get_or_create_cash_holding(account_id, db)
+        cash_holding.quantity += transaction.amount
+
+        # Trigger recalculation if past transaction
+        if is_past_transaction(transaction_date):
+            self._trigger_recalculation(transaction_date, db)
+
+        db.commit()
+        return transaction
 
     # ========== HELPER METHODS ==========
 

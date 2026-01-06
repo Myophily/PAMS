@@ -6,6 +6,7 @@ from app.schemas.transaction_schema import (
     DepositCreate,
     WithdrawalCreate,
     DividendCreate,
+    InterestCreate,
     BuyCreate,
     SellCreate,
     TransferCreate,
@@ -60,6 +61,22 @@ def create_dividend(request: DividendCreate, db: Session = Depends(get_db)):
         tx = transaction_service.create_dividend(
             account_id=request.account_id,
             ticker=request.ticker,
+            amount=request.amount,
+            transaction_date=request.date,
+            description=request.description,
+            db=db
+        )
+        return tx
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/interest", response_model=TransactionResponse, status_code=201)
+def create_interest(request: InterestCreate, db: Session = Depends(get_db)):
+    """Create interest transaction (Pattern ①) for MoneyMarket accounts."""
+    try:
+        tx = transaction_service.create_interest(
+            account_id=request.account_id,
             amount=request.amount,
             transaction_date=request.date,
             description=request.description,

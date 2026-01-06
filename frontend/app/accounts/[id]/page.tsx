@@ -8,12 +8,7 @@ import { TabNavigation } from './_components/TabNavigation';
 import { HoldingsTable } from './_components/HoldingsTable';
 import { TransactionTimeline } from './_components/TransactionTimeline';
 import { AccountAnalysisCharts } from './_components/AccountAnalysisCharts';
-
-const TABS = [
-  { key: 'holdings', label: 'Holdings' },
-  { key: 'transactions', label: 'Transactions' },
-  { key: 'analysis', label: 'Analysis' },
-];
+import { getAccountTypeConfig, isTabAllowed, type AccountTab } from '@/lib/config/accountTypeConfig';
 
 export default function AccountDetailPage() {
   const params = useParams();
@@ -21,9 +16,6 @@ export default function AccountDetailPage() {
   const accountId = parseInt(params.id as string);
 
   const { data: accountData, isLoading, isFetching, error } = useAccountDetails(accountId);
-
-  // Get active tab from URL, default to 'holdings'
-  const activeTab = searchParams.get('tab') || 'holdings';
 
   if (isLoading) {
     return (
@@ -54,6 +46,26 @@ export default function AccountDetailPage() {
 
   const { account, summary, holdings } = accountData;
 
+  // Get account type configuration
+  const accountConfig = getAccountTypeConfig(account.type);
+
+  // Build dynamic tabs based on account type
+  const ALL_POSSIBLE_TABS = [
+    { key: 'holdings' as AccountTab, label: 'Holdings' },
+    { key: 'transactions' as AccountTab, label: 'Transactions' },
+    { key: 'analysis' as AccountTab, label: 'Analysis' },
+  ];
+
+  const availableTabs = ALL_POSSIBLE_TABS.filter(tab =>
+    accountConfig.allowedTabs.includes(tab.key)
+  );
+
+  // Get active tab from URL, default to first available tab
+  const requestedTab = searchParams.get('tab') as AccountTab | null;
+  const activeTab = requestedTab && isTabAllowed(account.type, requestedTab)
+    ? requestedTab
+    : availableTabs[0]?.key || 'transactions';
+
   return (
     <div className="space-y-6">
       <AccountSummaryHeader
@@ -68,10 +80,10 @@ export default function AccountDetailPage() {
       />
 
       <div className="bg-white rounded-lg shadow">
-        <TabNavigation tabs={TABS} activeTab={activeTab} />
+        <TabNavigation tabs={availableTabs} activeTab={activeTab} />
 
         <div className="p-6">
-          {activeTab === 'holdings' && (
+          {activeTab === 'holdings' && isTabAllowed(account.type, 'holdings') && (
             <HoldingsTable holdings={holdings} currency={account.currency} />
           )}
 
@@ -79,7 +91,7 @@ export default function AccountDetailPage() {
             <TransactionTimeline accountId={accountId} />
           )}
 
-          {activeTab === 'analysis' && (
+          {activeTab === 'analysis' && isTabAllowed(account.type, 'analysis') && (
             <AccountAnalysisCharts accountId={accountId} />
           )}
         </div>

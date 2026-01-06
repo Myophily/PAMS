@@ -30,7 +30,7 @@ export function AddAccountModal({ isOpen, onClose }: AddAccountModalProps) {
     resolver: zodResolver(createAccountSchema),
     defaultValues: {
       name: '',
-      type: 'Checking',
+      type: 'Deposit',
       currency: 'KRW',
       initial_balance: 0,
       initial_balance_date: new Date().toISOString().split('T')[0],
@@ -70,10 +70,10 @@ export function AddAccountModal({ isOpen, onClose }: AddAccountModalProps) {
           {...register('type')}
           error={errors.type?.message}
         >
-          <option value="Checking">Checking</option>
-          <option value="Brokerage">Brokerage</option>
-          <option value="Foreign">Foreign Currency</option>
-          <option value="MMF">MMF</option>
+          <option value="Deposit">Deposit Account (입출금)</option>
+          <option value="Securities">Securities Account (증권)</option>
+          <option value="ForeignCurrency">Foreign Currency (외화)</option>
+          <option value="MoneyMarket">Money Market Fund (MMF)</option>
         </Select>
 
         <Select

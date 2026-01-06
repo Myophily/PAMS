@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from app.database import get_db
 from app.services.account_service import AccountService
 from app.schemas.account_schema import (
@@ -29,7 +30,20 @@ def create_account(request: AccountCreateRequest, db: Session = Depends(get_db))
         )
         return account
     except ValueError as e:
+        # Business logic validation errors
         raise HTTPException(status_code=400, detail=str(e))
+    except IntegrityError as e:
+        # Database constraint violations (unique, foreign key, etc.)
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Database constraint violation")
+    except SQLAlchemyError as e:
+        # Database errors (connection, query execution, etc.)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error occurred")
+    except Exception as e:
+        # Catch-all for unexpected errors
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 @router.get("/", response_model=List[AccountListItemResponse])

@@ -60,3 +60,48 @@ def init_db():
 
     print("Database initialized successfully!")
     print(f"Database location: {DATABASE_URL}")
+
+
+def migrate_account_types(engine):
+    """
+    Migrate old account type names to new ones.
+
+    Migration mapping:
+    - Checking → Deposit
+    - Brokerage → Securities
+    - Foreign → ForeignCurrency
+    - MMF → MoneyMarket
+
+    This migration is idempotent and can be safely run multiple times.
+    """
+    MIGRATIONS = {
+        'Checking': 'Deposit',
+        'Brokerage': 'Securities',
+        'Foreign': 'ForeignCurrency',
+        'MMF': 'MoneyMarket'
+    }
+
+    print("\n=== Account Type Migration ===")
+
+    with engine.connect() as conn:
+        # Check if there are any accounts to migrate
+        total_migrated = 0
+
+        for old_type, new_type in MIGRATIONS.items():
+            result = conn.execute(
+                text("UPDATE account SET type = :new_type WHERE type = :old_type"),
+                {"old_type": old_type, "new_type": new_type}
+            )
+
+            if result.rowcount > 0:
+                print(f"✓ Migrated {result.rowcount} accounts: {old_type} → {new_type}")
+                total_migrated += result.rowcount
+
+        conn.commit()
+
+    if total_migrated == 0:
+        print("✓ No accounts to migrate (database already up-to-date or empty)")
+    else:
+        print(f"✓ Migration complete: {total_migrated} total accounts migrated")
+
+    print("=" * 30 + "\n")
