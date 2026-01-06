@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { AccountWithBalance } from '@/lib/types';
 import { Badge } from '@/components/ui/Badge';
+import { formatDecimal } from '@/lib/utils/decimal';
 
 interface AccountCardProps {
   account: AccountWithBalance;
@@ -67,10 +68,10 @@ export function AccountCard({ account }: AccountCardProps) {
 
         <div className="mb-4">
           <div className="text-3xl font-bold text-gray-900">
-            {account.balance.toLocaleString()} {account.currency}
+            {formatDecimal(account.balance)} {account.currency}
           </div>
           <div className="text-sm text-gray-600 mt-1">
-            ${account.balance_usd.toLocaleString()}
+            ${formatDecimal(account.balance_usd)}
           </div>
         </div>
 

@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { useAccounts } from '@/lib/hooks/useAccounts';
 import { useCreateTransfer } from '@/lib/hooks/useTransactions';
+import { formatDecimal, parseDecimal } from '@/lib/utils/decimal';
 import {
   createTransferSchema,
   type CreateTransferFormData,
@@ -53,7 +54,7 @@ export function TransferModal({
   const onSubmit = async (data: CreateTransferFormData) => {
     try {
       // Validate sufficient balance
-      if (fromAccount && data.amount > fromAccount.balance) {
+      if (fromAccount && data.amount > parseDecimal(fromAccount.balance)) {
         toast.error('Insufficient balance in source account');
         return;
       }
@@ -85,7 +86,7 @@ export function TransferModal({
           <option value={0}>Select source account</option>
           {accounts.map((account) => (
             <option key={account.id} value={account.id}>
-              {account.name} ({account.balance.toLocaleString()} {account.currency})
+              {account.name} ({formatDecimal(account.balance)} {account.currency})
             </option>
           ))}
         </Select>
@@ -93,7 +94,7 @@ export function TransferModal({
         {fromAccount && (
           <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
             <span className="font-medium">Available Balance:</span>{' '}
-            {fromAccount.balance.toLocaleString()} {fromAccount.currency}
+            {formatDecimal(fromAccount.balance)} {fromAccount.currency}
           </div>
         )}
 

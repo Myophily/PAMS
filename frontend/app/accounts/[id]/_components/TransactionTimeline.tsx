@@ -5,6 +5,7 @@ import { useTransactions } from '@/lib/hooks/useTransactions';
 import { Spinner } from '@/components/ui/Spinner';
 import { Badge } from '@/components/ui/Badge';
 import { formatShortDate } from '@/lib/utils/format';
+import { formatDecimal } from '@/lib/utils/decimal';
 
 interface TransactionTimelineProps {
   accountId: number;
@@ -133,7 +134,7 @@ export function TransactionTimeline({ accountId }: TransactionTimelineProps) {
 
                   <div className="text-lg font-semibold text-gray-900">
                     {tx.ticker && `${tx.ticker} `}
-                    {tx.quantity && `${tx.quantity} shares @ ${tx.price}`}
+                    {tx.quantity && tx.price && `${formatDecimal(tx.quantity)} shares @ ${formatDecimal(tx.price)}`}
                     {tx.amount && `${parseFloat(tx.amount).toLocaleString()}`}
                   </div>
 

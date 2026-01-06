@@ -12,13 +12,15 @@ import {
   Area,
   ComposedChart,
 } from 'recharts';
+import { parseDecimal } from '@/lib/utils/decimal';
+import type { DecimalString } from '@/lib/types';
 
 interface AssetVolatilityChartProps {
   data: Array<{
     date: string;
-    total_assets: number;
-    principal: number;
-    gain_loss: number;
+    total_assets: DecimalString;
+    principal: DecimalString;
+    gain_loss: DecimalString;
   }>;
 }
 
@@ -34,9 +36,12 @@ export function AssetVolatilityChart({ data }: AssetVolatilityChartProps) {
     );
   }
 
-  // Format dates for display
-  const formattedData = data.map((item) => ({
-    ...item,
+  // Transform DecimalString to number for chart library and format dates
+  const chartData = data.map((item) => ({
+    date: item.date,
+    total_assets: parseDecimal(item.total_assets),
+    principal: parseDecimal(item.principal),
+    gain_loss: parseDecimal(item.gain_loss),
     displayDate: new Date(item.date).toLocaleDateString('ko-KR', {
       month: 'short',
       day: 'numeric',
@@ -47,7 +52,7 @@ export function AssetVolatilityChart({ data }: AssetVolatilityChartProps) {
     <div className="bg-white rounded-lg shadow p-6">
       <h3 className="text-lg font-bold mb-4">Asset Growth</h3>
       <ResponsiveContainer width="100%" height={400}>
-        <ComposedChart data={formattedData}>
+        <ComposedChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             dataKey="displayDate"

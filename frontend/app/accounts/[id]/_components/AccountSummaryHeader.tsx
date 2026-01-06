@@ -1,6 +1,8 @@
 'use client';
 
 import { formatCurrency, formatPercent } from '@/lib/utils/format';
+import { formatDecimal, isPositive } from '@/lib/utils/decimal';
+import type { DecimalString } from '@/lib/types';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 
@@ -8,10 +10,10 @@ interface AccountSummaryHeaderProps {
   name: string;
   type: string;
   currency: string;
-  totalValue: number;
-  cashBalance: number;
-  unrealizedPL: number;
-  unrealizedPLPercent: number;
+  totalValue: DecimalString;
+  cashBalance: DecimalString;
+  unrealizedPL: DecimalString;
+  unrealizedPLPercent: DecimalString;
   isRefetching?: boolean;
 }
 
@@ -25,7 +27,7 @@ export function AccountSummaryHeader({
   unrealizedPLPercent,
   isRefetching = false,
 }: AccountSummaryHeaderProps) {
-  const isPositive = unrealizedPL >= 0;
+  const isPlPositive = isPositive(unrealizedPL);
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
@@ -50,14 +52,14 @@ export function AccountSummaryHeader({
         <div>
           <div className="text-sm text-gray-600 mb-1">Total Value</div>
           <div className="text-2xl font-bold text-gray-900">
-            {totalValue.toLocaleString()} {currency}
+            {formatDecimal(totalValue)} {currency}
           </div>
         </div>
 
         <div>
           <div className="text-sm text-gray-600 mb-1">Cash Balance</div>
           <div className="text-2xl font-bold text-gray-900">
-            {cashBalance.toLocaleString()} {currency}
+            {formatDecimal(cashBalance)} {currency}
           </div>
         </div>
 
@@ -65,15 +67,15 @@ export function AccountSummaryHeader({
           <div className="text-sm text-gray-600 mb-1">Unrealized P/L</div>
           <div
             className={`text-2xl font-bold ${
-              isPositive ? 'text-green-600' : 'text-red-600'
+              isPlPositive ? 'text-green-600' : 'text-red-600'
             }`}
           >
-            {isPositive ? '+' : ''}
-            {unrealizedPL.toLocaleString()} {currency}
+            {isPlPositive ? '+' : ''}
+            {formatDecimal(unrealizedPL)} {currency}
           </div>
           <div
             className={`text-sm ${
-              isPositive ? 'text-green-600' : 'text-red-600'
+              isPlPositive ? 'text-green-600' : 'text-red-600'
             }`}
           >
             {formatPercent(unrealizedPLPercent)}

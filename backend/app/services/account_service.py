@@ -178,6 +178,8 @@ class AccountService:
                 total_value += holding.quantity
 
                 holding_responses.append(HoldingResponse(
+                    id=holding.id,
+                    account_id=holding.account_id,
                     ticker="CASH",
                     ticker_name="Cash",
                     quantity=holding.quantity,
@@ -209,6 +211,8 @@ class AccountService:
                 total_unrealized_pl += unrealized_pl
 
                 holding_responses.append(HoldingResponse(
+                    id=holding.id,
+                    account_id=holding.account_id,
                     ticker=holding.ticker,
                     ticker_name=None,  # TODO: Add ticker name lookup
                     quantity=holding.quantity,

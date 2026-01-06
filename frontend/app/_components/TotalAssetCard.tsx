@@ -3,10 +3,11 @@
 import { useCurrency } from '@/lib/context/currency-context';
 import { usePrivacyToggle } from '@/lib/hooks/usePrivacyToggle';
 import { formatCurrency } from '@/lib/utils/format';
+import type { DecimalString } from '@/lib/types';
 
 interface TotalAssetCardProps {
-  totalKRW: number;
-  totalUSD: number;
+  totalKRW: DecimalString;
+  totalUSD: DecimalString;
 }
 
 export function TotalAssetCard({ totalKRW, totalUSD }: TotalAssetCardProps) {

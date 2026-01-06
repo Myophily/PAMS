@@ -1,11 +1,13 @@
 'use client';
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { parseDecimal } from '@/lib/utils/decimal';
+import type { DecimalString } from '@/lib/types';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 interface AssetAllocationChartProps {
-  data: Array<{ type: string; value_krw: number; percent: number }>;
+  data: Array<{ type: string; value_krw: DecimalString; percent: DecimalString }>;
 }
 
 export function AssetAllocationChart({ data }: AssetAllocationChartProps) {
@@ -20,13 +22,20 @@ export function AssetAllocationChart({ data }: AssetAllocationChartProps) {
     );
   }
 
+  // Transform DecimalString to number for chart library
+  const chartData = data.map((item) => ({
+    type: item.type,
+    value_krw: parseDecimal(item.value_krw),
+    percent: parseDecimal(item.percent),
+  }));
+
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h3 className="text-lg font-bold mb-4">Asset Allocation</h3>
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>
           <Pie
-            data={data}
+            data={chartData}
             cx="50%"
             cy="50%"
             labelLine={false}
@@ -35,7 +44,7 @@ export function AssetAllocationChart({ data }: AssetAllocationChartProps) {
             fill="#8884d8"
             dataKey="value_krw"
           >
-            {data.map((entry, index) => (
+            {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
             ))}
           </Pie>

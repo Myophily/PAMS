@@ -9,13 +9,15 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { parseDecimal } from '@/lib/utils/decimal';
+import type { DecimalString } from '@/lib/types';
 
 interface TopAssetsBarChartProps {
   assets: Array<{
     ticker: string;
     name: string;
-    value_krw: number;
-    percent: number;
+    value_krw: DecimalString;
+    percent: DecimalString;
   }>;
 }
 
@@ -31,8 +33,14 @@ export function TopAssetsBarChart({ assets }: TopAssetsBarChartProps) {
     );
   }
 
-  // Sort by value descending and take top 10
-  const topAssets = [...assets]
+  // Transform DecimalString to number for chart library and sort
+  const chartData = [...assets]
+    .map((item) => ({
+      ticker: item.ticker,
+      name: item.name,
+      value_krw: parseDecimal(item.value_krw),
+      percent: parseDecimal(item.percent),
+    }))
     .sort((a, b) => b.value_krw - a.value_krw)
     .slice(0, 10);
 
@@ -41,7 +49,7 @@ export function TopAssetsBarChart({ assets }: TopAssetsBarChartProps) {
       <h3 className="text-lg font-bold mb-4">Top Assets</h3>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart
-          data={topAssets}
+          data={chartData}
           layout="vertical"
           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
         >

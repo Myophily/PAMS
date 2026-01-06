@@ -51,6 +51,8 @@ class AccountListItemResponse(BaseModel):
 
 class HoldingResponse(BaseModel):
     """Holding with current market data."""
+    id: int
+    account_id: int
     ticker: str
     ticker_name: Optional[str] = None
     quantity: Decimal

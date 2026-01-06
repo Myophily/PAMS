@@ -1,3 +1,15 @@
+/**
+ * Decimal value from backend, serialized as string.
+ * Example: "1234.56", "0.0000", "-99.99"
+ *
+ * Backend uses Python's Decimal type for precision, which Pydantic
+ * serializes to JSON as strings to prevent floating-point errors.
+ *
+ * Use parseDecimal() to convert to number for calculations.
+ * Use formatDecimal() for display with locale formatting.
+ */
+export type DecimalString = string;
+
 // Base types
 export interface Account {
   id: number;
@@ -8,8 +20,8 @@ export interface Account {
 }
 
 export interface AccountWithBalance extends Account {
-  balance: number;
-  balance_usd: number;
+  balance: DecimalString;  // Decimal as string from backend
+  balance_usd: DecimalString;  // Decimal as string from backend
   holdings_count: number;
 }
 
@@ -27,8 +39,8 @@ export interface TransactionDetail extends Transaction {
   account_name: string;
   ticker?: string;
   ticker_name?: string;
-  quantity?: number;
-  price?: number;
+  quantity?: DecimalString;  // Decimal as string from backend
+  price?: DecimalString;  // Decimal as string from backend
   linked_tx_id?: number;
 }
 
@@ -37,23 +49,23 @@ export interface Holding {
   account_id: number;
   ticker: string;
   ticker_name?: string;
-  quantity: number;
-  avg_price: number;
-  current_price: number;
-  current_value: number;
-  cost_basis: number;
-  unrealized_pl: number;
-  unrealized_pl_percent: number;
+  quantity: DecimalString;  // Decimal as string from backend
+  avg_price: DecimalString;  // Decimal as string from backend
+  current_price: DecimalString;  // Decimal as string from backend
+  current_value: DecimalString;  // Decimal as string from backend
+  cost_basis: DecimalString;  // Decimal as string from backend
+  unrealized_pl: DecimalString;  // Decimal as string from backend
+  unrealized_pl_percent: DecimalString;  // Decimal as string from backend
 }
 
 export interface AccountDetails {
   account: Account;
   summary: {
-    total_value: number;
-    cash_balance: number;
-    invested_amount: number;
-    unrealized_pl: number;
-    unrealized_pl_percent: number;
+    total_value: DecimalString;  // Decimal as string from backend
+    cash_balance: DecimalString;  // Decimal as string from backend
+    invested_amount: DecimalString;  // Decimal as string from backend
+    unrealized_pl: DecimalString;  // Decimal as string from backend
+    unrealized_pl_percent: DecimalString;  // Decimal as string from backend
   };
   holdings: Holding[];
 }
@@ -61,35 +73,35 @@ export interface AccountDetails {
 // Dashboard types
 export interface DashboardSummary {
   total_assets: {
-    krw: number;
-    usd: number;
+    krw: DecimalString;  // Decimal as string from backend
+    usd: DecimalString;  // Decimal as string from backend
   };
   current_exchange_rate: {
     usd_to_krw: string;  // Decimal as string from backend (e.g., "1300.0000")
     updated_at: string;
   };
   changes: {
-    day: { amount_krw: number; amount_usd: number; percent: number };
-    month: { amount_krw: number; amount_usd: number; percent: number };
-    year: { amount_krw: number; amount_usd: number; percent: number };
+    day: { amount_krw: DecimalString; amount_usd: DecimalString; percent: DecimalString };
+    month: { amount_krw: DecimalString; amount_usd: DecimalString; percent: DecimalString };
+    year: { amount_krw: DecimalString; amount_usd: DecimalString; percent: DecimalString };
   };
   allocation: {
-    by_type: Array<{ type: string; value_krw: number; percent: number }>;
-    by_risk: Array<{ type: string; value_krw: number; percent: number }>;
+    by_type: Array<{ type: string; value_krw: DecimalString; percent: DecimalString }>;
+    by_risk: Array<{ type: string; value_krw: DecimalString; percent: DecimalString }>;
   };
   top_assets: Array<{
     ticker: string;
     name: string;
-    value_krw: number;
-    percent: number;
+    value_krw: DecimalString;
+    percent: DecimalString;
   }>;
 }
 
 export interface AssetChartData {
   date: string;
-  total_assets: number;
-  principal: number;
-  gain_loss: number;
+  total_assets: DecimalString;  // Decimal as string from backend
+  principal: DecimalString;  // Decimal as string from backend
+  gain_loss: DecimalString;  // Decimal as string from backend
 }
 
 // Form input types

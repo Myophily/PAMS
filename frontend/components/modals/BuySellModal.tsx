@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { useAccounts } from '@/lib/hooks/useAccounts';
 import { useStockPrice } from '@/lib/hooks/useMarketData';
 import { useCreateTransaction } from '@/lib/hooks/useTransactions';
+import { formatDecimal, parseDecimal } from '@/lib/utils/decimal';
 import {
   createBuySellSchema,
   type CreateBuySellFormData,
@@ -79,7 +80,7 @@ export function BuySellModal({
       // Validate Buy: sufficient cash
       if (data.type === 'Buy' && selectedAccount) {
         const cost = data.quantity * data.price;
-        if (cost > selectedAccount.balance) {
+        if (cost > parseDecimal(selectedAccount.balance)) {
           toast.error('Insufficient cash balance');
           return;
         }
@@ -141,7 +142,7 @@ export function BuySellModal({
           <option value={0}>Select a brokerage account</option>
           {brokerageAccounts.map((account) => (
             <option key={account.id} value={account.id}>
-              {account.name} (Cash: {account.balance.toLocaleString()}{' '}
+              {account.name} (Cash: {formatDecimal(account.balance)}{' '}
               {account.currency})
             </option>
           ))}

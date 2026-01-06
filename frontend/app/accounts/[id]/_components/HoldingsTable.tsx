@@ -2,6 +2,7 @@
 
 import type { Holding } from '@/lib/types';
 import { formatPercent } from '@/lib/utils/format';
+import { formatDecimal, isPositive } from '@/lib/utils/decimal';
 
 interface HoldingsTableProps {
   holdings: Holding[];
@@ -56,26 +57,26 @@ export function HoldingsTable({ holdings, currency }: HoldingsTableProps) {
                 )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
-                {holding.quantity.toLocaleString()}
+                {formatDecimal(holding.quantity)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
-                {holding.avg_price.toLocaleString()}
+                {formatDecimal(holding.avg_price)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
-                {holding.current_price.toLocaleString()}
+                {formatDecimal(holding.current_price)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
-                {holding.current_value.toLocaleString()} {currency}
+                {formatDecimal(holding.current_value)} {currency}
               </td>
               <td
                 className={`px-6 py-4 whitespace-nowrap text-right text-sm font-medium ${
-                  holding.unrealized_pl >= 0 ? 'text-green-600' : 'text-red-600'
+                  isPositive(holding.unrealized_pl) ? 'text-green-600' : 'text-red-600'
                 }`}
               >
                 {formatPercent(holding.unrealized_pl_percent)}
                 <div className="text-xs">
-                  ({holding.unrealized_pl >= 0 ? '+' : ''}
-                  {holding.unrealized_pl.toLocaleString()})
+                  ({isPositive(holding.unrealized_pl) ? '+' : ''}
+                  {formatDecimal(holding.unrealized_pl)})
                 </div>
               </td>
             </tr>
