@@ -77,7 +77,7 @@ Comprehensive database schema documentation with relationships and constraints.
 
 ### 1. Account
 
-Represents financial accounts (checking, brokerage, foreign currency, MMF).
+Represents financial accounts (deposit/withdrawal, securities, foreign currency, money market).
 
 **Columns:**
 
@@ -85,7 +85,7 @@ Represents financial accounts (checking, brokerage, foreign currency, MMF).
 |--------|------|-------------|-------------|
 | `id` | INTEGER | PRIMARY KEY, AUTOINCREMENT | Unique account identifier |
 | `name` | VARCHAR(100) | NOT NULL, UNIQUE | Account display name (e.g., "Toss Checking") |
-| `type` | VARCHAR(20) | NOT NULL, CHECK | Account type: `Checking`, `Brokerage`, `Foreign`, `MMF` |
+| `type` | VARCHAR(20) | NOT NULL, CHECK | Account type: `Deposit`, `Securities`, `ForeignCurrency`, `MoneyMarket` |
 | `currency` | VARCHAR(3) | NOT NULL | Base currency: `KRW`, `USD`, `EUR`, etc. |
 | `created_at` | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Account creation timestamp |
 
@@ -114,7 +114,7 @@ class Account(Base):
 
     # Constraints
     __table_args__ = (
-        CheckConstraint(type.in_(['Checking', 'Brokerage', 'Foreign', 'MMF']), name='check_account_type'),
+        CheckConstraint(type.in_(['Deposit', 'Securities', 'ForeignCurrency', 'MoneyMarket']), name='check_account_type'),
     )
 ```
 
@@ -122,6 +122,26 @@ class Account(Base):
 - Account name must be unique
 - Type cannot be changed after creation (would invalidate transaction history)
 - Currency cannot be changed after creation
+
+**Account Type Specifications:**
+
+Each account type has specific restrictions on which assets it can hold:
+
+| Account Type | Base Currency | Allowed Holdings | Purpose |
+|--------------|---------------|------------------|---------|
+| **Deposit** | `KRW` | `CASH` (KRW only) | Deposit/withdrawal account (입출금통장) for daily spending. Linked to household account book. |
+| **MoneyMarket** | `KRW` | `CASH` (KRW only) | Money Market Fund (MMF). Earns interest tracked via `Interest` transactions. |
+| **ForeignCurrency** | `USD` | `CASH` (USD only) | Foreign currency account (외화통장). Holds USD and supports currency exchange. |
+| **Securities** | `KRW` or `USD` | `CASH` (any currency) + Stocks, ETFs, Gold, Bonds, etc. | Full investment account (증권계좌). Can hold multiple currencies and all security types. |
+
+**Validation:**
+- `Deposit` and `MoneyMarket` accounts must have `currency='KRW'`
+- `ForeignCurrency` accounts must have `currency='USD'`
+- `Securities` accounts can have any base currency
+- Holdings must respect the allowed asset types for each account type
+
+**Migration Note:**
+For existing databases with old account type values (`Checking`, `Brokerage`, `Foreign`, `MMF`), a migration script is available at `backend/migration_rename_account_types.py` to rename them to the new values (`Deposit`, `Securities`, `ForeignCurrency`, `MoneyMarket`).
 
 ---
 

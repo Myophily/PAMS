@@ -414,12 +414,12 @@ def seed_database():
         # Create accounts
         checking = Account(
             name="Toss Checking",
-            type="Checking",
+            type="Deposit",
             currency="KRW"
         )
         brokerage = Account(
             name="Kiwoom Brokerage",
-            type="Brokerage",
+            type="Securities",
             currency="KRW"
         )
         db.add_all([checking, brokerage])

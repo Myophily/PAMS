@@ -4,6 +4,64 @@ In-depth explanation of the 4 core transaction patterns with implementation exam
 
 ---
 
+## Transaction Type Restrictions by Account Type
+
+The backend enforces which transaction types are allowed on each account type to maintain data integrity and reflect real-world financial operations.
+
+### Allowed Transactions Matrix
+
+| Transaction Type | Deposit | Securities | ForeignCurrency | MoneyMarket | Pattern |
+|------------------|---------|------------|-----------------|-------------|---------|
+| `Deposit` | ✅ | ✅ | ✅ | ✅ | Pattern ① |
+| `Withdrawal` | ✅ | ✅ | ✅ | ✅ | Pattern ① |
+| `Transfer_In` | ✅ | ✅ | ✅ | ✅ | Pattern ② |
+| `Transfer_Out` | ✅ | ✅ | ✅ | ✅ | Pattern ② |
+| `Buy` | ❌ | ✅ | ❌ | ❌ | Pattern ③ |
+| `Sell` | ❌ | ✅ | ❌ | ❌ | Pattern ③ |
+| `Dividend` | ❌ | ✅ | ❌ | ❌ | Pattern ① |
+| `Exchange` | ❌ | ❌ | ✅ | ❌ | Pattern ④ |
+| `Interest` | ❌ | ❌ | ❌ | ✅ | Pattern ① |
+
+### Rationale
+
+**Deposit Accounts:**
+- Purpose: Daily spending, cash management, simple transfers
+- Restriction: Cannot buy/sell securities or exchange currencies
+- Rationale: Represents checking/savings accounts that only handle cash
+
+**Securities Accounts:**
+- Purpose: Investment management, stock/bond trading
+- Allowed: All cash operations + Buy/Sell/Dividend
+- Rationale: Brokerage accounts can hold both cash and securities
+
+**ForeignCurrency Accounts:**
+- Purpose: Foreign currency holdings (USD, EUR, etc.)
+- Allowed: Cash operations + Exchange between currencies
+- Rationale: Specialized for multi-currency management
+
+**MoneyMarket Accounts:**
+- Purpose: Money market funds earning interest
+- Allowed: Cash operations + Interest income
+- Rationale: Similar to deposit accounts but tracks interest earnings
+
+### Validation Error Example
+
+```python
+# Attempting to buy stock in a Deposit account
+try:
+    create_buy_transaction(
+        account_id=1,  # Deposit account
+        ticker="AAPL",
+        quantity=10,
+        price=150.00
+    )
+except ValueError as e:
+    # Error: "Transaction type 'Buy' is not allowed for account type 'Deposit'.
+    # Allowed types: Deposit, Withdrawal, Transfer_In, Transfer_Out"
+```
+
+---
+
 ## Overview
 
 All financial activities in PAM must follow one of these 4 fundamental patterns. Each pattern has specific rules for:

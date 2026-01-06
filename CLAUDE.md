@@ -137,6 +137,17 @@ tx1.linked_tx_id = tx2.id
 - **Pattern ③:** 1 transaction → 2 holdings (CASH + ticker) → total assets **UNCHANGED** at transaction time
 - **Pattern ④:** 2 linked transactions → 2 holdings (currencies) → total assets **UNCHANGED** at transaction time
 
+### Account Type Transaction Enforcement
+
+**NEW:** The backend enforces which transaction types are allowed on each account type:
+
+- **Deposit accounts:** Only `Deposit`, `Withdrawal`, `Transfer_In`, `Transfer_Out` (cash operations only)
+- **Securities accounts:** All transaction types including `Buy`, `Sell`, `Dividend` (full investment capabilities)
+- **ForeignCurrency accounts:** Cash operations + `Exchange` (currency conversion)
+- **MoneyMarket accounts:** Cash operations + `Interest` (interest-earning accounts)
+
+**Validation:** Attempting to create an invalid transaction type for an account (e.g., `Buy` on a Deposit account) will result in HTTP 400 error. See [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md#transaction-type-restrictions-by-account-type) for full matrix.
+
 ### Type Safety
 
 - **Backend:** Use Pydantic schemas for ALL API request/response models
@@ -152,16 +163,19 @@ tx1.linked_tx_id = tx2.id
 ### Adding a New Transaction Type
 
 1. **Determine pattern** → Which of the 4 patterns does it follow?
-2. **Backend:**
+2. **Determine allowed account types** → Which account types can use this transaction?
+3. **Backend:**
    - Add enum to `Transaction.type` in `app/models/transaction.py`
    - Create Pydantic schema in `app/schemas/transaction_schema.py`
+   - Update `ALLOWED_TRANSACTIONS` in `app/services/transaction_validation.py`
    - Implement business logic in `app/services/transaction_service.py`
    - Add API endpoint in `app/routers/transactions.py`
-3. **Frontend:**
+4. **Frontend:**
    - Update TypeScript types in `lib/types.ts`
+   - Update `ACCOUNT_ACTIONS` in account components to show the action button
    - Create React Query hook in `lib/hooks/useTransactions.ts`
    - Create UI modal component
-4. **Test** → Verify pattern rules are followed
+5. **Test** → Verify pattern rules are followed and account type validation works
 
 **Detailed examples:** [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md#service-layer-implementation)
 
@@ -223,6 +237,7 @@ npm run dev
 - [ ] Business logic is in services, not routers
 - [ ] Type hints are present on all functions
 - [ ] Past transactions trigger `recalculate_from_date()`
+- [ ] Transaction types are validated against account type (use `validate_transaction_type()`)
 
 ### Frontend
 - [ ] API calls go through `/api/*` routes (Next.js rewrites)

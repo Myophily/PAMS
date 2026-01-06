@@ -48,7 +48,7 @@ Create a new account.
 ```json
 {
   "name": "Toss Checking",
-  "type": "Checking",  // Checking | Brokerage | Foreign | MMF
+  "type": "Deposit",  // Deposit | Securities | ForeignCurrency | MoneyMarket
   "currency": "KRW",   // KRW | USD | EUR | etc.
   "initial_balance": 1000000.00,
   "initial_balance_date": "2024-01-01"  // Optional, defaults to today
@@ -62,7 +62,7 @@ Create a new account.
   "data": {
     "id": 1,
     "name": "Toss Checking",
-    "type": "Checking",
+    "type": "Deposit",
     "currency": "KRW",
     "created_at": "2024-01-15T10:30:00Z"
   }
@@ -99,7 +99,7 @@ List all accounts.
       {
         "id": 1,
         "name": "Toss Checking",
-        "type": "Checking",
+        "type": "Deposit",
         "currency": "KRW",
         "balance": 1500000.00,
         "balance_usd": 1153.85,  // Converted using current exchange rate
@@ -131,7 +131,7 @@ Get detailed account information.
     "account": {
       "id": 1,
       "name": "Kiwoom Brokerage",
-      "type": "Brokerage",
+      "type": "Securities",
       "currency": "KRW",
       "created_at": "2024-01-01T00:00:00Z"
     },
@@ -198,7 +198,7 @@ Update account name or settings.
   "data": {
     "id": 1,
     "name": "New Account Name",
-    "type": "Checking",
+    "type": "Deposit",
     "currency": "KRW"
   }
 }
@@ -227,6 +227,42 @@ Soft delete an account.
 
 **Validation:**
 - Cannot delete account with active holdings (must liquidate first)
+
+---
+
+#### Account Type Transaction Rules
+
+The backend enforces which transaction types are allowed on each account type. This ensures data integrity and reflects real-world financial operations.
+
+**Account Type Specifications:**
+
+| Account Type | Currency | Allowed Assets | Allowed Transactions |
+|--------------|----------|----------------|---------------------|
+| **Deposit** (입출금통장) | KRW only | CASH (KRW) | `Deposit`, `Withdrawal`, `Transfer_In`, `Transfer_Out` |
+| **Securities** (증권계좌) | Any (KRW, USD, etc.) | CASH (any) + Stocks, ETFs, Gold, etc. | `Deposit`, `Withdrawal`, `Buy`, `Sell`, `Dividend`, `Transfer_In`, `Transfer_Out` |
+| **ForeignCurrency** (외화통장) | USD only | CASH (USD) | `Deposit`, `Withdrawal`, `Exchange`, `Transfer_In`, `Transfer_Out` |
+| **MoneyMarket** (MMF) | KRW only | CASH (KRW) | `Deposit`, `Withdrawal`, `Interest`, `Transfer_In`, `Transfer_Out` |
+
+**Purpose:**
+- **Deposit:** Household account book (가계부) for daily spending
+- **Securities:** Full investment account with all asset types
+- **ForeignCurrency:** Foreign currency holdings with KRW ↔ USD exchange
+- **MoneyMarket:** Money market fund with interest income tracking
+
+**Error Response (HTTP 400) - Invalid Transaction Type:**
+```json
+{
+  "status": "error",
+  "message": "Transaction type 'Buy' is not allowed for account type 'Deposit'. Allowed types: Deposit, Withdrawal, Transfer_In, Transfer_Out",
+  "code": "INVALID_TRANSACTION_TYPE"
+}
+```
+
+**Examples:**
+- ✅ **Allowed:** Creating a `Buy` transaction on a Securities account
+- ❌ **Rejected:** Creating a `Buy` transaction on a Deposit account
+- ✅ **Allowed:** Creating an `Exchange` transaction on a ForeignCurrency account
+- ❌ **Rejected:** Creating an `Exchange` transaction on a Deposit account
 
 ---
 

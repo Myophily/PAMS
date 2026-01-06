@@ -33,10 +33,10 @@ The `Holding` table (current balances) is a **computed view** derived from `Tran
 ## Key Features
 
 ### 1. Multi-Account Support
-- **Checking accounts** - Daily spending, transfers
-- **Brokerage accounts** - Stock/bond holdings, dividends
-- **Foreign currency accounts** - USD/EUR/etc. holdings
-- **MMF accounts** - Money market fund interest tracking
+- **Deposit/Withdrawal accounts (입출금통장)** - KRW cash only. Daily spending, linked to household account book
+- **Securities accounts (증권계좌)** - All currencies and securities (stocks, ETFs, gold, etc.). Full investment management
+- **Foreign Currency accounts (외화통장)** - USD holdings. Currency exchange with other accounts
+- **Money Market accounts (MMF)** - KRW cash only. Money market fund with interest tracking
 
 ### 2. Four Core Transaction Patterns
 
@@ -224,16 +224,16 @@ Check in-depth information of a specific account.
 
 ### Example 1: Simple Transfer
 ```
-User action: Transfer $500 from Checking to Brokerage
+User action: Transfer $500 from Deposit to Securities account
 
 Transaction 1:
-  account_id: 1 (Checking)
+  account_id: 1 (Deposit account)
   type: Transfer_Out
   amount: -500
   linked_tx_id: 2
 
 Transaction 2:
-  account_id: 2 (Brokerage)
+  account_id: 2 (Securities account)
   type: Transfer_In
   amount: 500
   linked_tx_id: 1
@@ -250,7 +250,7 @@ Total assets: No change
 User action: Buy 10 shares of AAPL at $150 (total $1500)
 
 Transaction:
-  account_id: 2 (Brokerage)
+  account_id: 2 (Securities account)
   type: Buy
   ticker: AAPL
   quantity: 10

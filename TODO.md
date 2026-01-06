@@ -145,6 +145,66 @@
 - [x] Handle gaps in market data (weekends, holidays)
 - [x] Optimize snapshot queries for chart rendering
 
+## Phase 5.5: Account Type System Enhancement
+
+### Backend Account Type Renaming
+
+- [ ] Create migration script to rename existing account types (Checking→Deposit, Brokerage→Securities, Foreign→ForeignCurrency, MMF→MoneyMarket)
+- [ ] Update Account model CheckConstraint with new type values
+- [ ] Update AccountSchema with new type validation
+- [ ] Update AccountService valid_types list
+- [ ] Test migration with sample database
+
+### Frontend Account Type Updates
+
+- [ ] Update TypeScript Account interface type union in `lib/types.ts`
+- [ ] Update AddAccountModal dropdown options with new display names
+- [ ] Update AccountCard ACCOUNT_ACTIONS configuration with new type keys
+- [ ] Update all components displaying account type for better labels
+
+### Backend Transaction Type Enforcement
+
+- [ ] Create `transaction_validation.py` service with ALLOWED_TRANSACTIONS rules
+- [ ] Add `validate_transaction_type()` helper function
+- [ ] Update `create_transaction()` to validate type against account type
+- [ ] Update `create_buy_transaction()` to only allow on Securities accounts
+- [ ] Update `create_sell_transaction()` to only allow on Securities accounts
+- [ ] Update `create_exchange_transaction()` to only allow on ForeignCurrency accounts
+- [ ] Add proper HTTP 400 error responses in transaction router
+- [ ] Document transaction type rules in API_SPEC.md
+
+### Type-Specific Account Details Tabs
+
+- [ ] Create `accountTypeConfig.ts` with ACCOUNT_TAB_CONFIG mapping
+- [ ] Update account details page with conditional tab rendering logic
+- [ ] Configure Deposit accounts to show only Transactions tab
+- [ ] Configure Securities accounts to show Holdings, Transactions, Analysis tabs
+- [ ] Configure ForeignCurrency accounts to show Holdings and Transactions tabs
+- [ ] Configure MoneyMarket accounts to show Transactions and Analysis tabs
+- [ ] Update Holdings tab to display currency balances for ForeignCurrency accounts
+- [ ] Update Analysis tab with interest tracking for MoneyMarket accounts
+
+### Testing Account Type System
+
+- [ ] Unit test: Account type migration script
+- [ ] Unit test: Transaction type validation rules
+- [ ] Integration test: Create each account type and verify allowed transactions
+- [ ] Integration test: Attempt invalid transactions and verify proper rejection
+- [ ] E2E test: Navigate account details and verify correct tabs render
+- [ ] E2E test: Verify action buttons match account type
+- [ ] Data validation: Audit existing transactions for compatibility with new rules
+
+### Documentation Updates
+
+- [ ] Update CONTEXT.md with new account type names in Multi-Account Support section
+- [ ] Update RULES.md constraint values and add Transaction Type Restrictions section
+- [ ] Update DATABASE.md Account table schema with new type values
+- [ ] Update API_SPEC.md endpoint examples and add Account Type Transaction Rules section
+- [ ] Update TRANSACTION_PATTERNS.md with Transaction Type Restrictions by Account Type section
+- [ ] Update FRONTEND_COMPONENTS.md component documentation with new type names
+- [ ] Update CLAUDE.md with new account types and transaction enforcement rules
+- [ ] Review all code examples in documentation to ensure they use correct type names
+
 ## Phase 6: Testing & Validation
 
 ### Unit Tests (Backend)

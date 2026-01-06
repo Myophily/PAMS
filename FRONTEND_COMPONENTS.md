@@ -191,6 +191,41 @@ export default function AccountDetailPage() {
 }
 ```
 
+#### Conditional Tab Rendering by Account Type
+
+Different account types show different tabs to reflect their specific functionality:
+
+| Account Type | Holdings Tab | Transactions Tab | Analysis Tab | Rationale |
+|--------------|--------------|------------------|--------------|-----------|
+| **Deposit** | ❌ | ✅ | ❌ | Cash-only accounts have no holdings to display, just transaction history |
+| **Securities** | ✅ | ✅ | ✅ | Full view: shows stock holdings, transactions, and performance analysis |
+| **ForeignCurrency** | ✅ | ✅ | ❌ | Shows currency holdings (e.g., USD, EUR balances) and transaction history |
+| **MoneyMarket** | ❌ | ✅ | ✅ | Shows transactions and interest tracking/performance over time |
+
+**Implementation:**
+```typescript
+// frontend/lib/accountTypeConfig.ts
+export const ACCOUNT_TAB_CONFIG = {
+  Deposit: ['transactions'],
+  Securities: ['holdings', 'transactions', 'analysis'],
+  ForeignCurrency: ['holdings', 'transactions'],
+  MoneyMarket: ['transactions', 'analysis'],
+};
+
+// Usage in account details page
+import { ACCOUNT_TAB_CONFIG } from '@/lib/accountTypeConfig';
+
+const allowedTabs = ACCOUNT_TAB_CONFIG[account.type] || ['transactions'];
+const shouldShowHoldingsTab = allowedTabs.includes('holdings');
+const shouldShowAnalysisTab = allowedTabs.includes('analysis');
+
+<TabNavigation
+  tabs={allowedTabs.map(tab => tab.charAt(0).toUpperCase() + tab.slice(1))}
+  activeTab={activeTab}
+  onTabChange={setActiveTab}
+/>
+```
+
 ---
 
 ## Feature Components
@@ -310,7 +345,7 @@ interface AccountCardProps {
   account: {
     id: number;
     name: string;
-    type: 'Checking' | 'Brokerage' | 'Foreign' | 'MMF';
+    type: 'Deposit' | 'Securities' | 'ForeignCurrency' | 'MoneyMarket';
     currency: string;
     balance: number;
     balance_usd: number;
@@ -329,10 +364,10 @@ export function AccountCard({ account }: AccountCardProps) {
 
   // Action buttons based on account type
   const actionButtons = {
-    Checking: ['Transfer', 'Deposit', 'Withdrawal'],
-    Brokerage: ['Buy', 'Sell', 'Dividend', 'Transfer'],
-    Foreign: ['Exchange', 'Transfer'],
-    MMF: ['Interest', 'Transfer'],
+    Deposit: ['Transfer', 'Deposit', 'Withdrawal'],
+    Securities: ['Buy', 'Sell', 'Dividend', 'Transfer'],
+    ForeignCurrency: ['Exchange', 'Transfer'],
+    MoneyMarket: ['Interest', 'Transfer'],
   };
 
   return (
@@ -600,7 +635,7 @@ import { useCreateAccount } from '@/lib/hooks/useAccounts';
 export function AddAccountModal({ isOpen, onClose }: AddAccountModalProps) {
   const [formData, setFormData] = useState({
     name: '',
-    type: 'Checking' as const,
+    type: 'Deposit' as const,
     currency: 'KRW',
     initial_balance: 0,
     initial_balance_date: new Date().toISOString().split('T')[0],
@@ -646,10 +681,10 @@ export function AddAccountModal({ isOpen, onClose }: AddAccountModalProps) {
               })}
               className="w-full border rounded px-3 py-2"
             >
-              <option value="Checking">Checking</option>
-              <option value="Brokerage">Brokerage</option>
-              <option value="Foreign">Foreign Currency</option>
-              <option value="MMF">MMF</option>
+              <option value="Deposit">Deposit/Withdrawal</option>
+              <option value="Securities">Securities</option>
+              <option value="ForeignCurrency">Foreign Currency</option>
+              <option value="MoneyMarket">Money Market</option>
             </select>
           </div>
 
@@ -915,7 +950,7 @@ export function useCreateAccount() {
 export interface Account {
   id: number;
   name: string;
-  type: 'Checking' | 'Brokerage' | 'Foreign' | 'MMF';
+  type: 'Deposit' | 'Securities' | 'ForeignCurrency' | 'MoneyMarket';
   currency: string;
   created_at: string;
 }
@@ -1018,7 +1053,7 @@ import { z } from 'zod';
 
 const accountSchema = z.object({
   name: z.string().min(1, 'Account name is required'),
-  type: z.enum(['Checking', 'Brokerage', 'Foreign', 'MMF']),
+  type: z.enum(['Deposit', 'Securities', 'ForeignCurrency', 'MoneyMarket']),
   currency: z.string().length(3),
   initial_balance: z.number().min(0),
   initial_balance_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

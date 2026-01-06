@@ -66,10 +66,47 @@ PAM formalizes the flow of money in reality into 4 fundamental patterns:
 ### 4. Database Rules
 
 #### Schema Constraints
-- `Account.type` MUST be one of: `Checking`, `Brokerage`, `Foreign`, `MMF`
-- `Transaction.type` MUST be one of: `Buy`, `Sell`, `Transfer_In`, `Transfer_Out`, `Deposit`, `Withdrawal`, `Dividend`, `Exchange`
+- `Account.type` MUST be one of: `Deposit`, `Securities`, `ForeignCurrency`, `MoneyMarket`
+- `Transaction.type` MUST be one of: `Buy`, `Sell`, `Transfer_In`, `Transfer_Out`, `Deposit`, `Withdrawal`, `Dividend`, `Exchange`, `Interest`
 - `Holding.ticker` includes special value `CASH` for account balances
 - `MarketData` MUST have unique constraint on `(date, ticker)`
+
+#### Account Type Asset Restrictions
+
+Each account type has restrictions on which assets (currencies and securities) it can hold:
+
+| Account Type | Allowed Currencies | Allowed Securities | Purpose & Notes |
+|--------------|-------------------|-------------------|-----------------|
+| **Deposit** | KRW only | None | Deposit/withdrawal account (입출금통장). Linked to household account book. Cash-only for daily spending. |
+| **MoneyMarket** | KRW only | None | Money Market Fund (MMF). Tracks MMF profits via `Interest` transactions. |
+| **ForeignCurrency** | USD only | None | Foreign currency account (외화통장). Can exchange KRW ↔ USD with other accounts. |
+| **Securities** | All (KRW, USD, etc.) | Stocks, ETFs, Gold, Bonds, etc. | Full investment account (증권계좌). Can hold multiple currencies and all asset types. |
+
+**Enforcement Rules:**
+- `Deposit` accounts can only have `CASH` holdings with `ticker="KRW"`
+- `MoneyMarket` accounts can only have `CASH` holdings with `ticker="KRW"`
+- `ForeignCurrency` accounts can only have `CASH` holdings with `ticker="USD"`
+- `Securities` accounts can hold `CASH` in any currency (KRW, USD, etc.) and any securities
+
+**Examples:**
+- ✅ **Valid:** Deposit account with KRW cash balance
+- ❌ **Invalid:** Deposit account holding USD or stocks
+- ✅ **Valid:** ForeignCurrency account with USD cash balance
+- ❌ **Invalid:** ForeignCurrency account holding stocks
+- ✅ **Valid:** Securities account with KRW cash + AAPL stock + USD cash
+
+#### Transaction Type Restrictions by Account Type
+
+The backend enforces which transaction types are allowed on each account type to maintain data integrity and reflect real-world financial operations:
+
+| Account Type | Allowed Transaction Types | Rationale |
+|--------------|---------------------------|-----------|
+| **Deposit** | `Deposit`, `Withdrawal`, `Transfer_In`, `Transfer_Out` | Cash-only accounts for daily spending and transfers. No investment activities. |
+| **Securities** | `Deposit`, `Withdrawal`, `Buy`, `Sell`, `Dividend`, `Transfer_In`, `Transfer_Out` | Full investment account. Can hold cash, buy/sell securities, and receive dividends. |
+| **ForeignCurrency** | `Deposit`, `Withdrawal`, `Exchange`, `Transfer_In`, `Transfer_Out` | Foreign currency holdings with currency exchange capabilities. |
+| **MoneyMarket** | `Deposit`, `Withdrawal`, `Interest`, `Transfer_In`, `Transfer_Out` | Money market funds that earn interest. Similar to deposit accounts but with interest tracking. |
+
+**Enforcement:** Attempting to create a transaction with an invalid type for an account (e.g., `Buy` on a Deposit account) will result in HTTP 400 error with a descriptive message.
 
 #### Data Consistency
 - `Holding` table is a **computed state** - it should always be derivable from `Transaction` history
