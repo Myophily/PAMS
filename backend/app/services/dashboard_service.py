@@ -70,6 +70,9 @@ class DashboardService:
         # Get allocation by type
         allocation_by_type = self._calculate_allocation_by_type(db, current_snapshot.total_assets_krw)
 
+        # Calculate top assets
+        top_assets = self._calculate_top_assets(db, current_snapshot.total_assets_krw)
+
         return {
             "total_assets": {
                 "krw": current_snapshot.total_assets_krw,
@@ -98,7 +101,8 @@ class DashboardService:
             },
             "allocation": {
                 "by_type": allocation_by_type
-            }
+            },
+            "top_assets": top_assets
         }
 
     def get_chart_data(
@@ -237,3 +241,91 @@ class DashboardService:
             })
 
         return allocation
+
+    def _calculate_top_assets(
+        self,
+        db: Session,
+        total_assets_krw: Decimal,
+        limit: int = 10
+    ) -> List[Dict]:
+        """
+        Calculate top assets by value across all accounts.
+
+        Aggregates holdings by ticker (excluding CASH), calculates total
+        value in KRW, and returns top N assets sorted by value.
+
+        Args:
+            db: Database session
+            total_assets_krw: Total assets in KRW for percentage calculation
+            limit: Number of top assets to return (default: 10)
+
+        Returns:
+            List of dicts with ticker, name, value_krw, percent
+        """
+        from collections import defaultdict
+
+        # Get all accounts
+        accounts = db.query(Account).all()
+
+        # Aggregate holdings by ticker
+        ticker_data = defaultdict(lambda: {
+            'quantity': Decimal("0"),
+            'total_value_krw': Decimal("0")
+        })
+
+        today = date.today()
+        usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", today, db)
+        if not usd_krw_rate:
+            usd_krw_rate = to_decimal(1300, precision=4)  # Fallback
+
+        for account in accounts:
+            holdings = self.holding_service.get_all_holdings_for_account(
+                account.id, db, include_zero=False
+            )
+
+            for holding in holdings:
+                # Skip CASH and currency holdings
+                if holding.ticker in ["CASH", "KRW", "USD", "EUR"]:
+                    continue
+
+                # Get current price (fallback to avg_price if market data unavailable)
+                current_price = self.market_data_service.get_latest_price(holding.ticker, db)
+                if not current_price:
+                    current_price = holding.avg_price
+
+                # Calculate value in account currency
+                value_in_account_currency = holding.quantity * current_price
+
+                # Convert to KRW if needed
+                if account.currency == "USD":
+                    value_krw = value_in_account_currency * usd_krw_rate
+                elif account.currency == "KRW":
+                    value_krw = value_in_account_currency
+                else:
+                    value_krw = value_in_account_currency  # TODO: Handle EUR, etc.
+
+                # Aggregate by ticker
+                ticker_data[holding.ticker]['quantity'] += holding.quantity
+                ticker_data[holding.ticker]['total_value_krw'] += value_krw
+
+        # Build result list
+        top_assets = []
+        for ticker, data in ticker_data.items():
+            value_krw = data['total_value_krw']
+
+            # Calculate percentage of total assets
+            if total_assets_krw > 0:
+                percent = (value_krw / total_assets_krw * 100).quantize(Decimal("0.01"))
+            else:
+                percent = Decimal("0")
+
+            top_assets.append({
+                "ticker": ticker,
+                "name": None,  # TODO: Add ticker name lookup later
+                "value_krw": value_krw.quantize(Decimal("1")),  # No decimals for KRW
+                "percent": percent
+            })
+
+        # Sort by value descending and take top N
+        top_assets.sort(key=lambda x: x['value_krw'], reverse=True)
+        return top_assets[:limit]

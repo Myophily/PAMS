@@ -115,7 +115,13 @@ class AccountService:
             holdings = self.holding_service.get_all_holdings_for_account(account.id, db, include_zero=False)
 
             # Calculate total balance in account's currency
-            balance = sum(h.quantity for h in holdings if h.ticker in ["CASH", account.currency])
+            balance_raw = sum(h.quantity for h in holdings if h.ticker in ["CASH", account.currency])
+
+            # Quantize based on currency type
+            if account.currency == "KRW":
+                balance = balance_raw.quantize(Decimal("1"))  # 0 decimals
+            else:
+                balance = balance_raw.quantize(Decimal("0.01"))  # 2 decimals for USD/EUR
 
             # Convert to USD for comparison
             if account.currency == "KRW":
