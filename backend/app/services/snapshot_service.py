@@ -56,10 +56,16 @@ class SnapshotService:
             >>> snapshot.total_assets_krw
             Decimal('10000000.00')
         """
-        # Use default exchange rate if not provided
-        # TODO: Fetch from market_data_service in Phase 8
+        # Import market service for fetching exchange rates and prices
+        from app.services.market_data_service import MarketDataService
+        market_service = MarketDataService()
+
+        # Fetch USD/KRW rate if not provided
         if usd_krw_rate is None:
-            usd_krw_rate = to_decimal(1300, precision=4)
+            usd_krw_rate = market_service.get_exchange_rate("USD", "KRW", snapshot_date, db)
+            if usd_krw_rate is None:
+                # Fallback to default only if API fails
+                usd_krw_rate = to_decimal(1300, precision=4)
 
         # Get all accounts
         accounts = db.query(Account).all()
@@ -82,21 +88,33 @@ class SnapshotService:
                     if holding.ticker == "USD":
                         value = value * usd_krw_rate
                     elif holding.ticker == "EUR":
-                        # TODO: Fetch EUR/KRW rate from market_data_service
-                        value = value * to_decimal(1400, precision=4)  # Placeholder
+                        # Fetch EUR/KRW rate from market data service
+                        eur_krw_rate = market_service.get_exchange_rate("EUR", "KRW", snapshot_date, db)
+                        if eur_krw_rate is None:
+                            eur_krw_rate = to_decimal(1400, precision=4)  # Fallback
+                        value = value * eur_krw_rate
                     # KRW and CASH stay as-is
 
                 else:
-                    # For stocks, value = quantity × current_price
-                    # TODO: Fetch current price from market_data_service
-                    # For now, use avg_price as placeholder
-                    value = holding.quantity * holding.avg_price
+                    # For stocks, fetch current price for snapshot_date
+                    current_price = market_service.get_stock_price(holding.ticker, snapshot_date, db)
+
+                    if current_price is None:
+                        # Fallback to avg_price if market data unavailable
+                        current_price = holding.avg_price
+                        print(f"[Snapshot] No market data for {holding.ticker} on {snapshot_date}, using avg_price")
+
+                    value = holding.quantity * current_price
 
                     # Convert to KRW based on account currency
                     if account.currency == "USD":
                         value = value * usd_krw_rate
                     elif account.currency == "EUR":
-                        value = value * to_decimal(1400, precision=4)
+                        # Fetch EUR/KRW rate
+                        eur_krw_rate = market_service.get_exchange_rate("EUR", "KRW", snapshot_date, db)
+                        if eur_krw_rate is None:
+                            eur_krw_rate = to_decimal(1400, precision=4)
+                        value = value * eur_krw_rate
 
                 total_krw += value
 

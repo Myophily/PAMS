@@ -11,6 +11,7 @@ from app.models.holding import Holding
 from app.models.account import Account
 from app.models.asset_snapshot import AssetSnapshot
 from app.utils.calculation_engine import calculate_avg_price_on_buy
+from app.utils.date_helpers import get_date_range
 from decimal import Decimal
 from datetime import date
 from typing import List, Dict
@@ -65,8 +66,7 @@ class RecalculationService:
             self._rebuild_holdings_for_account(account_id, start_date, db)
 
         # Regenerate snapshots from start_date to present
-        # TODO: Implement when snapshot_service is ready
-        print(f"[Recalculation] Snapshot regeneration not yet implemented")
+        self._regenerate_snapshots_from_date(start_date, db)
 
         db.commit()
         print(f"[Recalculation] Completed")
@@ -244,6 +244,44 @@ class RecalculationService:
                 db.add(currency)
 
             currency.quantity += tx.amount
+
+    def _regenerate_snapshots_from_date(
+        self,
+        start_date: date,
+        db: Session
+    ) -> None:
+        """
+        Regenerate asset snapshots from start_date to today.
+
+        For each date:
+        1. Fetch market data for all holdings
+        2. Call SnapshotService.generate_snapshot()
+        3. This updates existing snapshots or creates new ones
+
+        Args:
+            start_date: Date to start regenerating from
+            db: Database session
+        """
+        from app.services.snapshot_service import SnapshotService
+        from app.services.market_data_service import MarketDataService
+
+        snapshot_service = SnapshotService()
+        market_service = MarketDataService()
+
+        # Get date range from start_date to today
+        today = date.today()
+        dates = get_date_range(start_date, today)
+
+        print(f"[Recalculation] Regenerating {len(dates)} snapshots from {start_date} to {today}")
+
+        for snapshot_date in dates:
+            # Fetch USD/KRW rate for this date
+            usd_krw_rate = market_service.get_exchange_rate("USD", "KRW", snapshot_date, db)
+
+            # Generate snapshot (this will fetch all needed market data internally)
+            snapshot_service.generate_snapshot(snapshot_date, db, usd_krw_rate)
+
+        print(f"[Recalculation] Completed snapshot regeneration")
 
     def recalculate_all_holdings(self, db: Session) -> None:
         """

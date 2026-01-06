@@ -20,7 +20,7 @@ export default function AccountDetailPage() {
   const searchParams = useSearchParams();
   const accountId = parseInt(params.id as string);
 
-  const { data: accountData, isLoading, error } = useAccountDetails(accountId);
+  const { data: accountData, isLoading, isFetching, error } = useAccountDetails(accountId);
 
   // Get active tab from URL, default to 'holdings'
   const activeTab = searchParams.get('tab') || 'holdings';
@@ -64,6 +64,7 @@ export default function AccountDetailPage() {
         cashBalance={summary.cash_balance}
         unrealizedPL={summary.unrealized_pl}
         unrealizedPLPercent={summary.unrealized_pl_percent}
+        isRefetching={isFetching}
       />
 
       <div className="bg-white rounded-lg shadow">

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import accounts, transactions, dashboard, market_data
+from app.routers import accounts, transactions, dashboard, market_data, snapshots
 import os
 from dotenv import load_dotenv
 
@@ -27,6 +27,7 @@ app.include_router(accounts.router)
 app.include_router(transactions.router)
 app.include_router(dashboard.router)
 app.include_router(market_data.router)
+app.include_router(snapshots.router)
 
 
 @app.get("/api/health")

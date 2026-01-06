@@ -660,15 +660,17 @@ class TransactionService:
         """
         Trigger recalculation of holdings and snapshots from a date.
 
-        This is called when a past transaction is inserted or modified.
-        Full implementation will be in recalculation_service.py.
+        This is called when a past transaction is inserted, modified, or deleted.
 
         Args:
             start_date: Date to start recalculation from
             db: Database session
         """
-        # TODO: Implement in recalculation_service.py (Week 4)
-        print(f"[WARNING] Recalculation from {start_date} not yet implemented")
+        from app.services.recalculation_service import RecalculationService
+
+        print(f"[TransactionService] Triggering recalculation from {start_date}")
+        recalc_service = RecalculationService()
+        recalc_service.recalculate_from_date(start_date, db)
 
     def list_transactions(
         self,

@@ -203,3 +203,41 @@ def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
         transaction_service.delete_transaction(transaction_id, db)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/{transaction_id}/recalculate", status_code=200)
+def trigger_recalculation(transaction_id: int, db: Session = Depends(get_db)):
+    """
+    Manually trigger recalculation from a transaction's date.
+
+    Useful for:
+    - Fixing data inconsistencies
+    - After manual database edits
+    - Debugging calculation issues
+
+    This will:
+    1. Get the transaction date
+    2. Rebuild holdings from that date forward
+    3. Regenerate snapshots from that date forward
+
+    Args:
+        transaction_id: ID of the transaction to use as starting point
+        db: Database session
+
+    Returns:
+        Success status with recalculation details
+    """
+    from app.services.recalculation_service import RecalculationService
+
+    tx = transaction_service.get_transaction(transaction_id, db)
+    if not tx:
+        raise HTTPException(status_code=404, detail=f"Transaction {transaction_id} not found")
+
+    recalc_service = RecalculationService()
+    recalc_service.recalculate_from_date(tx.date, db)
+
+    return {
+        "status": "success",
+        "message": f"Recalculated holdings and snapshots from {tx.date}",
+        "recalculation_date": tx.date.isoformat()
+    }

@@ -118,6 +118,17 @@ export function TransactionTimeline({ accountId }: TransactionTimelineProps) {
                     <span className="text-sm text-gray-600">
                       {formatShortDate(tx.date)}
                     </span>
+                    {/* Show badge for past transactions (older than a week) */}
+                    {(() => {
+                      const txDate = new Date(tx.date);
+                      const now = new Date();
+                      const daysDiff = (now.getTime() - txDate.getTime()) / (1000 * 60 * 60 * 24);
+                      return daysDiff > 7 && (
+                        <Badge variant="warning" className="text-xs">
+                          Past transaction
+                        </Badge>
+                      );
+                    })()}
                   </div>
 
                   <div className="text-lg font-semibold text-gray-900">
