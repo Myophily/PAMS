@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useAccounts } from '@/lib/hooks/useAccounts';
 import { AccountCard } from './_components/AccountCard';
 import { Button } from '@/components/ui/Button';
@@ -11,7 +12,7 @@ import { TransferModal } from '@/components/modals/TransferModal';
 import { ExchangeModal } from '@/components/modals/ExchangeModal';
 import { BuySellModal } from '@/components/modals/BuySellModal';
 
-export default function AccountsPage() {
+function AccountsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -103,5 +104,13 @@ export default function AccountsPage() {
         defaultType="Sell"
       />
     </div>
+  );
+}
+
+export default function AccountsPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
+      <AccountsContent />
+    </Suspense>
   );
 }

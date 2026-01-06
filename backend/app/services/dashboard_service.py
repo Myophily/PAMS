@@ -58,7 +58,9 @@ class DashboardService:
             db.commit()
 
         # Get exchange rate
-        usd_krw_rate = to_decimal(1300, precision=4)  # Placeholder
+        usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", today, db)
+        if not usd_krw_rate:
+            usd_krw_rate = to_decimal(1300, precision=4)  # Fallback
 
         # Calculate changes
         day_amount, day_percent = self.snapshot_service.calculate_period_change(today, 1, db)
