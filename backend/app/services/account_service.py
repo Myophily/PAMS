@@ -120,7 +120,7 @@ class AccountService:
             holdings = self.holding_service.get_all_holdings_for_account(account.id, db, include_zero=False)
 
             # Calculate total balance in account's currency
-            balance_raw = sum(h.quantity for h in holdings if h.ticker in ["CASH", account.currency])
+            balance_raw = sum((h.quantity for h in holdings if h.ticker in ["CASH", account.currency]), Decimal("0"))
 
             # Quantize based on currency type
             if account.currency == "KRW":
