@@ -41,7 +41,7 @@ export function useCreateAccount() {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.message || 'Failed to create account');
+        throw new Error(error.detail || 'Failed to create account');
       }
       return res.json();
     },
@@ -63,7 +63,10 @@ export function useUpdateAccount(id: number) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error('Failed to update account');
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'Failed to update account');
+      }
       return res.json();
     },
     onSuccess: () => {

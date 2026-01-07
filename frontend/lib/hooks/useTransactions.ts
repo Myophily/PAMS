@@ -251,7 +251,10 @@ export function useUpdateTransaction(id: number) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error('Failed to update transaction');
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'Failed to update transaction');
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -272,7 +275,10 @@ export function useDeleteTransaction() {
       const res = await fetch(`/api/transactions/${id}`, {
         method: 'DELETE',
       });
-      if (!res.ok) throw new Error('Failed to delete transaction');
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'Failed to delete transaction');
+      }
       return res.json();
     },
     onSuccess: () => {
