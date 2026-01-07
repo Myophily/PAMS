@@ -28,7 +28,7 @@ export function AssetVolatilityChart({ data }: AssetVolatilityChartProps) {
   if (!data || data.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-bold mb-4">Asset Growth</h3>
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Asset Growth</h3>
         <div className="flex items-center justify-center h-[400px] text-gray-500">
           No data available
         </div>
@@ -50,7 +50,7 @@ export function AssetVolatilityChart({ data }: AssetVolatilityChartProps) {
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-bold mb-4">Asset Growth</h3>
+      <h3 className="text-lg font-bold text-gray-900 mb-4">Asset Growth</h3>
       <ResponsiveContainer width="100%" height={400}>
         <ComposedChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />

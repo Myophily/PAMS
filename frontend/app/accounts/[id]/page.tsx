@@ -48,7 +48,7 @@ export default function AccountDetailPage() {
   if (!accountData) {
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-2">Account Not Found</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Account Not Found</h3>
         <p className="text-gray-700">
           The account you are looking for does not exist.
         </p>

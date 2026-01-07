@@ -25,7 +25,7 @@ export function TopAssetsBarChart({ assets }: TopAssetsBarChartProps) {
   if (!assets || assets.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-bold mb-4">Top Assets</h3>
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Top Assets</h3>
         <div className="flex items-center justify-center h-[300px] text-gray-500">
           No data available
         </div>
@@ -46,7 +46,7 @@ export function TopAssetsBarChart({ assets }: TopAssetsBarChartProps) {
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-bold mb-4">Top Assets</h3>
+      <h3 className="text-lg font-bold text-gray-900 mb-4">Top Assets</h3>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart
           data={chartData}

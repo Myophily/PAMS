@@ -14,7 +14,7 @@ export function AssetAllocationChart({ data }: AssetAllocationChartProps) {
   if (!data || data.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-bold mb-4">Asset Allocation</h3>
+        <h3 className="text-lg font-bold text-gray-900 mb-4">Asset Allocation</h3>
         <div className="flex items-center justify-center h-[300px] text-gray-500">
           No data available
         </div>
@@ -31,7 +31,7 @@ export function AssetAllocationChart({ data }: AssetAllocationChartProps) {
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-bold mb-4">Asset Allocation</h3>
+      <h3 className="text-lg font-bold text-gray-900 mb-4">Asset Allocation</h3>
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>
           <Pie

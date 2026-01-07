@@ -65,7 +65,7 @@ export function DividendCalendar({
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-bold mb-4">Dividend Calendar - {monthName}</h3>
+      <h3 className="text-lg font-bold text-gray-900 mb-4">Dividend Calendar - {monthName}</h3>
       <div className="grid grid-cols-7 gap-1">
         {/* Day headers */}
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (

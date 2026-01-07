@@ -1,19 +1,19 @@
-'use client';
+"use client";
 
-import { useDashboardSummary, useAssetChart } from '@/lib/hooks/useDashboard';
-import { useCurrency } from '@/lib/context/currency-context';
-import { Spinner } from '@/components/ui/Spinner';
-import { TotalAssetCard } from './_components/TotalAssetCard';
-import { ExchangeRateDisplay } from './_components/ExchangeRateDisplay';
-import { AssetChangeStats } from './_components/AssetChangeStats';
-import { AssetAllocationChart } from '@/components/charts/AssetAllocationChart';
-import { TopAssetsBarChart } from '@/components/charts/TopAssetsBarChart';
-import { AssetVolatilityChart } from '@/components/charts/AssetVolatilityChart';
+import { useDashboardSummary, useAssetChart } from "@/lib/hooks/useDashboard";
+import { useCurrency } from "@/lib/context/currency-context";
+import { Spinner } from "@/components/ui/Spinner";
+import { TotalAssetCard } from "./_components/TotalAssetCard";
+import { ExchangeRateDisplay } from "./_components/ExchangeRateDisplay";
+import { AssetChangeStats } from "./_components/AssetChangeStats";
+import { AssetAllocationChart } from "@/components/charts/AssetAllocationChart";
+import { TopAssetsBarChart } from "@/components/charts/TopAssetsBarChart";
+import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
 
 export default function HomePage() {
   const { currency } = useCurrency();
   const { data: summary, isLoading, error } = useDashboardSummary();
-  const { data: chartData } = useAssetChart('1M', currency);
+  const { data: chartData } = useAssetChart("1M", currency);
 
   if (isLoading) {
     return (
@@ -34,7 +34,9 @@ export default function HomePage() {
   if (!summary) {
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold mb-2">No Data Available</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          No Data Available
+        </h3>
         <p className="text-gray-700">
           Create your first account to start tracking your assets.
         </p>

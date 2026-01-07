@@ -57,7 +57,7 @@ export function AccountCard({ account }: AccountCardProps) {
       <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition cursor-pointer">
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xl font-bold">{account.name}</h3>
+            <h3 className="text-xl font-bold text-gray-900">{account.name}</h3>
             <Badge variant="default">{accountConfig.displayName}</Badge>
           </div>
           <span className="text-sm text-gray-500">{account.currency}</span>

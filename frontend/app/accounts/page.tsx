@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { Suspense } from 'react';
-import { useAccounts } from '@/lib/hooks/useAccounts';
-import { AccountCard } from './_components/AccountCard';
-import { Button } from '@/components/ui/Button';
-import { Spinner } from '@/components/ui/Spinner';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { AddAccountModal } from '@/components/modals/AddAccountModal';
-import { AddTransactionModal } from '@/components/modals/AddTransactionModal';
-import { TransferModal } from '@/components/modals/TransferModal';
-import { ExchangeModal } from '@/components/modals/ExchangeModal';
-import { BuySellModal } from '@/components/modals/BuySellModal';
-import { DeleteAccountModal } from '@/components/modals/DeleteAccountModal';
+import { Suspense } from "react";
+import { useAccounts } from "@/lib/hooks/useAccounts";
+import { AccountCard } from "./_components/AccountCard";
+import { Button } from "@/components/ui/Button";
+import { Spinner } from "@/components/ui/Spinner";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { AddAccountModal } from "@/components/modals/AddAccountModal";
+import { AddTransactionModal } from "@/components/modals/AddTransactionModal";
+import { TransferModal } from "@/components/modals/TransferModal";
+import { ExchangeModal } from "@/components/modals/ExchangeModal";
+import { BuySellModal } from "@/components/modals/BuySellModal";
+import { DeleteAccountModal } from "@/components/modals/DeleteAccountModal";
 
 function AccountsContent() {
   const router = useRouter();
@@ -19,11 +19,11 @@ function AccountsContent() {
   const searchParams = useSearchParams();
   const { data, isLoading, error } = useAccounts();
 
-  const modal = searchParams.get('modal');
-  const accountId = searchParams.get('accountId');
+  const modal = searchParams.get("modal");
+  const accountId = searchParams.get("accountId");
 
   const handleAddAccount = () => {
-    router.push('?modal=add-account');
+    router.push("?modal=add-account");
   };
 
   const closeModal = () => {
@@ -32,7 +32,7 @@ function AccountsContent() {
 
   // Find the account for delete modal
   const accountToDelete = (data?.accounts || []).find(
-    (acc) => acc.id === parseInt(accountId || '0')
+    (acc) => acc.id === parseInt(accountId || "0")
   );
 
   if (isLoading) {
@@ -57,9 +57,7 @@ function AccountsContent() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Accounts</h1>
-        <Button onClick={handleAddAccount}>
-          Add New Account
-        </Button>
+        <Button onClick={handleAddAccount}>Add New Account</Button>
       </div>
 
       {accounts.length === 0 ? (
@@ -68,9 +66,7 @@ function AccountsContent() {
           <p className="text-gray-700 mb-4">
             Create your first account to start tracking your assets.
           </p>
-          <Button onClick={handleAddAccount}>
-            Create First Account
-          </Button>
+          <Button onClick={handleAddAccount}>Create First Account</Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -81,35 +77,35 @@ function AccountsContent() {
       )}
 
       {/* Modals */}
-      <AddAccountModal isOpen={modal === 'add-account'} onClose={closeModal} />
+      <AddAccountModal isOpen={modal === "add-account"} onClose={closeModal} />
       <AddTransactionModal
-        isOpen={modal === 'add-transaction'}
+        isOpen={modal === "add-transaction"}
         onClose={closeModal}
         defaultAccountId={accountId ? parseInt(accountId) : undefined}
       />
       <TransferModal
-        isOpen={modal === 'transfer'}
+        isOpen={modal === "transfer"}
         onClose={closeModal}
         defaultFromAccountId={accountId ? parseInt(accountId) : undefined}
       />
       <ExchangeModal
-        isOpen={modal === 'exchange'}
+        isOpen={modal === "exchange"}
         onClose={closeModal}
         defaultAccountId={accountId ? parseInt(accountId) : undefined}
       />
       <BuySellModal
-        isOpen={modal === 'buy'}
+        isOpen={modal === "buy"}
         onClose={closeModal}
         defaultAccountId={accountId ? parseInt(accountId) : undefined}
         defaultType="Buy"
       />
       <BuySellModal
-        isOpen={modal === 'sell'}
+        isOpen={modal === "sell"}
         onClose={closeModal}
         defaultAccountId={accountId ? parseInt(accountId) : undefined}
         defaultType="Sell"
       />
-      {modal === 'delete-account' && accountToDelete && (
+      {modal === "delete-account" && accountToDelete && (
         <DeleteAccountModal
           isOpen={true}
           onClose={closeModal}
@@ -122,7 +118,13 @@ function AccountsContent() {
 
 export default function AccountsPage() {
   return (
-    <Suspense fallback={<div className="flex justify-center items-center h-64"><Spinner size="lg" /></div>}>
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center h-64">
+          <Spinner size="lg" />
+        </div>
+      }
+    >
       <AccountsContent />
     </Suspense>
   );

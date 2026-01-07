@@ -41,7 +41,7 @@ export function AccountSummaryHeader({
     <div className="bg-white rounded-lg shadow-lg p-6">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">{name}</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{name}</h1>
           <span className="text-sm text-gray-500">
             {type} • {currency}
           </span>
