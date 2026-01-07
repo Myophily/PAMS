@@ -273,6 +273,10 @@ class DashboardService:
             'total_value_krw': Decimal("0")
         })
 
+        # Track aggregated cash separately by currency (converted to KRW value)
+        cash_krw_value = Decimal("0")
+        cash_usd_value_in_krw = Decimal("0")
+
         today = date.today()
         usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", today, db)
         if not usd_krw_rate:
@@ -284,8 +288,24 @@ class DashboardService:
             )
 
             for holding in holdings:
-                # Skip CASH and currency holdings
-                if holding.ticker in ["CASH", "KRW", "USD", "EUR"]:
+                # Handle CASH and currencies
+                if holding.ticker == "CASH":
+                    if account.currency == "USD":
+                        cash_usd_value_in_krw += holding.quantity * usd_krw_rate
+                    else:  # KRW or other (treat as KRW default)
+                        cash_krw_value += holding.quantity
+                    continue
+
+                if holding.ticker == "KRW":
+                    cash_krw_value += holding.quantity
+                    continue
+
+                if holding.ticker == "USD":
+                    cash_usd_value_in_krw += holding.quantity * usd_krw_rate
+                    continue
+
+                if holding.ticker == "EUR":
+                    # Skip EUR for now as we don't have exchange rate logic here
                     continue
 
                 # Get current price (fallback to avg_price if market data unavailable)
@@ -310,6 +330,35 @@ class DashboardService:
 
         # Build result list
         top_assets = []
+
+        # Add Cash (KRW) entry if positive
+        if cash_krw_value > 0:
+            if total_assets_krw > 0:
+                percent = (cash_krw_value / total_assets_krw * 100).quantize(Decimal("0.01"))
+            else:
+                percent = Decimal("0")
+
+            top_assets.append({
+                "ticker": "Cash (KRW)",
+                "name": "Korean Won",
+                "value_krw": cash_krw_value.quantize(Decimal("1")),
+                "percent": percent
+            })
+
+        # Add Cash (USD) entry if positive
+        if cash_usd_value_in_krw > 0:
+            if total_assets_krw > 0:
+                percent = (cash_usd_value_in_krw / total_assets_krw * 100).quantize(Decimal("0.01"))
+            else:
+                percent = Decimal("0")
+
+            top_assets.append({
+                "ticker": "Cash (USD)",
+                "name": "US Dollar",
+                "value_krw": cash_usd_value_in_krw.quantize(Decimal("1")),
+                "percent": percent
+            })
+
         for ticker, data in ticker_data.items():
             value_krw = data['total_value_krw']
 

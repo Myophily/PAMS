@@ -188,7 +188,7 @@ def mock_market_data(db_session, monkeypatch):
     Mock market data to avoid external API calls during testing.
     Provides pre-defined prices for common test tickers.
     """
-    def mock_fetch_stock_price(ticker: str, target_date: date):
+    def mock_get_stock_price(self, ticker: str, target_date: date, db: Session):
         """Return mock stock prices."""
         mock_prices = {
             "AAPL": Decimal("150.00"),
@@ -199,30 +199,39 @@ def mock_market_data(db_session, monkeypatch):
         }
         return mock_prices.get(ticker, Decimal("100.00"))
 
-    def mock_fetch_exchange_rate(from_currency: str, to_currency: str, target_date: date):
+    def mock_get_exchange_rate(self, from_currency: str, to_currency: str, target_date: date, db: Session):
         """Return mock exchange rates."""
         if from_currency == "USD" and to_currency == "KRW":
             return Decimal("1300.00")
         elif from_currency == "KRW" and to_currency == "USD":
             return Decimal("0.00076923")  # 1/1300
         return Decimal("1.00")
+    
+    def mock_get_latest_price(self, ticker: str, db: Session):
+        """Return mock latest price (same as get_stock_price for simplicity)."""
+        return mock_get_stock_price(self, ticker, date.today(), db)
 
-    # Monkey patch market data service
-    from app.services import market_data_service
+    # Monkey patch MarketDataService class methods
+    from app.services.market_data_service import MarketDataService
     monkeypatch.setattr(
-        market_data_service,
-        "fetch_stock_price",
-        mock_fetch_stock_price
+        MarketDataService,
+        "get_stock_price",
+        mock_get_stock_price
     )
     monkeypatch.setattr(
-        market_data_service,
-        "fetch_exchange_rate",
-        mock_fetch_exchange_rate
+        MarketDataService,
+        "get_exchange_rate",
+        mock_get_exchange_rate
+    )
+    monkeypatch.setattr(
+        MarketDataService,
+        "get_latest_price",
+        mock_get_latest_price
     )
 
     return {
-        "stock_price": mock_fetch_stock_price,
-        "exchange_rate": mock_fetch_exchange_rate
+        "stock_price": mock_get_stock_price,
+        "exchange_rate": mock_get_exchange_rate
     }
 
 
