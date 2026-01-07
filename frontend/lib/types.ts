@@ -14,7 +14,7 @@ export type DecimalString = string;
 export interface Account {
   id: number;
   name: string;
-  type: 'Deposit' | 'Securities' | 'ForeignCurrency' | 'MoneyMarket';
+  type: 'Deposit' | 'Securities' | 'ForeignCurrency' | 'MoneyMarket' | 'Savings';
   currency: string;
   created_at: string;
 }
@@ -107,7 +107,7 @@ export interface AssetChartData {
 // Form input types
 export interface CreateAccountInput {
   name: string;
-  type: 'Deposit' | 'Securities' | 'ForeignCurrency' | 'MoneyMarket';
+  type: 'Deposit' | 'Securities' | 'ForeignCurrency' | 'MoneyMarket' | 'Savings';
   currency: string;
   initial_balance: number;
   initial_balance_date: string;

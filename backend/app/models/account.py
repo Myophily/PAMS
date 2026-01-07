@@ -20,7 +20,7 @@ class Account(Base):
     # Constraints and Indexes
     __table_args__ = (
         CheckConstraint(
-            type.in_(['Deposit', 'Securities', 'ForeignCurrency', 'MoneyMarket']),
+            type.in_(['Deposit', 'Securities', 'ForeignCurrency', 'MoneyMarket', 'Savings']),
             name='check_account_type'
         ),
         Index('idx_account_type', 'type'),

@@ -3,7 +3,7 @@ import { z } from 'zod';
 // Account creation schema
 export const createAccountSchema = z.object({
   name: z.string().min(1, 'Account name is required'),
-  type: z.enum(['Deposit', 'Securities', 'ForeignCurrency', 'MoneyMarket']),
+  type: z.enum(['Deposit', 'Securities', 'ForeignCurrency', 'MoneyMarket', 'Savings']),
   currency: z.string().length(3, 'Currency must be 3 characters'),
   initial_balance: z.number().min(0, 'Balance cannot be negative'),
   initial_balance_date: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid datetime format'),

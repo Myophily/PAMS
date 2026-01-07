@@ -48,6 +48,12 @@ export const ACCOUNT_TYPE_CONFIG: Record<string, AccountTypeConfig> = {
     allowedTabs: ['transactions', 'analysis'],
     primaryActions: ['interest', 'transfer'],
   },
+  Savings: {
+    displayName: 'Savings Account',
+    description: 'Interest-bearing savings account',
+    allowedTabs: ['transactions', 'analysis'],
+    primaryActions: ['deposit', 'withdrawal', 'interest', 'transfer'],
+  },
 };
 
 /**

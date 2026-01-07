@@ -85,7 +85,7 @@ Represents financial accounts (deposit/withdrawal, securities, foreign currency,
 |--------|------|-------------|-------------|
 | `id` | INTEGER | PRIMARY KEY, AUTOINCREMENT | Unique account identifier |
 | `name` | VARCHAR(100) | NOT NULL, UNIQUE | Account display name (e.g., "Toss Checking") |
-| `type` | VARCHAR(20) | NOT NULL, CHECK | Account type: `Deposit`, `Securities`, `ForeignCurrency`, `MoneyMarket` |
+| `type` | VARCHAR(20) | NOT NULL, CHECK | Account type: `Deposit`, `Securities`, `ForeignCurrency`, `MoneyMarket`, `Savings` |
 | `currency` | VARCHAR(3) | NOT NULL | Base currency: `KRW`, `USD`, `EUR`, etc. |
 | `created_at` | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Account creation timestamp |
 
@@ -114,7 +114,10 @@ class Account(Base):
 
     # Constraints
     __table_args__ = (
-        CheckConstraint(type.in_(['Deposit', 'Securities', 'ForeignCurrency', 'MoneyMarket']), name='check_account_type'),
+        CheckConstraint(
+            type.in_(['Deposit', 'Securities', 'ForeignCurrency', 'MoneyMarket', 'Savings']),
+            name='check_account_type'
+        ),
     )
 ```
 
@@ -131,13 +134,14 @@ Each account type has specific restrictions on which assets it can hold:
 |--------------|---------------|------------------|---------|
 | **Deposit** | `KRW` | `CASH` (KRW only) | Deposit/withdrawal account (입출금통장) for daily spending. Linked to household account book. |
 | **MoneyMarket** | `KRW` | `CASH` (KRW only) | Money Market Fund (MMF). Earns interest tracked via `Interest` transactions. |
+| **Savings** | `KRW`, `USD` | `CASH` (any currency) | Savings account (예적금) for earning interest. Tracks `Interest` transactions. |
 | **ForeignCurrency** | `USD` | `CASH` (USD only) | Foreign currency account (외화통장). Holds USD and supports currency exchange. |
 | **Securities** | `KRW` or `USD` | `CASH` (any currency) + Stocks, ETFs, Gold, Bonds, etc. | Full investment account (증권계좌). Can hold multiple currencies and all security types. |
 
 **Validation:**
 - `Deposit` and `MoneyMarket` accounts must have `currency='KRW'`
 - `ForeignCurrency` accounts must have `currency='USD'`
-- `Securities` accounts can have any base currency
+- `Securities` and `Savings` accounts can have any base currency
 - Holdings must respect the allowed asset types for each account type
 
 **Migration Note:**

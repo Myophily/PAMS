@@ -72,6 +72,7 @@ export function AddAccountModal({ isOpen, onClose }: AddAccountModalProps) {
           error={errors.type?.message}
         >
           <option value="Deposit">Deposit Account (입출금)</option>
+          <option value="Savings">Savings Account (예적금)</option>
           <option value="Securities">Securities Account (증권)</option>
           <option value="ForeignCurrency">Foreign Currency (외화)</option>
           <option value="MoneyMarket">Money Market Fund (MMF)</option>

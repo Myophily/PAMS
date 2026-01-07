@@ -46,6 +46,13 @@ ALLOWED_TRANSACTIONS: Dict[str, Set[str]] = {
         'Transfer_In',
         'Transfer_Out',
         'Interest'
+    },
+    'Savings': {
+        'Deposit',
+        'Withdrawal',
+        'Transfer_In',
+        'Transfer_Out',
+        'Interest'
     }
 }
 

@@ -63,7 +63,7 @@ class AccountService:
             ValueError: If validation fails
         """
         # Validate account type
-        valid_types = ["Deposit", "Securities", "ForeignCurrency", "MoneyMarket"]
+        valid_types = ["Deposit", "Securities", "ForeignCurrency", "MoneyMarket", "Savings"]
         if account_type not in valid_types:
             raise ValueError(f"Invalid account type. Must be one of: {valid_types}")
 
