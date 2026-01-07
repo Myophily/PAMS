@@ -6,7 +6,7 @@ export const createAccountSchema = z.object({
   type: z.enum(['Deposit', 'Securities', 'ForeignCurrency', 'MoneyMarket']),
   currency: z.string().length(3, 'Currency must be 3 characters'),
   initial_balance: z.number().min(0, 'Balance cannot be negative'),
-  initial_balance_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+  initial_balance_date: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid datetime format'),
 });
 
 export type CreateAccountFormData = z.infer<typeof createAccountSchema>;
@@ -19,7 +19,7 @@ export const createTransactionSchema = z.object({
   ticker: z.string().optional(),
   quantity: z.number().positive().optional(),
   price: z.number().positive().optional(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid datetime format'),
   description: z.string().optional(),
 });
 
@@ -30,7 +30,7 @@ export const createTransferSchema = z.object({
   from_account_id: z.number().positive('Please select source account'),
   to_account_id: z.number().positive('Please select destination account'),
   amount: z.number().positive('Amount must be greater than 0'),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid datetime format'),
   description: z.string().optional(),
 }).refine(data => data.from_account_id !== data.to_account_id, {
   message: 'Source and destination accounts must be different',
@@ -47,7 +47,7 @@ export const createExchangeSchema = z.object({
   from_amount: z.number().positive('Amount must be greater than 0'),
   to_amount: z.number().positive('Amount must be greater than 0'),
   exchange_rate: z.number().positive().optional(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid datetime format'),
   description: z.string().optional(),
 }).refine(data => data.from_ticker !== data.to_ticker, {
   message: 'Source and destination currencies must be different',
@@ -63,7 +63,7 @@ export const createBuySellSchema = z.object({
   ticker: z.string().min(1, 'Ticker is required'),
   quantity: z.number().positive('Quantity must be greater than 0'),
   price: z.number().positive('Price must be greater than 0'),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid datetime format'),
   description: z.string().optional(),
 });
 

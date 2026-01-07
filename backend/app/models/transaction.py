@@ -14,7 +14,7 @@ class Transaction(Base):
     quantity = Column(Numeric(18, 8), nullable=True)
     price = Column(Numeric(18, 4), nullable=True)
     amount = Column(Numeric(18, 2), nullable=False)  # CRITICAL: Decimal for money, NEVER Float
-    date = Column(Date, nullable=False)  # Use Date (YYYY-MM-DD), not DateTime
+    date = Column(DateTime, nullable=False)  # DateTime with minute precision (HH:MM)
     linked_tx_id = Column(Integer, ForeignKey('transaction.id', ondelete='SET NULL'), nullable=True)  # Self-referencing
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

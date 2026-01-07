@@ -21,7 +21,7 @@ from app.utils.calculation_engine import (
     calculate_avg_price_on_sell
 )
 from decimal import Decimal
-from datetime import date
+from datetime import datetime
 from typing import Tuple, Optional, List
 
 
@@ -41,7 +41,7 @@ class TransactionService:
         self,
         account_id: int,
         amount: Decimal,
-        transaction_date: date,
+        transaction_date: datetime,
         description: Optional[str],
         db: Session,
         auto_commit: bool = True
@@ -120,7 +120,7 @@ class TransactionService:
         self,
         account_id: int,
         amount: Decimal,
-        transaction_date: date,
+        transaction_date: datetime,
         description: Optional[str],
         db: Session
     ) -> Transaction:
@@ -189,7 +189,7 @@ class TransactionService:
         account_id: int,
         ticker: str,
         amount: Decimal,
-        transaction_date: date,
+        transaction_date: datetime,
         description: Optional[str],
         db: Session
     ) -> Transaction:
@@ -255,7 +255,7 @@ class TransactionService:
         from_account_id: int,
         to_account_id: int,
         amount: Decimal,
-        transaction_date: date,
+        transaction_date: datetime,
         description: Optional[str],
         db: Session
     ) -> Tuple[Transaction, Transaction]:
@@ -380,7 +380,7 @@ class TransactionService:
         ticker: str,
         quantity: Decimal,
         price: Decimal,
-        transaction_date: date,
+        transaction_date: datetime,
         description: Optional[str],
         db: Session
     ) -> Transaction:
@@ -484,7 +484,7 @@ class TransactionService:
         ticker: str,
         quantity: Decimal,
         price: Decimal,
-        transaction_date: date,
+        transaction_date: datetime,
         description: Optional[str],
         db: Session
     ) -> Transaction:
@@ -569,7 +569,7 @@ class TransactionService:
         to_ticker: str,
         from_amount: Decimal,
         to_amount: Decimal,
-        transaction_date: date,
+        transaction_date: datetime,
         description: Optional[str],
         db: Session
     ) -> Tuple[Transaction, Transaction]:
@@ -684,7 +684,7 @@ class TransactionService:
         self,
         account_id: int,
         amount: Decimal,
-        transaction_date: date,
+        transaction_date: datetime,
         description: Optional[str],
         db: Session
     ) -> Transaction:
@@ -758,7 +758,7 @@ class TransactionService:
 
     # ========== HELPER METHODS ==========
 
-    def _trigger_recalculation(self, start_date: date, db: Session):
+    def _trigger_recalculation(self, start_date: datetime, db: Session):
         """
         Trigger recalculation of holdings and snapshots from a date.
 
@@ -780,8 +780,8 @@ class TransactionService:
         account_id: Optional[int] = None,
         type: Optional[str] = None,
         ticker: Optional[str] = None,
-        start_date: Optional[date] = None,
-        end_date: Optional[date] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
         limit: int = 50,
         offset: int = 0
     ) -> List[Transaction]:

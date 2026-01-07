@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTransactions } from '@/lib/hooks/useTransactions';
 import { Spinner } from '@/components/ui/Spinner';
 import { Badge } from '@/components/ui/Badge';
-import { formatShortDate } from '@/lib/utils/format';
+import { formatDateTime } from '@/lib/utils/datetime';
 import { formatDecimal } from '@/lib/utils/decimal';
 
 interface TransactionTimelineProps {
@@ -117,7 +117,7 @@ export function TransactionTimeline({ accountId }: TransactionTimelineProps) {
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant={getBadgeVariant(tx.type)}>{tx.type}</Badge>
                     <span className="text-sm text-gray-600">
-                      {formatShortDate(tx.date)}
+                      {formatDateTime(tx.date)}
                     </span>
                     {/* Show badge for past transactions (older than a week) */}
                     {(() => {

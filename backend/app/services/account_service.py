@@ -20,7 +20,7 @@ from app.schemas.account_schema import (
     HoldingResponse
 )
 from decimal import Decimal
-from datetime import date, datetime
+from datetime import datetime
 from typing import List, Optional
 
 
@@ -40,7 +40,7 @@ class AccountService:
         account_type: str,
         currency: str,
         initial_balance: Decimal,
-        initial_balance_date: Optional[date],
+        initial_balance_date: Optional[datetime],
         db: Session
     ) -> Account:
         """
@@ -83,7 +83,7 @@ class AccountService:
 
         # If initial balance > 0, create deposit transaction
         if initial_balance > 0:
-            balance_date = initial_balance_date or date.today()
+            balance_date = initial_balance_date or datetime.now().replace(second=0, microsecond=0)
 
             self.transaction_service.create_deposit(
                 account_id=account.id,
@@ -363,7 +363,7 @@ class AccountService:
 
         return set(tx.account_id for tx in affected_txs)
 
-    def _get_earliest_transaction_date(self, account_id: int, db: Session) -> Optional[date]:
+    def _get_earliest_transaction_date(self, account_id: int, db: Session) -> Optional[datetime]:
         """
         Get the earliest transaction date for recalculation.
 

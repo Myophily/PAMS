@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
@@ -10,7 +10,7 @@ class DepositCreate(BaseModel):
     """Create deposit transaction."""
     account_id: int
     amount: Decimal
-    date: date
+    date: datetime
     description: Optional[str] = None
 
 
@@ -18,7 +18,7 @@ class WithdrawalCreate(BaseModel):
     """Create withdrawal transaction."""
     account_id: int
     amount: Decimal
-    date: date
+    date: datetime
     description: Optional[str] = None
 
 
@@ -27,7 +27,7 @@ class DividendCreate(BaseModel):
     account_id: int
     ticker: str
     amount: Decimal
-    date: date
+    date: datetime
     description: Optional[str] = None
 
 
@@ -35,7 +35,7 @@ class InterestCreate(BaseModel):
     """Create interest transaction for MoneyMarket accounts."""
     account_id: int
     amount: Decimal
-    date: date
+    date: datetime
     description: Optional[str] = None
 
 
@@ -46,7 +46,7 @@ class TransferCreate(BaseModel):
     from_account_id: int
     to_account_id: int
     amount: Decimal
-    date: date
+    date: datetime
     description: Optional[str] = None
 
 
@@ -58,7 +58,7 @@ class BuyCreate(BaseModel):
     ticker: str
     quantity: Decimal
     price: Decimal
-    date: date
+    date: datetime
     description: Optional[str] = None
 
 
@@ -68,7 +68,7 @@ class SellCreate(BaseModel):
     ticker: str
     quantity: Decimal
     price: Decimal
-    date: date
+    date: datetime
     description: Optional[str] = None
 
 
@@ -81,7 +81,7 @@ class ExchangeCreate(BaseModel):
     to_ticker: str
     from_amount: Decimal
     to_amount: Decimal
-    date: date
+    date: datetime
     description: Optional[str] = None
 
 
@@ -96,7 +96,7 @@ class TransactionResponse(BaseModel):
     quantity: Optional[Decimal] = None
     price: Optional[Decimal] = None
     amount: Decimal
-    date: date
+    date: datetime
     linked_tx_id: Optional[int] = None
     description: Optional[str] = None
     created_at: datetime
@@ -117,7 +117,7 @@ class TransactionDetailResponse(BaseModel):
     quantity: Optional[Decimal] = None
     price: Optional[Decimal] = None
     amount: Decimal
-    date: date
+    date: datetime
     linked_tx_id: Optional[int] = None
     description: Optional[str] = None
     created_at: datetime

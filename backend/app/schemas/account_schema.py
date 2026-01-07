@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import datetime, date
+from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
@@ -12,7 +12,7 @@ class AccountCreateRequest(BaseModel):
     type: str  # Deposit | Securities | ForeignCurrency | MoneyMarket
     currency: str  # KRW | USD | EUR | etc.
     initial_balance: Optional[Decimal] = Decimal("0")
-    initial_balance_date: Optional[date] = None  # Defaults to today
+    initial_balance_date: Optional[datetime] = None  # Defaults to current datetime
 
 
 class AccountUpdateRequest(BaseModel):

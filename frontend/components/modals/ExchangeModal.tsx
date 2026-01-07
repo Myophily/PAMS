@@ -15,6 +15,7 @@ import {
   createExchangeSchema,
   type CreateExchangeFormData,
 } from '@/lib/validation/schemas';
+import { getCurrentDateTimeLocal } from '@/lib/utils/datetime';
 
 interface ExchangeModalProps {
   isOpen: boolean;
@@ -45,7 +46,7 @@ export function ExchangeModal({
       to_ticker: 'USD',
       from_amount: 0,
       to_amount: 0,
-      date: new Date().toISOString().split('T')[0],
+      date: getCurrentDateTimeLocal(),
     },
   });
 
@@ -180,7 +181,7 @@ export function ExchangeModal({
 
         <Input
           label="Date"
-          type="date"
+          type="datetime-local"
           {...register('date')}
           error={errors.date?.message}
         />

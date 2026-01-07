@@ -12,6 +12,7 @@ import {
   createAccountSchema,
   type CreateAccountFormData,
 } from '@/lib/validation/schemas';
+import { getCurrentDateTimeLocal } from '@/lib/utils/datetime';
 
 interface AddAccountModalProps {
   isOpen: boolean;
@@ -33,7 +34,7 @@ export function AddAccountModal({ isOpen, onClose }: AddAccountModalProps) {
       type: 'Deposit',
       currency: 'KRW',
       initial_balance: 0,
-      initial_balance_date: new Date().toISOString().split('T')[0],
+      initial_balance_date: getCurrentDateTimeLocal(),
     },
   });
 
@@ -96,8 +97,8 @@ export function AddAccountModal({ isOpen, onClose }: AddAccountModalProps) {
         />
 
         <Input
-          label="Initial Balance Date"
-          type="date"
+          label="Initial Balance Date & Time"
+          type="datetime-local"
           {...register('initial_balance_date')}
           error={errors.initial_balance_date?.message}
         />

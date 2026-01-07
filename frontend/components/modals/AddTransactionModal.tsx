@@ -20,6 +20,7 @@ import {
   createTransactionSchema,
   type CreateTransactionFormData,
 } from '@/lib/validation/schemas';
+import { getCurrentDateTimeLocal } from '@/lib/utils/datetime';
 
 interface AddTransactionModalProps {
   isOpen: boolean;
@@ -51,7 +52,7 @@ export function AddTransactionModal({
     defaultValues: {
       account_id: defaultAccountId || 0,
       type: 'Deposit',
-      date: new Date().toISOString().split('T')[0],
+      date: getCurrentDateTimeLocal(),
     },
   });
 
@@ -218,8 +219,8 @@ export function AddTransactionModal({
         )}
 
         <Input
-          label="Date"
-          type="date"
+          label="Date & Time"
+          type="datetime-local"
           {...register('date')}
           error={errors.date?.message}
         />

@@ -16,6 +16,7 @@ import {
   createBuySellSchema,
   type CreateBuySellFormData,
 } from '@/lib/validation/schemas';
+import { getCurrentDateTimeLocal } from '@/lib/utils/datetime';
 
 interface BuySellModalProps {
   isOpen: boolean;
@@ -49,7 +50,7 @@ export function BuySellModal({
       ticker: '',
       quantity: 0,
       price: 0,
-      date: new Date().toISOString().split('T')[0],
+      date: getCurrentDateTimeLocal(),
     },
   });
 
@@ -215,7 +216,7 @@ export function BuySellModal({
 
         <Input
           label="Date"
-          type="date"
+          type="datetime-local"
           {...register('date')}
           error={errors.date?.message}
         />

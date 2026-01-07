@@ -14,6 +14,7 @@ import {
   createTransferSchema,
   type CreateTransferFormData,
 } from '@/lib/validation/schemas';
+import { getCurrentDateTimeLocal } from '@/lib/utils/datetime';
 
 interface TransferModalProps {
   isOpen: boolean;
@@ -41,7 +42,7 @@ export function TransferModal({
       from_account_id: defaultFromAccountId || 0,
       to_account_id: 0,
       amount: 0,
-      date: new Date().toISOString().split('T')[0],
+      date: getCurrentDateTimeLocal(),
     },
   });
 
@@ -126,7 +127,7 @@ export function TransferModal({
 
         <Input
           label="Date"
-          type="date"
+          type="datetime-local"
           {...register('date')}
           error={errors.date?.message}
         />

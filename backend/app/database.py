@@ -105,3 +105,89 @@ def migrate_account_types(engine):
         print(f"✓ Migration complete: {total_migrated} total accounts migrated")
 
     print("=" * 30 + "\n")
+
+
+def migrate_date_to_datetime(engine):
+    """
+    Migrate transaction.date from Date to DateTime.
+
+    Strategy:
+    - Existing date-only values are converted to datetime at 09:00 (market open time)
+    - This preserves transaction ordering while adding time precision
+    - Migration is idempotent and safe to run multiple times
+
+    SQLite doesn't support ALTER COLUMN, so we use table recreation approach.
+    """
+    print("\n=== Transaction Date to DateTime Migration ===")
+
+    with engine.begin() as conn:
+        # Check if migration is needed
+        # Try to detect if date column is already datetime by checking if any value has time component
+        result = conn.execute(text("""
+            SELECT COUNT(*) as count FROM "transaction"
+            WHERE date LIKE '% %'
+        """))
+        row = result.fetchone()
+
+        if row and row[0] > 0:
+            print("✓ Migration already completed (datetime values detected)")
+            print("=" * 30 + "\n")
+            return
+
+        # Check if there are any transactions
+        result = conn.execute(text('SELECT COUNT(*) FROM "transaction"'))
+        row = result.fetchone()
+        transaction_count = row[0] if row else 0
+
+        if transaction_count == 0:
+            print("✓ No transactions to migrate (database empty)")
+            print("=" * 30 + "\n")
+            return
+
+        print(f"Migrating {transaction_count} transactions...")
+
+        # Create new transaction table with datetime column
+        conn.execute(text("""
+            CREATE TABLE transaction_new (
+                id INTEGER PRIMARY KEY,
+                account_id INTEGER NOT NULL,
+                type VARCHAR(20) NOT NULL,
+                ticker VARCHAR(20),
+                quantity NUMERIC(18, 8),
+                price NUMERIC(18, 4),
+                amount NUMERIC(18, 2) NOT NULL,
+                date DATETIME NOT NULL,
+                linked_tx_id INTEGER,
+                description TEXT,
+                created_at DATETIME NOT NULL,
+                deleted_at DATETIME,
+                FOREIGN KEY(account_id) REFERENCES account(id) ON DELETE CASCADE,
+                FOREIGN KEY(linked_tx_id) REFERENCES "transaction"(id) ON DELETE SET NULL
+            )
+        """))
+
+        # Copy data, converting date to datetime at 09:00
+        conn.execute(text("""
+            INSERT INTO transaction_new
+            SELECT id, account_id, type, ticker, quantity, price, amount,
+                   datetime(date || ' 09:00:00') as date,
+                   linked_tx_id, description, created_at, deleted_at
+            FROM "transaction"
+        """))
+
+        # Drop old table and rename new one
+        conn.execute(text('DROP TABLE "transaction"'))
+        conn.execute(text('ALTER TABLE transaction_new RENAME TO "transaction"'))
+
+        # Recreate indexes
+        conn.execute(text('CREATE INDEX idx_transaction_account ON "transaction"(account_id)'))
+        conn.execute(text('CREATE INDEX idx_transaction_date ON "transaction"(date)'))
+        conn.execute(text('CREATE INDEX idx_transaction_type ON "transaction"(type)'))
+        conn.execute(text('CREATE INDEX idx_transaction_ticker ON "transaction"(ticker)'))
+        conn.execute(text('CREATE INDEX idx_transaction_linked ON "transaction"(linked_tx_id)'))
+
+        print(f"✓ Successfully migrated {transaction_count} transactions to datetime format")
+        print("✓ All dates converted to 09:00 (market open time)")
+        print("✓ Indexes recreated successfully")
+
+    print("=" * 30 + "\n")

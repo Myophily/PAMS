@@ -4,60 +4,67 @@ Date validation and business day utilities for transaction processing.
 CRITICAL: Transaction dates cannot be in the future. Past transactions trigger recalculation.
 """
 
-from datetime import date, timedelta
+from datetime import datetime, date, timedelta
 from typing import Optional
 
 
-def validate_transaction_date(transaction_date: date) -> None:
+def get_current_datetime_truncated() -> datetime:
+    """Get current datetime with minute precision (seconds/microseconds = 0)."""
+    return datetime.now().replace(second=0, microsecond=0)
+
+
+def validate_transaction_date(transaction_date: datetime) -> None:
     """
-    Validate that a transaction date is not in the future.
+    Validate that a transaction datetime is not in the future.
 
     Args:
-        transaction_date: Date to validate
+        transaction_date: Datetime to validate (minute precision)
 
     Raises:
-        ValueError: If date is in the future
+        ValueError: If datetime is in the future
 
     Examples:
-        >>> validate_transaction_date(date(2024, 1, 1))  # Past date
+        >>> validate_transaction_date(datetime(2024, 1, 1, 10, 30))  # Past datetime
         # No error
 
-        >>> validate_transaction_date(date.today())  # Today
+        >>> validate_transaction_date(datetime.now())  # Current time
         # No error
 
-        >>> validate_transaction_date(date(2099, 12, 31))  # Future date
-        ValueError: Transaction date 2099-12-31 cannot be in the future
+        >>> validate_transaction_date(datetime(2099, 12, 31, 10, 30))  # Future datetime
+        ValueError: Transaction datetime 2099-12-31 10:30:00 cannot be in the future
     """
-    today = date.today()
-    if transaction_date > today:
+    now = datetime.now().replace(second=0, microsecond=0)
+    transaction_dt = transaction_date.replace(second=0, microsecond=0)
+    if transaction_dt > now:
         raise ValueError(
-            f"Transaction date {transaction_date} cannot be in the future (today is {today})"
+            f"Transaction datetime {transaction_dt} cannot be in the future (now is {now})"
         )
 
 
-def is_past_transaction(transaction_date: date) -> bool:
+def is_past_transaction(transaction_date: datetime) -> bool:
     """
-    Check if a transaction date is before today.
+    Check if a transaction datetime is before current time.
 
     Used to determine if recalculation needs to be triggered.
 
     Args:
-        transaction_date: Date to check
+        transaction_date: Datetime to check (minute precision)
 
     Returns:
-        True if date is before today, False otherwise
+        True if datetime is before current time, False otherwise
 
     Examples:
-        >>> is_past_transaction(date(2024, 1, 1))
-        True  # Assuming today is later than 2024-01-01
+        >>> is_past_transaction(datetime(2024, 1, 1, 10, 30))
+        True  # Assuming now is later than 2024-01-01 10:30
 
-        >>> is_past_transaction(date.today())
-        False  # Today is not a past transaction
+        >>> is_past_transaction(datetime.now())
+        False  # Current time is not a past transaction
 
-        >>> is_past_transaction(date.today() - timedelta(days=1))
-        True  # Yesterday is a past transaction
+        >>> is_past_transaction(datetime.now() - timedelta(hours=1))
+        True  # One hour ago is a past transaction
     """
-    return transaction_date < date.today()
+    now = datetime.now().replace(second=0, microsecond=0)
+    return transaction_date.replace(second=0, microsecond=0) < now
 
 
 def get_previous_business_day(target_date: date, max_lookback: int = 7) -> Optional[date]:
