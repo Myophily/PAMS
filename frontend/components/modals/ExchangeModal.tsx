@@ -95,7 +95,7 @@ export function ExchangeModal({
   };
 
   const accounts = accountsData?.accounts || [];
-  const foreignAccounts = accounts.filter((acc) => acc.type === 'Foreign');
+  const foreignAccounts = accounts.filter((acc) => acc.type === 'ForeignCurrency');
 
   const currencies = [
     { value: 'KRW', label: 'KRW (₩)' },

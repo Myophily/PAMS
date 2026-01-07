@@ -60,7 +60,7 @@ export function BuySellModal({
   const date = watch('date');
 
   const accounts = accountsData?.accounts || [];
-  const brokerageAccounts = accounts.filter((acc) => acc.type === 'Brokerage');
+  const brokerageAccounts = accounts.filter((acc) => acc.type === 'Securities');
   const selectedAccount = accounts.find((acc) => acc.id === accountId);
 
   // Fetch stock price suggestion
