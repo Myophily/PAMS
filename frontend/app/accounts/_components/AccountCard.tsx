@@ -42,6 +42,9 @@ export function AccountCard({ account }: AccountCardProps) {
   const accountConfig = getAccountTypeConfig(account.type);
   const actions = accountConfig.primaryActions;
 
+  // Derive currency from account type
+  const currency = ['Securities', 'ForeignCurrency'].includes(account.type) ? 'USD' : 'KRW';
+
   const handleAction = (action: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -60,12 +63,12 @@ export function AccountCard({ account }: AccountCardProps) {
             <h3 className="text-xl font-bold text-gray-900">{account.name}</h3>
             <Badge variant="default">{accountConfig.displayName}</Badge>
           </div>
-          <span className="text-sm text-gray-500">{account.currency}</span>
+          <span className="text-sm text-gray-500">{currency}</span>
         </div>
 
         <div className="mb-4">
           <div className="text-3xl font-bold text-gray-900">
-            {formatCurrency(account.balance, account.currency as 'KRW' | 'USD')}
+            {formatCurrency(account.balance, currency as 'KRW' | 'USD')}
           </div>
           <div className="text-sm text-gray-600 mt-1">
             {formatCurrency(account.balance_usd, 'USD')}

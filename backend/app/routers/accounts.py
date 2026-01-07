@@ -18,14 +18,14 @@ account_service = AccountService()
 
 @router.post("/", response_model=AccountResponse, status_code=201)
 def create_account(request: AccountCreateRequest, db: Session = Depends(get_db)):
-    """Create a new account with optional initial balance."""
+    """Create a new account with optional initial balance or multiple initial holdings."""
     try:
         account = account_service.create_account(
             name=request.name,
             account_type=request.type,
-            currency=request.currency,
             initial_balance=request.initial_balance,
             initial_balance_date=request.initial_balance_date,
+            initial_holdings=request.initial_holdings,
             db=db
         )
         return account

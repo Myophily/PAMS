@@ -11,6 +11,7 @@ from app.models.holding import Holding
 from app.models.account import Account
 from app.models.transaction import Transaction
 from app.utils.decimal_helpers import to_decimal, safe_divide
+from app.utils.currency_inference import infer_currency_from_holdings
 from decimal import Decimal
 from datetime import date
 from typing import Optional
@@ -78,6 +79,9 @@ class SnapshotService:
                 Holding.account_id == account.id
             ).all()
 
+            # Infer currency from holdings
+            inferred_currency = infer_currency_from_holdings(holdings, account.type)
+
             for holding in holdings:
                 # Calculate value
                 if holding.ticker == "CASH" or holding.ticker in ["KRW", "USD", "EUR"]:
@@ -107,9 +111,9 @@ class SnapshotService:
                     value = holding.quantity * current_price
 
                     # Convert to KRW based on account currency
-                    if account.currency == "USD":
+                    if inferred_currency == "USD":
                         value = value * usd_krw_rate
-                    elif account.currency == "EUR":
+                    elif inferred_currency == "EUR":
                         # Fetch EUR/KRW rate
                         eur_krw_rate = market_service.get_exchange_rate("EUR", "KRW", snapshot_date, db)
                         if eur_krw_rate is None:

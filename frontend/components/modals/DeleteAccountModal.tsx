@@ -26,6 +26,9 @@ export function DeleteAccountModal({
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Derive currency from account type
+  const currency = ['Securities', 'ForeignCurrency'].includes(account.type) ? 'USD' : 'KRW';
+
   // User must type account name to confirm
   const isConfirmed = confirmText === account.name;
 
@@ -87,7 +90,7 @@ export function DeleteAccountModal({
                 </li>
                 <li>
                   <strong>Account balance:</strong>{' '}
-                  {formatCurrency(account.balance, account.currency as 'KRW' | 'USD')}
+                  {formatCurrency(account.balance, currency as 'KRW' | 'USD')}
                 </li>
               </ul>
               <p className="text-red-700 text-sm mt-3 font-semibold">
@@ -114,7 +117,7 @@ export function DeleteAccountModal({
             <div>
               <span className="text-gray-600">Balance:</span>{' '}
               <span className="text-gray-900">
-                {formatCurrency(account.balance, account.currency as 'KRW' | 'USD')}
+                {formatCurrency(account.balance, currency as 'KRW' | 'USD')}
               </span>
             </div>
             <div>

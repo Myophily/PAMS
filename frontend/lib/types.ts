@@ -15,7 +15,6 @@ export interface Account {
   id: number;
   name: string;
   type: 'Deposit' | 'Securities' | 'ForeignCurrency' | 'MoneyMarket' | 'Savings';
-  currency: string;
   created_at: string;
 }
 
@@ -105,12 +104,18 @@ export interface AssetChartData {
 }
 
 // Form input types
+export interface InitialHoldingItem {
+  ticker: string;      // "AAPL", "TSLA", or "CASH"
+  quantity: number;
+  price?: number;      // Required for stocks, optional for CASH
+}
+
 export interface CreateAccountInput {
   name: string;
   type: 'Deposit' | 'Securities' | 'ForeignCurrency' | 'MoneyMarket' | 'Savings';
-  currency: string;
-  initial_balance: number;
+  initial_balance?: number;
   initial_balance_date: string;
+  initial_holdings?: InitialHoldingItem[];  // For Securities accounts
 }
 
 export interface CreateTransactionInput {

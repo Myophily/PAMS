@@ -9,6 +9,7 @@ from app.services.holding_service import HoldingService
 from app.services.market_data_service import MarketDataService
 from app.services.snapshot_service import SnapshotService
 from app.utils.decimal_helpers import to_decimal
+from app.utils.currency_inference import infer_currency_from_holdings
 from decimal import Decimal
 from datetime import date, timedelta
 from typing import Dict, List
@@ -287,10 +288,13 @@ class DashboardService:
                 account.id, db, include_zero=False
             )
 
+            # Infer currency from holdings since Account doesn't store it
+            inferred_currency = infer_currency_from_holdings(holdings, account.type)
+
             for holding in holdings:
                 # Handle CASH and currencies
                 if holding.ticker == "CASH":
-                    if account.currency == "USD":
+                    if inferred_currency == "USD":
                         cash_usd_value_in_krw += holding.quantity * usd_krw_rate
                     else:  # KRW or other (treat as KRW default)
                         cash_krw_value += holding.quantity
@@ -317,9 +321,9 @@ class DashboardService:
                 value_in_account_currency = holding.quantity * current_price
 
                 # Convert to KRW if needed
-                if account.currency == "USD":
+                if inferred_currency == "USD":
                     value_krw = value_in_account_currency * usd_krw_rate
-                elif account.currency == "KRW":
+                elif inferred_currency == "KRW":
                     value_krw = value_in_account_currency
                 else:
                     value_krw = value_in_account_currency  # TODO: Handle EUR, etc.

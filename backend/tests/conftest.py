@@ -107,8 +107,7 @@ def checking_account(db_session) -> Account:
     """Create a KRW checking account for testing."""
     account = Account(
         name="Test Checking Account",
-        type="Deposit",
-        currency="KRW"
+        type="Deposit"
     )
     db_session.add(account)
     db_session.commit()
@@ -121,8 +120,7 @@ def brokerage_account(db_session) -> Account:
     """Create a USD brokerage account for testing."""
     account = Account(
         name="Test Brokerage Account",
-        type="Securities",
-        currency="USD"
+        type="Securities"
     )
     db_session.add(account)
     db_session.commit()
@@ -135,8 +133,7 @@ def foreign_account(db_session) -> Account:
     """Create a foreign currency account for testing."""
     account = Account(
         name="Test Foreign Account",
-        type="ForeignCurrency",
-        currency="USD"
+        type="ForeignCurrency"
     )
     db_session.add(account)
     db_session.commit()
@@ -149,8 +146,7 @@ def mmf_account(db_session) -> Account:
     """Create an MMF account for testing."""
     account = Account(
         name="Test MMF Account",
-        type="MoneyMarket",
-        currency="KRW"
+        type="MoneyMarket"
     )
     db_session.add(account)
     db_session.commit()
@@ -163,13 +159,11 @@ def account_pair(db_session) -> tuple[Account, Account]:
     """Create two checking accounts for transfer testing."""
     account_a = Account(
         name="Account A",
-        type="Deposit",
-        currency="KRW"
+        type="Deposit"
     )
     account_b = Account(
         name="Account B",
-        type="Deposit",
-        currency="KRW"
+        type="Deposit"
     )
     db_session.add_all([account_a, account_b])
     db_session.commit()

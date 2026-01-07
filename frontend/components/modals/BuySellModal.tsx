@@ -164,8 +164,7 @@ export function BuySellModal({
           <option value={0}>Select a brokerage account</option>
           {brokerageAccounts.map((account) => (
             <option key={account.id} value={account.id}>
-              {account.name} (Cash: {formatDecimal(account.balance)}{' '}
-              {account.currency})
+              {account.name} (Cash: {formatDecimal(account.balance)} USD)
             </option>
           ))}
         </Select>
@@ -209,7 +208,7 @@ export function BuySellModal({
           <div className="bg-gray-50 border border-gray-200 rounded p-3 text-gray-900">
             <span className="font-medium text-gray-900">Total Value:</span>{' '}
             <span className="text-lg font-bold text-gray-900">
-              {totalValue.toLocaleString()} {selectedAccount?.currency || ''}
+              {totalValue.toLocaleString()} {selectedAccount ? (['Securities', 'ForeignCurrency'].includes(selectedAccount.type) ? 'USD' : 'KRW') : ''}
             </span>
           </div>
         )}

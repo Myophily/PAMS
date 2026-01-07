@@ -1,12 +1,69 @@
 import { z } from 'zod';
 
+// Initial holding item schema
+const initialHoldingItemSchema = z.object({
+  ticker: z.string()
+    .min(1, 'Ticker is required')
+    .transform(val => val.toUpperCase()),
+  quantity: z.number()
+    .positive('Quantity must be greater than 0'),
+  price: z.number()
+    .positive('Price must be greater than 0')
+    .optional()
+});
+
 // Account creation schema
 export const createAccountSchema = z.object({
   name: z.string().min(1, 'Account name is required'),
   type: z.enum(['Deposit', 'Securities', 'ForeignCurrency', 'MoneyMarket', 'Savings']),
-  currency: z.string().length(3, 'Currency must be 3 characters'),
-  initial_balance: z.number().min(0, 'Balance cannot be negative'),
+  initial_balance: z.number().min(0, 'Balance cannot be negative').optional(),
   initial_balance_date: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid datetime format'),
+  initial_holdings: z.array(initialHoldingItemSchema).optional(),
+})
+.refine(data => {
+  // Cannot use both initial_balance and initial_holdings
+  if (data.initial_holdings?.length && data.initial_balance && data.initial_balance > 0) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Cannot use both initial_balance and initial_holdings',
+  path: ['initial_holdings']
+})
+.refine(data => {
+  // Only Securities accounts can use initial_holdings
+  if (data.initial_holdings?.length && data.type !== 'Securities') {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Multiple holdings only supported for Securities accounts',
+  path: ['initial_holdings']
+})
+.refine(data => {
+  // Price required for stocks (non-CASH)
+  if (data.initial_holdings) {
+    for (const holding of data.initial_holdings) {
+      if (holding.ticker !== 'CASH' && !holding.price) {
+        return false;
+      }
+    }
+  }
+  return true;
+}, {
+  message: 'Price is required for stock holdings',
+  path: ['initial_holdings']
+})
+.refine(data => {
+  // No duplicate tickers
+  if (data.initial_holdings) {
+    const tickers = data.initial_holdings.map(h => h.ticker);
+    return tickers.length === new Set(tickers).size;
+  }
+  return true;
+}, {
+  message: 'Duplicate tickers not allowed',
+  path: ['initial_holdings']
 });
 
 export type CreateAccountFormData = z.infer<typeof createAccountSchema>;

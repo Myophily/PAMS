@@ -87,7 +87,7 @@ export function TransferModal({
           <option value={0}>Select source account</option>
           {accounts.map((account) => (
             <option key={account.id} value={account.id}>
-              {account.name} ({formatDecimal(account.balance)} {account.currency})
+              {account.name} ({formatDecimal(account.balance)} {['Securities', 'ForeignCurrency'].includes(account.type) ? 'USD' : 'KRW'})
             </option>
           ))}
         </Select>
@@ -96,7 +96,7 @@ export function TransferModal({
           <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-900">
             <span className="font-medium text-blue-900">Available Balance:</span>{' '}
             <span className="text-gray-900">
-              {formatDecimal(fromAccount.balance)} {fromAccount.currency}
+              {formatDecimal(fromAccount.balance)} {['Securities', 'ForeignCurrency'].includes(fromAccount.type) ? 'USD' : 'KRW'}
             </span>
           </div>
         )}

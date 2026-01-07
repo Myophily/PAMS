@@ -117,7 +117,7 @@ export function ExchangeModal({
           <option value={0}>Select a foreign currency account</option>
           {foreignAccounts.map((account) => (
             <option key={account.id} value={account.id}>
-              {account.name} ({account.currency})
+              {account.name} (USD)
             </option>
           ))}
         </Select>

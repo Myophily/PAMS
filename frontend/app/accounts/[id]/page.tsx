@@ -60,6 +60,7 @@ export default function AccountDetailPage() {
 
   // Get account type configuration
   const accountConfig = getAccountTypeConfig(account.type);
+  const currency = ['Securities', 'ForeignCurrency'].includes(account.type) ? 'USD' : 'KRW';
 
   // Build dynamic tabs based on account type
   const ALL_POSSIBLE_TABS = [
@@ -84,7 +85,7 @@ export default function AccountDetailPage() {
         accountId={accountId}
         name={account.name}
         type={account.type}
-        currency={account.currency}
+        currency={currency}
         totalValue={summary.total_value}
         cashBalance={summary.cash_balance}
         unrealizedPL={summary.unrealized_pl}
@@ -97,7 +98,7 @@ export default function AccountDetailPage() {
 
         <div className="p-6">
           {activeTab === 'holdings' && isTabAllowed(account.type, 'holdings') && (
-            <HoldingsTable holdings={holdings} currency={account.currency} />
+            <HoldingsTable holdings={holdings} currency={currency} />
           )}
 
           {activeTab === 'transactions' && (

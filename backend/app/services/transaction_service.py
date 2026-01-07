@@ -382,7 +382,8 @@ class TransactionService:
         price: Decimal,
         transaction_date: datetime,
         description: Optional[str],
-        db: Session
+        db: Session,
+        auto_commit: bool = True
     ) -> Transaction:
         """
         Create buy transaction (Pattern ③).
@@ -397,6 +398,7 @@ class TransactionService:
             transaction_date: Date of transaction
             description: Optional user notes
             db: Database session
+            auto_commit: If True, commits the transaction (default: True)
 
         Returns:
             Created transaction
@@ -475,7 +477,8 @@ class TransactionService:
         if is_past_transaction(transaction_date):
             self._trigger_recalculation(transaction_date, db)
 
-        db.commit()
+        if auto_commit:
+            db.commit()
         return transaction
 
     def create_sell(

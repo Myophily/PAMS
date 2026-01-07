@@ -12,6 +12,7 @@ from app.services.market_data_service import MarketDataService
 from app.services.recalculation_service import RecalculationService
 from app.utils.calculation_engine import calculate_unrealized_pl, calculate_total_value, calculate_cost_basis
 from app.utils.decimal_helpers import to_decimal
+from app.utils.currency_inference import infer_currency_from_holdings, get_decimal_places
 from app.schemas.account_schema import (
     AccountResponse,
     AccountListItemResponse,
@@ -38,22 +39,25 @@ class AccountService:
         self,
         name: str,
         account_type: str,
-        currency: str,
-        initial_balance: Decimal,
+        initial_balance: Optional[Decimal],
         initial_balance_date: Optional[datetime],
+        initial_holdings: Optional[List],
         db: Session
     ) -> Account:
         """
-        Create a new account.
+        Create a new account with optional initial balance or multiple initial holdings.
 
-        If initial_balance > 0, creates a Deposit transaction.
+        For Securities accounts with initial_holdings:
+        - Creates multiple Buy/Deposit transactions for each holding
+        For other accounts with initial_balance > 0:
+        - Creates a single Deposit transaction
 
         Args:
             name: Account name
             account_type: Account type (Deposit, Securities, ForeignCurrency, MoneyMarket)
-            currency: Currency code (KRW, USD, EUR, etc.)
-            initial_balance: Initial balance (default: 0)
-            initial_balance_date: Date for initial balance (default: today)
+            initial_balance: Simple initial balance (for non-Securities or backwards compat)
+            initial_balance_date: Date for initial transactions (default: now)
+            initial_holdings: List of initial holdings (Securities accounts only)
             db: Database session
 
         Returns:
@@ -75,16 +79,24 @@ class AccountService:
         # Create account
         account = Account(
             name=name,
-            type=account_type,
-            currency=currency
+            type=account_type
         )
         db.add(account)
         db.flush()
 
-        # If initial balance > 0, create deposit transaction
-        if initial_balance > 0:
-            balance_date = initial_balance_date or datetime.now().replace(second=0, microsecond=0)
+        # Determine which initialization method to use
+        balance_date = initial_balance_date or datetime.now().replace(second=0, microsecond=0)
 
+        if initial_holdings and len(initial_holdings) > 0:
+            # NEW: Multiple initial holdings (Securities only)
+            self._create_initial_holdings(
+                account_id=account.id,
+                holdings=initial_holdings,
+                transaction_date=balance_date,
+                db=db
+            )
+        elif initial_balance and initial_balance > 0:
+            # EXISTING: Simple initial balance
             self.transaction_service.create_deposit(
                 account_id=account.id,
                 amount=initial_balance,
@@ -98,6 +110,83 @@ class AccountService:
         db.refresh(account)
         db.commit()
         return account
+
+    def _create_initial_holdings(
+        self,
+        account_id: int,
+        holdings: List,
+        transaction_date: datetime,
+        db: Session
+    ) -> None:
+        """
+        Create initial holdings for a Securities account.
+
+        For each holding:
+        - CASH: Create Deposit transaction
+        - Stocks: Create Buy transaction with user-specified price
+
+        If no CASH holding is provided but stocks are, automatically inject
+        the exact CASH amount needed for purchases to maintain transaction integrity.
+        This allows users to create accounts with stocks-only snapshots.
+
+        Args:
+            account_id: Account ID
+            holdings: List of InitialHoldingItem objects
+            transaction_date: Date for all transactions
+            db: Database session
+
+        Raises:
+            ValueError: If validation fails
+        """
+        # Check if CASH exists in holdings
+        has_cash = any(h.ticker == 'CASH' for h in holdings)
+
+        # If no CASH but has stocks, inject exact CASH amount needed
+        if not has_cash and holdings:
+            total_buy_cost = sum(
+                h.quantity * h.price for h in holdings
+                if h.ticker != 'CASH' and h.price is not None
+            )
+
+            if total_buy_cost > 0:
+                # Create a CASH holding with the exact buy cost
+                from app.schemas.account_schema import InitialHoldingItem
+                cash_holding = InitialHoldingItem(
+                    ticker='CASH',
+                    quantity=total_buy_cost,
+                    price=None
+                )
+                holdings = [cash_holding] + list(holdings)
+
+        # Sort: CASH first, then stocks alphabetically
+        sorted_holdings = sorted(
+            holdings,
+            key=lambda h: (h.ticker != 'CASH', h.ticker)
+        )
+
+        for holding in sorted_holdings:
+            if holding.ticker == 'CASH':
+                # Create Deposit transaction for cash
+                self.transaction_service.create_deposit(
+                    account_id=account_id,
+                    amount=holding.quantity,
+                    transaction_date=transaction_date,
+                    description="Initial cash balance",
+                    db=db,
+                    auto_commit=False
+                )
+            else:
+                # Create Buy transaction for stocks
+                self.transaction_service.create_buy(
+                    account_id=account_id,
+                    ticker=holding.ticker,
+                    quantity=holding.quantity,
+                    price=holding.price,
+                    transaction_date=transaction_date,
+                    description=f"Initial holding: {holding.ticker}",
+                    db=db,
+                    auto_commit=False
+                )
 
     def list_accounts(self, db: Session) -> List[AccountListItemResponse]:
         """
@@ -119,19 +208,20 @@ class AccountService:
             # Get holdings for this account
             holdings = self.holding_service.get_all_holdings_for_account(account.id, db, include_zero=False)
 
+            # Infer currency from holdings
+            inferred_currency = infer_currency_from_holdings(holdings, account.type)
+
             # Calculate total balance in account's currency
-            balance_raw = sum((h.quantity for h in holdings if h.ticker in ["CASH", account.currency]), Decimal("0"))
+            balance_raw = sum((h.quantity for h in holdings if h.ticker in ["CASH", inferred_currency]), Decimal("0"))
 
             # Quantize based on currency type
-            if account.currency == "KRW":
-                balance = balance_raw.quantize(Decimal("1"))  # 0 decimals
-            else:
-                balance = balance_raw.quantize(Decimal("0.01"))  # 2 decimals for USD/EUR
+            decimal_places = get_decimal_places(inferred_currency)
+            balance = balance_raw.quantize(Decimal(decimal_places))
 
             # Convert to USD for comparison
-            if account.currency == "KRW":
+            if inferred_currency == "KRW":
                 balance_usd = balance / usd_krw_rate
-            elif account.currency == "USD":
+            elif inferred_currency == "USD":
                 balance_usd = balance
             else:
                 # TODO: Handle other currencies
@@ -141,7 +231,6 @@ class AccountService:
                 id=account.id,
                 name=account.name,
                 type=account.type,
-                currency=account.currency,
                 balance=balance,
                 balance_usd=balance_usd.quantize(Decimal("0.01")),
                 holdings_count=len(holdings),
@@ -174,6 +263,9 @@ class AccountService:
 
         # Get all holdings
         holdings = self.holding_service.get_all_holdings_for_account(account_id, db, include_zero=False)
+
+        # Infer currency from holdings
+        inferred_currency = infer_currency_from_holdings(holdings, account.type)
 
         # Build holding responses with market data
         holding_responses = []
@@ -250,7 +342,6 @@ class AccountService:
                 id=account.id,
                 name=account.name,
                 type=account.type,
-                currency=account.currency,
                 created_at=account.created_at
             ),
             summary=AccountSummaryResponse(
