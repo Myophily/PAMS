@@ -42,10 +42,19 @@ def get_stock_price(
         Response: {"price": "75000", "currency": "KRW", "source": "yahoo_finance", "is_cached": false, "date": "2024-01-15"}
     """
     try:
-        # Parse date (default to today)
-        target_date = date.fromisoformat(date_param) if date_param else date.today()
+        # Parse date from either "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" format
+        if date_param:
+            if 'T' in date_param:
+                # DateTime format - extract date component for market data lookup
+                parsed_datetime = datetime.fromisoformat(date_param)
+                target_date = parsed_datetime.date()
+            else:
+                # Date-only format
+                target_date = date.fromisoformat(date_param)
+        else:
+            target_date = date.today()
 
-        # Validate date is not in future
+        # Validate date is not in future (now accepts both date and datetime)
         validate_transaction_date(target_date)
 
         # Fetch price from service (includes caching logic)
@@ -112,10 +121,19 @@ def get_exchange_rate(
         Response: {"rate": "1.0850", "source": "yahoo_finance", "date": "2026-01-05", "is_cached": false}
     """
     try:
-        # Parse date (default to today)
-        target_date = date.fromisoformat(date_param) if date_param else date.today()
+        # Parse date from either "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" format
+        if date_param:
+            if 'T' in date_param:
+                # DateTime format - extract date component for market data lookup
+                parsed_datetime = datetime.fromisoformat(date_param)
+                target_date = parsed_datetime.date()
+            else:
+                # Date-only format
+                target_date = date.fromisoformat(date_param)
+        else:
+            target_date = date.today()
 
-        # Validate date is not in future
+        # Validate date is not in future (now accepts both date and datetime)
         validate_transaction_date(target_date)
 
         # Normalize currency codes to uppercase

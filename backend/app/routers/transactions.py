@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from app.database import get_db
 from app.services.transaction_service import TransactionService
 from app.schemas.transaction_schema import (
@@ -35,7 +36,20 @@ def create_deposit(request: DepositCreate, db: Session = Depends(get_db)):
         )
         return tx
     except ValueError as e:
+        # Business logic validation errors
         raise HTTPException(status_code=400, detail=str(e))
+    except IntegrityError as e:
+        # Database constraint violations
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Database constraint violation")
+    except SQLAlchemyError as e:
+        # Database errors (connection, query execution, etc.)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error occurred")
+    except Exception as e:
+        # Catch-all for unexpected errors
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 @router.post("/withdrawal", response_model=TransactionResponse, status_code=201)
@@ -51,7 +65,20 @@ def create_withdrawal(request: WithdrawalCreate, db: Session = Depends(get_db)):
         )
         return tx
     except ValueError as e:
+        # Business logic validation errors
         raise HTTPException(status_code=400, detail=str(e))
+    except IntegrityError as e:
+        # Database constraint violations
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Database constraint violation")
+    except SQLAlchemyError as e:
+        # Database errors (connection, query execution, etc.)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error occurred")
+    except Exception as e:
+        # Catch-all for unexpected errors
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 @router.post("/dividend", response_model=TransactionResponse, status_code=201)
@@ -68,7 +95,20 @@ def create_dividend(request: DividendCreate, db: Session = Depends(get_db)):
         )
         return tx
     except ValueError as e:
+        # Business logic validation errors
         raise HTTPException(status_code=400, detail=str(e))
+    except IntegrityError as e:
+        # Database constraint violations
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Database constraint violation")
+    except SQLAlchemyError as e:
+        # Database errors (connection, query execution, etc.)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error occurred")
+    except Exception as e:
+        # Catch-all for unexpected errors
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 @router.post("/interest", response_model=TransactionResponse, status_code=201)
@@ -84,7 +124,20 @@ def create_interest(request: InterestCreate, db: Session = Depends(get_db)):
         )
         return tx
     except ValueError as e:
+        # Business logic validation errors
         raise HTTPException(status_code=400, detail=str(e))
+    except IntegrityError as e:
+        # Database constraint violations
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Database constraint violation")
+    except SQLAlchemyError as e:
+        # Database errors (connection, query execution, etc.)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error occurred")
+    except Exception as e:
+        # Catch-all for unexpected errors
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 # ========== PATTERN ② SIMPLE TRANSFER ==========
@@ -109,7 +162,20 @@ def create_transfer(request: TransferCreate, db: Session = Depends(get_db)):
             }
         }
     except ValueError as e:
+        # Business logic validation errors
         raise HTTPException(status_code=400, detail=str(e))
+    except IntegrityError as e:
+        # Database constraint violations
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Database constraint violation")
+    except SQLAlchemyError as e:
+        # Database errors (connection, query execution, etc.)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error occurred")
+    except Exception as e:
+        # Catch-all for unexpected errors
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 # ========== PATTERN ③ ASSET FORM CONVERSION ==========
@@ -129,7 +195,20 @@ def create_buy(request: BuyCreate, db: Session = Depends(get_db)):
         )
         return tx
     except ValueError as e:
+        # Business logic validation errors
         raise HTTPException(status_code=400, detail=str(e))
+    except IntegrityError as e:
+        # Database constraint violations
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Database constraint violation")
+    except SQLAlchemyError as e:
+        # Database errors (connection, query execution, etc.)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error occurred")
+    except Exception as e:
+        # Catch-all for unexpected errors
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 @router.post("/sell", response_model=TransactionResponse, status_code=201)
@@ -147,7 +226,20 @@ def create_sell(request: SellCreate, db: Session = Depends(get_db)):
         )
         return tx
     except ValueError as e:
+        # Business logic validation errors
         raise HTTPException(status_code=400, detail=str(e))
+    except IntegrityError as e:
+        # Database constraint violations
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Database constraint violation")
+    except SQLAlchemyError as e:
+        # Database errors (connection, query execution, etc.)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error occurred")
+    except Exception as e:
+        # Catch-all for unexpected errors
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 # ========== PATTERN ④ EXCHANGE ==========
@@ -174,7 +266,20 @@ def create_exchange(request: ExchangeCreate, db: Session = Depends(get_db)):
             }
         }
     except ValueError as e:
+        # Business logic validation errors
         raise HTTPException(status_code=400, detail=str(e))
+    except IntegrityError as e:
+        # Database constraint violations
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Database constraint violation")
+    except SQLAlchemyError as e:
+        # Database errors (connection, query execution, etc.)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error occurred")
+    except Exception as e:
+        # Catch-all for unexpected errors
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 # ========== QUERY ENDPOINTS ==========

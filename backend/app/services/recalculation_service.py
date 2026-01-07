@@ -14,7 +14,7 @@ from app.utils.calculation_engine import calculate_avg_price_on_buy
 from app.utils.date_helpers import get_date_range
 from decimal import Decimal
 from datetime import datetime, date
-from typing import List, Dict
+from typing import List, Dict, Union
 from collections import defaultdict
 
 
@@ -29,7 +29,7 @@ class RecalculationService:
     4. Regenerate asset snapshots from start_date to present
     """
 
-    def recalculate_from_date(self, start_date: datetime, db: Session) -> None:
+    def recalculate_from_date(self, start_date: Union[date, datetime], db: Session) -> None:
         """
         Recalculate all holdings and snapshots from a specific date.
 
@@ -45,6 +45,10 @@ class RecalculationService:
             >>> service.recalculate_from_date(date(2024, 1, 1), db)
             # All holdings and snapshots from 2024-01-01 to present are recalculated
         """
+        # Normalize to date object for comparisons
+        if isinstance(start_date, datetime):
+            start_date = start_date.date()
+
         print(f"[Recalculation] Starting recalculation from {start_date}")
 
         # Get all transactions from start_date to present, ordered by date
@@ -74,7 +78,7 @@ class RecalculationService:
     def _rebuild_holdings_for_account(
         self,
         account_id: int,
-        start_date: datetime,
+        start_date: date,
         db: Session
     ) -> None:
         """
@@ -247,7 +251,7 @@ class RecalculationService:
 
     def _regenerate_snapshots_from_date(
         self,
-        start_date: datetime,
+        start_date: date,
         db: Session
     ) -> None:
         """
