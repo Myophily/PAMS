@@ -11,6 +11,7 @@ import { AddTransactionModal } from '@/components/modals/AddTransactionModal';
 import { TransferModal } from '@/components/modals/TransferModal';
 import { ExchangeModal } from '@/components/modals/ExchangeModal';
 import { BuySellModal } from '@/components/modals/BuySellModal';
+import { DeleteAccountModal } from '@/components/modals/DeleteAccountModal';
 
 function AccountsContent() {
   const router = useRouter();
@@ -28,6 +29,11 @@ function AccountsContent() {
   const closeModal = () => {
     router.push(pathname);
   };
+
+  // Find the account for delete modal
+  const accountToDelete = (data?.accounts || []).find(
+    (acc) => acc.id === parseInt(accountId || '0')
+  );
 
   if (isLoading) {
     return (
@@ -103,6 +109,13 @@ function AccountsContent() {
         defaultAccountId={accountId ? parseInt(accountId) : undefined}
         defaultType="Sell"
       />
+      {modal === 'delete-account' && accountToDelete && (
+        <DeleteAccountModal
+          isOpen={true}
+          onClose={closeModal}
+          account={accountToDelete}
+        />
+      )}
     </div>
   );
 }

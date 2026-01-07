@@ -21,6 +21,7 @@ const ACTION_LABELS: Record<string, string> = {
   dividend: 'Dividend',
   exchange: 'Exchange',
   interest: 'Interest',
+  delete: 'Delete',
 };
 
 // Map actions to modal names
@@ -33,6 +34,7 @@ const ACTION_TO_MODAL: Record<string, string> = {
   dividend: 'add-transaction',
   exchange: 'exchange',
   interest: 'add-transaction',
+  delete: 'delete-account',
 };
 
 export function AccountCard({ account }: AccountCardProps) {
@@ -79,7 +81,11 @@ export function AccountCard({ account }: AccountCardProps) {
           {actions.map((action) => (
             <button
               key={action}
-              className="text-sm px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
+              className={`text-sm px-3 py-1 rounded transition ${
+                action === 'delete'
+                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+              }`}
               onClick={(e) => handleAction(action, e)}
             >
               {ACTION_LABELS[action] || action}

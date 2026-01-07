@@ -77,10 +77,26 @@ def update_account(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{account_id}", status_code=204)
+@router.delete("/{account_id}", status_code=200)
 def delete_account(account_id: int, db: Session = Depends(get_db)):
-    """Delete an account (must liquidate first)."""
+    """
+    Delete an account and all its transactions.
+
+    WARNING: This is a destructive operation that permanently deletes:
+    - All transactions for this account
+    - All holdings
+    - The account itself
+
+    Returns deletion statistics.
+    """
     try:
-        account_service.delete_account(account_id, db)
+        stats = account_service.delete_account(account_id, db)
+        return {
+            "message": "Account deleted successfully",
+            "stats": stats
+        }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e))
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Database error occurred")

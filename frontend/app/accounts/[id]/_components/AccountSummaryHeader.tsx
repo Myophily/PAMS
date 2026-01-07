@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { formatCurrency, formatPercent } from '@/lib/utils/format';
 import { formatDecimal, isPositive } from '@/lib/utils/decimal';
 import type { DecimalString } from '@/lib/types';
@@ -7,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 
 interface AccountSummaryHeaderProps {
+  accountId: number;
   name: string;
   type: string;
   currency: string;
@@ -18,6 +20,7 @@ interface AccountSummaryHeaderProps {
 }
 
 export function AccountSummaryHeader({
+  accountId,
   name,
   type,
   currency,
@@ -27,7 +30,12 @@ export function AccountSummaryHeader({
   unrealizedPLPercent,
   isRefetching = false,
 }: AccountSummaryHeaderProps) {
+  const router = useRouter();
   const isPlPositive = isPositive(unrealizedPL);
+
+  const handleDeleteClick = () => {
+    router.push(`/accounts?modal=delete-account&accountId=${accountId}`);
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
@@ -39,13 +47,23 @@ export function AccountSummaryHeader({
           </span>
         </div>
 
-        {/* Recalculation indicator */}
-        {isRefetching && (
-          <Badge variant="warning" className="flex items-center gap-2">
-            <Spinner size="sm" />
-            Updating data...
-          </Badge>
-        )}
+        <div className="flex items-center gap-3">
+          {/* Recalculation indicator */}
+          {isRefetching && (
+            <Badge variant="warning" className="flex items-center gap-2">
+              <Spinner size="sm" />
+              Updating data...
+            </Badge>
+          )}
+
+          {/* Delete button */}
+          <button
+            onClick={handleDeleteClick}
+            className="px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 transition text-sm font-medium"
+          >
+            Delete Account
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

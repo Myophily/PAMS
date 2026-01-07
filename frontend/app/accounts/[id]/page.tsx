@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useAccountDetails } from '@/lib/hooks/useAccounts';
 import { Spinner } from '@/components/ui/Spinner';
 import { AccountSummaryHeader } from './_components/AccountSummaryHeader';
@@ -8,14 +8,26 @@ import { TabNavigation } from './_components/TabNavigation';
 import { HoldingsTable } from './_components/HoldingsTable';
 import { TransactionTimeline } from './_components/TransactionTimeline';
 import { AccountAnalysisCharts } from './_components/AccountAnalysisCharts';
+import { DeleteAccountModal } from '@/components/modals/DeleteAccountModal';
 import { getAccountTypeConfig, isTabAllowed, type AccountTab } from '@/lib/config/accountTypeConfig';
 
 export default function AccountDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const accountId = parseInt(params.id as string);
 
   const { data: accountData, isLoading, isFetching, error } = useAccountDetails(accountId);
+
+  // Check if delete modal should be shown
+  const modal = searchParams.get('modal');
+  const modalAccountId = searchParams.get('accountId');
+  const showDeleteModal = modal === 'delete-account' &&
+                          modalAccountId === accountId.toString();
+
+  const closeModal = () => {
+    router.push(`/accounts/${accountId}`);
+  };
 
   if (isLoading) {
     return (
@@ -69,6 +81,7 @@ export default function AccountDetailPage() {
   return (
     <div className="space-y-6">
       <AccountSummaryHeader
+        accountId={accountId}
         name={account.name}
         type={account.type}
         currency={account.currency}
@@ -96,6 +109,20 @@ export default function AccountDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && accountData && (
+        <DeleteAccountModal
+          isOpen={true}
+          onClose={closeModal}
+          account={{
+            ...account,
+            balance: summary.total_value,
+            balance_usd: summary.total_value, // Using total_value as fallback
+            holdings_count: holdings.length,
+          }}
+        />
+      )}
     </div>
   );
 }

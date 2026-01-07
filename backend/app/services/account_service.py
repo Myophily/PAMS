@@ -5,9 +5,11 @@ Account service for account management operations.
 from sqlalchemy.orm import Session
 from app.models.account import Account
 from app.models.holding import Holding
+from app.models.transaction import Transaction
 from app.services.transaction_service import TransactionService
 from app.services.holding_service import HoldingService
 from app.services.market_data_service import MarketDataService
+from app.services.recalculation_service import RecalculationService
 from app.utils.calculation_engine import calculate_unrealized_pl, calculate_total_value, calculate_cost_basis
 from app.utils.decimal_helpers import to_decimal
 from app.schemas.account_schema import (
@@ -299,44 +301,135 @@ class AccountService:
         db.commit()
         return account
 
-    def delete_account(self, account_id: int, db: Session) -> None:
+    def _collect_deletion_stats(self, account_id: int, db: Session) -> dict:
         """
-        Delete an account.
-
-        If account has non-zero holdings, raise error (must liquidate first).
-        If account has only zero holdings, hard delete.
+        Collect statistics about what will be deleted.
 
         Args:
             account_id: Account ID
             db: Database session
 
+        Returns:
+            Dictionary with deletion statistics
+        """
+        # Count transactions (excluding soft-deleted)
+        transactions = db.query(Transaction).filter(
+            Transaction.account_id == account_id,
+            Transaction.deleted_at.is_(None)
+        ).all()
+
+        # Count holdings
+        holdings = self.holding_service.get_all_holdings_for_account(
+            account_id, db, include_zero=False
+        )
+
+        # Count linked transactions that will be orphaned
+        linked_tx_count = sum(1 for tx in transactions if tx.linked_tx_id is not None)
+
+        return {
+            'account_id': account_id,
+            'transactions_deleted': len(transactions),
+            'holdings_deleted': len(holdings),
+            'linked_transactions_broken': linked_tx_count
+        }
+
+    def _find_affected_accounts(self, account_id: int, db: Session) -> set:
+        """
+        Find accounts that have transactions linked to this account.
+
+        These accounts will have their linked_tx_id set to NULL,
+        so they need recalculation if they were Pattern ② (Transfer) or
+        Pattern ④ (Exchange) transactions.
+
+        Args:
+            account_id: Account ID being deleted
+            db: Database session
+
+        Returns:
+            Set of affected account IDs
+        """
+        # Get all transaction IDs from the account being deleted
+        this_account_tx_ids = db.query(Transaction.id).filter(
+            Transaction.account_id == account_id,
+            Transaction.deleted_at.is_(None)
+        ).subquery()
+
+        # Find transactions in OTHER accounts that link to these
+        affected_txs = db.query(Transaction).filter(
+            Transaction.account_id != account_id,
+            Transaction.linked_tx_id.in_(this_account_tx_ids),
+            Transaction.deleted_at.is_(None)
+        ).all()
+
+        return set(tx.account_id for tx in affected_txs)
+
+    def _get_earliest_transaction_date(self, account_id: int, db: Session) -> Optional[date]:
+        """
+        Get the earliest transaction date for recalculation.
+
+        Args:
+            account_id: Account ID
+            db: Database session
+
+        Returns:
+            Earliest transaction date or None if no transactions
+        """
+        earliest_tx = db.query(Transaction).filter(
+            Transaction.account_id == account_id,
+            Transaction.deleted_at.is_(None)
+        ).order_by(Transaction.date.asc()).first()
+
+        return earliest_tx.date if earliest_tx else None
+
+    def delete_account(self, account_id: int, db: Session) -> dict:
+        """
+        Delete an account and all its transactions.
+
+        DESTRUCTIVE: This permanently deletes:
+        - All transactions for this account
+        - All holdings (via CASCADE)
+        - The account itself
+
+        SIDE EFFECTS:
+        - Transactions in OTHER accounts linked to this account's transactions
+          will have their linked_tx_id set to NULL (via ondelete='SET NULL')
+        - May trigger recalculation for affected accounts
+
+        Args:
+            account_id: Account ID to delete
+            db: Database session
+
+        Returns:
+            Dictionary with deletion statistics
+
         Raises:
-            ValueError: If account not found or has active holdings
+            ValueError: If account not found
         """
         account = db.query(Account).get(account_id)
         if not account:
             raise ValueError(f"Account {account_id} not found")
 
-        # Check for active holdings
-        holdings = self.holding_service.get_all_holdings_for_account(account_id, db, include_zero=False)
+        # Collect deletion statistics BEFORE deletion
+        stats = self._collect_deletion_stats(account_id, db)
 
-        if holdings:
-            # Check if only CASH with zero balance
-            if len(holdings) == 1 and holdings[0].ticker == "CASH" and holdings[0].quantity == 0:
-                # Allow deletion
-                pass
-            else:
-                raise ValueError(
-                    f"Cannot delete account with active holdings. "
-                    f"Please liquidate all assets first."
-                )
+        # Find accounts that have linked transactions with this account
+        affected_account_ids = self._find_affected_accounts(account_id, db)
 
-        # Delete holdings
-        db.query(Holding).filter(Holding.account_id == account_id).delete()
+        # Get the earliest transaction date (for recalculation)
+        earliest_tx_date = self._get_earliest_transaction_date(account_id, db)
 
-        # Delete account
+        # Hard delete account (CASCADE will handle holdings and transactions)
+        # linked_tx_id will be set to NULL automatically via ondelete='SET NULL'
         db.delete(account)
+        db.flush()  # Execute deletion before recalculation
+
+        # Trigger recalculation for affected accounts if needed
+        if affected_account_ids and earliest_tx_date:
+            recalc_service = RecalculationService()
+            recalc_service.recalculate_from_date(earliest_tx_date, db)
+
         db.commit()
+        return stats
 
     def get_account(self, account_id: int, db: Session) -> Optional[Account]:
         """

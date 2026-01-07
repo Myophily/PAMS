@@ -83,12 +83,24 @@ export function useDeleteAccount() {
       const res = await fetch(`/api/accounts/${id}`, {
         method: 'DELETE',
       });
-      if (!res.ok) throw new Error('Failed to delete account');
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'Failed to delete account');
+      }
+      // Backend now returns 200 with stats, not 204
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate all potentially affected queries
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['snapshots'] });
+
+      // Log deletion stats (optional)
+      if (data.stats) {
+        console.log('Account deleted:', data.stats);
+      }
     },
   });
 }
