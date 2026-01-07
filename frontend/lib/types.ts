@@ -145,12 +145,11 @@ export interface CreateExchangeInput {
 
 // Market data types
 export interface StockPrice {
-  ticker: string;
-  date: string;
-  closing_price: number;
+  price: string;        // Decimal as string from backend
   currency: string;
   source: string;
-  cached: boolean;
+  is_cached: boolean;   // Changed from cached
+  date: string;
 }
 
 export interface ExchangeRate {

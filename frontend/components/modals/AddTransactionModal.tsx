@@ -9,7 +9,13 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { useAccounts } from '@/lib/hooks/useAccounts';
-import { useCreateTransaction } from '@/lib/hooks/useTransactions';
+import {
+  useCreateDeposit,
+  useCreateWithdrawal,
+  useCreateDividend,
+  useCreateBuy,
+  useCreateSell,
+} from '@/lib/hooks/useTransactions';
 import {
   createTransactionSchema,
   type CreateTransactionFormData,
@@ -27,7 +33,11 @@ export function AddTransactionModal({
   defaultAccountId,
 }: AddTransactionModalProps) {
   const { data: accountsData } = useAccounts();
-  const createTransaction = useCreateTransaction();
+  const createDeposit = useCreateDeposit();
+  const createWithdrawal = useCreateWithdrawal();
+  const createDividend = useCreateDividend();
+  const createBuy = useCreateBuy();
+  const createSell = useCreateSell();
   const [transactionType, setTransactionType] = useState('Deposit');
 
   const {
@@ -47,7 +57,57 @@ export function AddTransactionModal({
 
   const onSubmit = async (data: CreateTransactionFormData) => {
     try {
-      await createTransaction.mutateAsync(data);
+      // Route to the appropriate hook based on transaction type
+      switch (data.type) {
+        case 'Deposit':
+          await createDeposit.mutateAsync({
+            account_id: data.account_id,
+            amount: data.amount!,
+            date: data.date,
+            description: data.description,
+          });
+          break;
+        case 'Withdrawal':
+          await createWithdrawal.mutateAsync({
+            account_id: data.account_id,
+            amount: data.amount!,
+            date: data.date,
+            description: data.description,
+          });
+          break;
+        case 'Dividend':
+          await createDividend.mutateAsync({
+            account_id: data.account_id,
+            ticker: data.ticker!,
+            amount: data.amount!,
+            date: data.date,
+            description: data.description,
+          });
+          break;
+        case 'Buy':
+          await createBuy.mutateAsync({
+            account_id: data.account_id,
+            ticker: data.ticker!,
+            quantity: data.quantity!,
+            price: data.price!,
+            date: data.date,
+            description: data.description,
+          });
+          break;
+        case 'Sell':
+          await createSell.mutateAsync({
+            account_id: data.account_id,
+            ticker: data.ticker!,
+            quantity: data.quantity!,
+            price: data.price!,
+            date: data.date,
+            description: data.description,
+          });
+          break;
+        default:
+          throw new Error('Unknown transaction type');
+      }
+
       toast.success('Transaction created successfully!');
       reset();
       onClose();
@@ -174,7 +234,16 @@ export function AddTransactionModal({
           <Button type="button" variant="secondary" onClick={handleClose}>
             Cancel
           </Button>
-          <Button type="submit" loading={createTransaction.isPending}>
+          <Button
+            type="submit"
+            loading={
+              createDeposit.isPending ||
+              createWithdrawal.isPending ||
+              createDividend.isPending ||
+              createBuy.isPending ||
+              createSell.isPending
+            }
+          >
             Create Transaction
           </Button>
         </div>

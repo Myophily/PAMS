@@ -92,9 +92,11 @@ export function TransferModal({
         </Select>
 
         {fromAccount && (
-          <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
-            <span className="font-medium">Available Balance:</span>{' '}
-            {formatDecimal(fromAccount.balance)} {fromAccount.currency}
+          <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-900">
+            <span className="font-medium text-blue-900">Available Balance:</span>{' '}
+            <span className="text-gray-900">
+              {formatDecimal(fromAccount.balance)} {fromAccount.currency}
+            </span>
           </div>
         )}
 

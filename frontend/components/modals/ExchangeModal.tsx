@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { useAccounts } from '@/lib/hooks/useAccounts';
 import { useExchangeRate } from '@/lib/hooks/useMarketData';
-import { useCreateTransaction } from '@/lib/hooks/useTransactions';
+import { useCreateExchange } from '@/lib/hooks/useTransactions';
 import {
   createExchangeSchema,
   type CreateExchangeFormData,
@@ -28,7 +28,7 @@ export function ExchangeModal({
   defaultAccountId,
 }: ExchangeModalProps) {
   const { data: accountsData } = useAccounts();
-  const createTransaction = useCreateTransaction();
+  const createExchange = useCreateExchange();
 
   const {
     register,
@@ -70,12 +70,12 @@ export function ExchangeModal({
 
   const onSubmit = async (data: CreateExchangeFormData) => {
     try {
-      await createTransaction.mutateAsync({
+      await createExchange.mutateAsync({
         account_id: data.account_id,
-        type: 'Exchange',
-        ticker: `${data.from_ticker}/${data.to_ticker}`,
-        amount: data.from_amount,
-        price: data.exchange_rate,
+        from_ticker: data.from_ticker,
+        to_ticker: data.to_ticker,
+        from_amount: data.from_amount,
+        to_amount: data.to_amount,
         date: data.date,
         description: data.description,
       });
@@ -150,9 +150,11 @@ export function ExchangeModal({
         </div>
 
         {rateData?.rate && (
-          <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
-            <span className="font-medium">Exchange Rate:</span> 1 {fromTicker} ={' '}
-            {parseFloat(rateData.rate).toFixed(4)} {toTicker}
+          <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-900">
+            <span className="font-medium text-blue-900">Exchange Rate:</span>{' '}
+            <span className="text-gray-900">
+              1 {fromTicker} = {parseFloat(rateData.rate).toFixed(4)} {toTicker}
+            </span>
           </div>
         )}
 
@@ -193,7 +195,7 @@ export function ExchangeModal({
           <Button type="button" variant="secondary" onClick={handleClose}>
             Cancel
           </Button>
-          <Button type="submit" loading={createTransaction.isPending}>
+          <Button type="submit" loading={createExchange.isPending}>
             Complete Exchange
           </Button>
         </div>

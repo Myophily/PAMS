@@ -43,27 +43,24 @@ export function useTransactionDetails(id: number) {
   });
 }
 
-// Create transaction
-export function useCreateTransaction() {
+// Pattern ① - Income/Expense transactions
+export function useCreateDeposit() {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async (data: CreateTransactionInput) => {
-      const res = await fetch('/api/transactions', {
+    mutationFn: async (data: { account_id: number; amount: number; date: string; description?: string }) => {
+      const res = await fetch('/api/transactions/deposit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.message || 'Failed to create transaction');
+        throw new Error(error.detail || 'Failed to create deposit');
       }
       return res.json();
     },
     onSuccess: (_, variables) => {
-      // Invalidate all affected queries
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
       queryClient.invalidateQueries({ queryKey: ['accounts', variables.account_id] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['snapshots'] });
@@ -71,26 +68,172 @@ export function useCreateTransaction() {
   });
 }
 
-// Create transfer (special case - creates 2 linked transactions)
-export function useCreateTransfer() {
+export function useCreateWithdrawal() {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async (data: CreateTransferInput) => {
-      const res = await fetch('/api/transactions', {
+    mutationFn: async (data: { account_id: number; amount: number; date: string; description?: string }) => {
+      const res = await fetch('/api/transactions/withdrawal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, type: 'Transfer' }),
+        body: JSON.stringify(data),
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.message || 'Failed to create transfer');
+        throw new Error(error.detail || 'Failed to create withdrawal');
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts', variables.account_id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['snapshots'] });
+    },
+  });
+}
+
+export function useCreateDividend() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { account_id: number; ticker: string; amount: number; date: string; description?: string }) => {
+      const res = await fetch('/api/transactions/dividend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'Failed to create dividend');
+      }
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts', variables.account_id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['snapshots'] });
+    },
+  });
+}
+
+export function useCreateInterest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { account_id: number; amount: number; date: string; description?: string }) => {
+      const res = await fetch('/api/transactions/interest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'Failed to create interest');
+      }
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts', variables.account_id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['snapshots'] });
+    },
+  });
+}
+
+// Pattern ② - Transfer (creates 2 linked transactions)
+export function useCreateTransfer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { from_account_id: number; to_account_id: number; amount: number; date: string; description?: string }) => {
+      const res = await fetch('/api/transactions/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'Failed to create transfer');
+      }
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts', variables.from_account_id] });
+      queryClient.invalidateQueries({ queryKey: ['accounts', variables.to_account_id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['snapshots'] });
+    },
+  });
+}
+
+// Pattern ③ - Buy/Sell (converts cash ↔ stock)
+export function useCreateBuy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { account_id: number; ticker: string; quantity: number; price: number; date: string; description?: string }) => {
+      const res = await fetch('/api/transactions/buy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'Failed to create buy transaction');
+      }
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts', variables.account_id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['snapshots'] });
+    },
+  });
+}
+
+export function useCreateSell() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { account_id: number; ticker: string; quantity: number; price: number; date: string; description?: string }) => {
+      const res = await fetch('/api/transactions/sell', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'Failed to create sell transaction');
+      }
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts', variables.account_id] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['snapshots'] });
+    },
+  });
+}
+
+// Pattern ④ - Exchange (converts currencies)
+export function useCreateExchange() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { account_id: number; from_ticker: string; to_ticker: string; from_amount: number; to_amount: number; date: string; description?: string }) => {
+      const res = await fetch('/api/transactions/exchange', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.detail || 'Failed to create exchange');
+      }
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts', variables.account_id] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['snapshots'] });
     },

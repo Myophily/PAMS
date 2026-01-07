@@ -10,7 +10,7 @@ import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { useAccounts } from '@/lib/hooks/useAccounts';
 import { useStockPrice } from '@/lib/hooks/useMarketData';
-import { useCreateTransaction } from '@/lib/hooks/useTransactions';
+import { useCreateBuy, useCreateSell } from '@/lib/hooks/useTransactions';
 import { formatDecimal, parseDecimal } from '@/lib/utils/decimal';
 import {
   createBuySellSchema,
@@ -31,7 +31,8 @@ export function BuySellModal({
   defaultType = 'Buy',
 }: BuySellModalProps) {
   const { data: accountsData } = useAccounts();
-  const createTransaction = useCreateTransaction();
+  const createBuy = useCreateBuy();
+  const createSell = useCreateSell();
 
   const {
     register,
@@ -68,8 +69,8 @@ export function BuySellModal({
 
   // Auto-fill price when stock price is fetched
   useEffect(() => {
-    if (priceData?.closing_price && price === 0) {
-      setValue('price', priceData.closing_price);
+    if (priceData?.price && price === 0) {
+      setValue('price', parseFloat(priceData.price));
     }
   }, [priceData, price, setValue]);
 
@@ -88,7 +89,27 @@ export function BuySellModal({
 
       // TODO: For Sell, validate holding quantity (need to fetch holdings)
 
-      await createTransaction.mutateAsync(data);
+      // Use specific hook based on transaction type
+      if (data.type === 'Buy') {
+        await createBuy.mutateAsync({
+          account_id: data.account_id,
+          ticker: data.ticker,
+          quantity: data.quantity,
+          price: data.price,
+          date: data.date,
+          description: data.description,
+        });
+      } else {
+        await createSell.mutateAsync({
+          account_id: data.account_id,
+          ticker: data.ticker,
+          quantity: data.quantity,
+          price: data.price,
+          date: data.date,
+          description: data.description,
+        });
+      }
+
       toast.success(
         `${data.type} order for ${data.ticker} completed successfully!`
       );
@@ -156,10 +177,10 @@ export function BuySellModal({
         />
 
         {priceData && (
-          <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
-            <span className="font-medium">Current Price:</span>{' '}
-            {priceData.closing_price.toLocaleString()} {priceData.currency}
-            {priceData.cached && ' (cached)'}
+          <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-900">
+            <span className="font-medium text-blue-900">Current Price:</span>{' '}
+            {parseFloat(priceData.price).toLocaleString()} {priceData.currency}
+            {priceData.is_cached && <span className="text-gray-600"> (cached)</span>}
           </div>
         )}
 
@@ -184,9 +205,9 @@ export function BuySellModal({
         </div>
 
         {totalValue > 0 && (
-          <div className="bg-gray-50 border border-gray-200 rounded p-3">
-            <span className="font-medium">Total Value:</span>{' '}
-            <span className="text-lg font-bold">
+          <div className="bg-gray-50 border border-gray-200 rounded p-3 text-gray-900">
+            <span className="font-medium text-gray-900">Total Value:</span>{' '}
+            <span className="text-lg font-bold text-gray-900">
               {totalValue.toLocaleString()} {selectedAccount?.currency || ''}
             </span>
           </div>
@@ -211,7 +232,7 @@ export function BuySellModal({
           </Button>
           <Button
             type="submit"
-            loading={createTransaction.isPending}
+            loading={type === 'Buy' ? createBuy.isPending : createSell.isPending}
             variant={type === 'Buy' ? 'primary' : 'danger'}
           >
             {type} Stocks
