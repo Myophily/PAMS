@@ -11,7 +11,7 @@ const initialHoldingItemSchema = z.object({
   price: z.number()
     .positive('Price must be greater than 0')
     .optional(),
-  price_currency: z.enum(['KRW', 'USD', 'JPY', 'EUR']).optional()
+  price_currency: z.enum(['KRW', 'USD', 'JPY', 'EUR', 'GBP', 'HKD']).optional()
 }).refine(
   (data) => {
     // If price is provided, price_currency must also be provided

@@ -111,13 +111,25 @@ def infer_currency_from_holdings(holdings: List[Holding], account_type: str = No
             return "KRW"
         return currency_holdings[0]
 
+    # Handle empty accounts - use account type to determine default
+    if len(holdings) == 0:
+        if account_type == "Securities":
+            # Securities accounts can hold multiple currencies, default to KRW for Korean users
+            return "KRW"
+        elif account_type == "ForeignCurrency":
+            # ForeignCurrency accounts default to USD
+            return "USD"
+        else:
+            # Deposit/Savings/MoneyMarket default to KRW
+            return "KRW"
+
     # Fallback: Check price_currency of stock holdings
     for holding in holdings:
         if not is_currency_ticker(holding.ticker) and hasattr(holding, 'price_currency'):
             if holding.price_currency:
                 return holding.price_currency
 
-    # Last resort fallback
+    # Last resort fallback for non-empty accounts without currency holdings
     if account_type in ["Securities", "ForeignCurrency"]:
         return "USD"
 

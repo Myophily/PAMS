@@ -68,15 +68,16 @@ export function AccountCard({ account }: AccountCardProps) {
 
         <div className="mb-4">
           <div className="text-3xl font-bold text-gray-900">
-            {/* Show total portfolio value (stocks + cash) */}
             {formatCurrency(
-              account.total_value || account.balance,  // Fallback for backward compat
-              currency as 'KRW' | 'USD'
+              account.total_value_krw || account.total_value || account.balance,
+              'KRW'
             )}
           </div>
           <div className="text-sm text-gray-600 mt-1">
-            {/* USD now shows total portfolio value */}
-            {formatCurrency(account.balance_usd, 'USD')}
+            ≈ {formatCurrency(account.balance_usd, 'USD')}
+            <span className="text-xs text-gray-400 ml-1">
+              ({account.currency})
+            </span>
           </div>
         </div>
 

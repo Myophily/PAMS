@@ -47,14 +47,14 @@ export function AddAccountModal({ isOpen, onClose }: AddAccountModalProps) {
 
   // Initialize initial_holdings based on account type
   useEffect(() => {
-    if (['Deposit', 'Savings', 'MoneyMarket'].includes(accountType)) {
-      // Pre-populate with single KRW holding
+    if (['Deposit', 'Savings', 'MoneyMarket', 'Securities'].includes(accountType)) {
+      // Pre-populate with single KRW holding for better UX
       reset({
         ...watch(),
         initial_holdings: [{ ticker: 'KRW', quantity: 0, price: undefined }],
       });
-    } else {
-      // Clear holdings for other types
+    } else if (accountType === 'ForeignCurrency') {
+      // Clear holdings for ForeignCurrency (user must add manually)
       reset({
         ...watch(),
         initial_holdings: [],
