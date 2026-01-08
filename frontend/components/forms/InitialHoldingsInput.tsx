@@ -1,6 +1,7 @@
 'use client';
 
-import { useFieldArray, Control, UseFormRegister, FieldErrors, UseFormWatch } from 'react-hook-form';
+import { useEffect } from 'react';
+import { useFieldArray, Control, UseFormRegister, FieldErrors, UseFormWatch, UseFormSetValue } from 'react-hook-form';
 import { Plus, Trash2, Info } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -14,6 +15,7 @@ interface InitialHoldingsInputProps {
   register: UseFormRegister<CreateAccountFormData>;
   errors: FieldErrors<CreateAccountFormData>;
   watch: UseFormWatch<CreateAccountFormData>;
+  setValue: UseFormSetValue<CreateAccountFormData>;
 }
 
 export function InitialHoldingsInput({
@@ -22,11 +24,36 @@ export function InitialHoldingsInput({
   register,
   errors,
   watch,
+  setValue,
 }: InitialHoldingsInputProps) {
   const { fields, append, remove } = useFieldArray({
     control,
     name: 'initial_holdings',
   });
+
+  // Auto-clear price field when currency ticker is detected (Securities accounts only)
+  useEffect(() => {
+    if (accountType !== 'Securities') return;
+
+    fields.forEach((_, index) => {
+      const ticker = watch(`initial_holdings.${index}.ticker`);
+      const currentPrice = watch(`initial_holdings.${index}.price`);
+
+      // If ticker is a currency AND price has a value, clear it
+      if (ticker && isCurrencyTicker(ticker) && currentPrice !== undefined && currentPrice !== 0) {
+        setValue(`initial_holdings.${index}.price`, undefined, {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
+      }
+    });
+  }, [
+    accountType,
+    fields.map((_, i) => watch(`initial_holdings.${i}.ticker`)).join(','),
+    fields.length,
+    setValue,
+    watch,
+  ]);
 
   // Render for Deposit/Savings/MoneyMarket accounts (simple KRW balance)
   const renderSimpleKRWBalance = () => {

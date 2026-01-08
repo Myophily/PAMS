@@ -31,6 +31,7 @@ export function AddAccountModal({ isOpen, onClose }: AddAccountModalProps) {
     reset,
     watch,
     control,
+    setValue,
   } = useForm<CreateAccountFormData>({
     resolver: zodResolver(createAccountSchema),
     defaultValues: {
@@ -127,6 +128,7 @@ export function AddAccountModal({ isOpen, onClose }: AddAccountModalProps) {
           register={register}
           errors={errors}
           watch={watch}
+          setValue={setValue}
         />
 
         <div className="flex gap-2 justify-end pt-4 border-t">
