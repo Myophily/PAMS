@@ -19,8 +19,11 @@ export interface Account {
 }
 
 export interface AccountWithBalance extends Account {
-  balance: DecimalString;  // Decimal as string from backend
-  balance_usd: DecimalString;  // Decimal as string from backend
+  balance: DecimalString;  // Cash only (backward compat)
+  total_value: DecimalString;  // NEW: Total portfolio value (cash + stocks)
+  total_value_krw: DecimalString;  // NEW: Total value in KRW
+  stock_value: DecimalString;  // NEW: Stock holdings value
+  balance_usd: DecimalString;  // Now represents total portfolio USD value
   currency: string;  // Inferred primary currency from holdings (e.g., "KRW", "USD")
   holdings_count: number;
 }
@@ -128,6 +131,7 @@ export interface CreateTransactionInput {
   ticker?: string;
   quantity?: number;
   price?: number;
+  price_currency?: string;
   date: string;
   description?: string;
 }

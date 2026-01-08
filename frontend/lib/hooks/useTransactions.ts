@@ -170,7 +170,7 @@ export function useCreateTransfer() {
 export function useCreateBuy() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { account_id: number; ticker: string; quantity: number; price: number; date: string; description?: string }) => {
+    mutationFn: async (data: { account_id: number; ticker: string; quantity: number; price: number; price_currency?: string; date: string; description?: string }) => {
       const res = await fetch('/api/transactions/buy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -194,7 +194,7 @@ export function useCreateBuy() {
 export function useCreateSell() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { account_id: number; ticker: string; quantity: number; price: number; date: string; description?: string }) => {
+    mutationFn: async (data: { account_id: number; ticker: string; quantity: number; price: number; price_currency?: string; date: string; description?: string }) => {
       const res = await fetch('/api/transactions/sell', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

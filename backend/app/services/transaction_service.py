@@ -508,9 +508,10 @@ class TransactionService:
         ticker: str,
         quantity: Decimal,
         price: Decimal,
-        transaction_date: datetime,
-        description: Optional[str],
-        db: Session
+        price_currency: str = 'USD',
+        transaction_date: datetime = None,
+        description: Optional[str] = None,
+        db: Session = None
     ) -> Transaction:
         """
         Create sell transaction (Pattern ③).
@@ -522,6 +523,7 @@ class TransactionService:
             ticker: Stock ticker symbol
             quantity: Number of shares to sell
             price: Price per share
+            price_currency: Currency of the price (default: USD)
             transaction_date: Date of transaction
             description: Optional user notes
             db: Database session
@@ -559,6 +561,7 @@ class TransactionService:
             ticker=ticker,
             quantity=to_decimal(quantity, precision=8),
             price=to_decimal(price, precision=4),
+            price_currency=price_currency,
             amount=to_decimal(proceeds, precision=2),  # Positive (cash inflow)
             date=transaction_date,
             linked_tx_id=None,

@@ -1,13 +1,27 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useFieldArray, Control, UseFormRegister, FieldErrors, UseFormWatch, UseFormSetValue } from 'react-hook-form';
+import { useFieldArray, Control, Controller, UseFormRegister, FieldErrors, UseFormWatch, UseFormSetValue } from 'react-hook-form';
 import { Plus, Trash2, Info } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { CURRENCY_TICKERS, isCurrencyTicker } from '@/lib/utils/currency';
 import { CreateAccountFormData } from '@/lib/validation/schemas';
+
+function inferCurrencyFromTicker(ticker: string): 'USD' | 'KRW' | 'JPY' | 'EUR' | 'GBP' | 'HKD' {
+  const upper = ticker.toUpperCase();
+  if (/^\d{6}$/.test(upper) || upper.endsWith('.KS') || upper.endsWith('.KQ')) {
+    return 'KRW';
+  }
+  if (upper.endsWith('.T')) {
+    return 'JPY';
+  }
+  if (upper.endsWith('.HK')) {
+    return 'HKD';
+  }
+  return 'USD';
+}
 
 interface InitialHoldingsInputProps {
   accountType: string;
@@ -45,6 +59,35 @@ export function InitialHoldingsInput({
           shouldValidate: true,
           shouldDirty: true,
         });
+      }
+    });
+  }, [
+    accountType,
+    fields.map((_, i) => watch(`initial_holdings.${i}.ticker`)).join(','),
+    fields.length,
+    setValue,
+    watch,
+  ]);
+
+  // Auto-detect price_currency from ticker (Securities accounts only)
+  useEffect(() => {
+    if (accountType !== 'Securities') return;
+
+    fields.forEach((_, index) => {
+      const ticker = watch(`initial_holdings.${index}.ticker`);
+      const isCurrency = ticker ? isCurrencyTicker(ticker) : false;
+
+      // Auto-set price_currency for stocks based on ticker
+      if (!isCurrency && ticker) {
+        const inferredCurrency = inferCurrencyFromTicker(ticker);
+        const currentPriceCurrency = watch(`initial_holdings.${index}.price_currency`);
+
+        if (currentPriceCurrency !== inferredCurrency) {
+          setValue(`initial_holdings.${index}.price_currency`, inferredCurrency, {
+            shouldValidate: true,
+            shouldDirty: false,
+          });
+        }
       }
     });
   }, [
@@ -235,13 +278,20 @@ export function InitialHoldingsInput({
                         error={errors.initial_holdings?.[index]?.price?.message}
                         placeholder={selectedCurrency === 'KRW' ? '65000' : '150.50'}
                       />
-                      <Select
-                        label={index === 0 ? 'Currency' : undefined}
-                        {...register(`initial_holdings.${index}.price_currency`)}
-                      >
-                        <option value="USD">USD</option>
-                        <option value="KRW">KRW</option>
-                      </Select>
+                      <Controller
+                        name={`initial_holdings.${index}.price_currency`}
+                        control={control}
+                        defaultValue="USD"
+                        render={({ field }) => (
+                          <Select
+                            label={index === 0 ? 'Currency' : undefined}
+                            {...field}
+                          >
+                            <option value="USD">USD</option>
+                            <option value="KRW">KRW</option>
+                          </Select>
+                        )}
+                      />
                     </>
                   )}
                 </div>

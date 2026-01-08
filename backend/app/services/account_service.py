@@ -192,7 +192,14 @@ class AccountService:
                 # Create Deposit transaction for initial holdings (stocks, commodities, etc.)
                 # Semantically "depositing" existing holdings into the system
                 # This avoids cash balance validation needed for Buy transactions
-                price_currency = holding.price_currency or 'USD'
+
+                # Auto-infer price_currency if not provided (schema validator handles this,
+                # but add safety net for direct service calls)
+                if not holding.price_currency:
+                    from app.utils.currency_inference import infer_price_currency_from_ticker
+                    holding.price_currency = infer_price_currency_from_ticker(holding.ticker)
+
+                price_currency = holding.price_currency
                 current_value = holding.quantity * (holding.price or Decimal("1"))
 
                 transaction = Transaction(
@@ -216,9 +223,91 @@ class AccountService:
                 stock_holding.avg_price = holding.price or Decimal("1")
                 stock_holding.price_currency = price_currency
 
+    def _calculate_account_valuation(
+        self,
+        holdings: List[Holding],
+        account_type: str,
+        usd_krw_rate: Decimal,
+        price_cache: dict,
+        db: Session
+    ) -> tuple[Decimal, Decimal, Decimal, str]:
+        """
+        Calculate account total value including stocks.
+
+        Args:
+            holdings: List of account holdings
+            account_type: Account type string
+            usd_krw_rate: Current USD to KRW exchange rate
+            price_cache: Dict of ticker -> latest price
+            db: Database session
+
+        Returns:
+            Tuple of (cash_balance, stock_value_krw, total_value_krw, inferred_currency)
+        """
+        from app.utils.currency_inference import infer_currency_from_holdings, is_currency_ticker
+        from app.utils.calculation_engine import calculate_total_value
+
+        inferred_currency = infer_currency_from_holdings(holdings, account_type)
+
+        cash_balance = Decimal("0")  # In account's primary currency
+        stock_value_krw = Decimal("0")
+
+        for holding in holdings:
+            if is_currency_ticker(holding.ticker):
+                # Currency holding (KRW, USD, EUR, etc.)
+                cash_balance += holding.quantity
+            else:
+                # Stock/commodity holding
+                current_price = price_cache.get(holding.ticker)
+                if not current_price:
+                    # Try fetching from market data
+                    current_price = self.market_data_service.get_latest_price(holding.ticker, db)
+                    if not current_price:
+                        # Fallback to average price (user preference)
+                        current_price = holding.avg_price
+                        print(f"[WARN] No market data for {holding.ticker}, using avg_price {current_price}")
+
+                # Calculate holding value in its price currency
+                holding_value = calculate_total_value(holding.quantity, current_price)
+
+                # Convert to KRW based on holding.price_currency
+                if holding.price_currency == "USD":
+                    holding_value_krw = holding_value * usd_krw_rate
+                elif holding.price_currency == "KRW":
+                    holding_value_krw = holding_value
+                else:
+                    # Fallback: assume same as account currency
+                    if inferred_currency == "USD":
+                        holding_value_krw = holding_value * usd_krw_rate
+                    else:
+                        holding_value_krw = holding_value
+
+                stock_value_krw += holding_value_krw
+
+        # Convert cash to KRW
+        if inferred_currency == "KRW":
+            cash_balance_krw = cash_balance
+        elif inferred_currency == "USD":
+            cash_balance_krw = cash_balance * usd_krw_rate
+        else:
+            # Try fetching other currency rates (EUR, JPY, etc.)
+            fx_rate = self.market_data_service.get_latest_exchange_rate(
+                inferred_currency, "KRW", db
+            )
+            if fx_rate:
+                cash_balance_krw = cash_balance * fx_rate
+            else:
+                # Fallback: treat as KRW 1:1
+                cash_balance_krw = cash_balance
+                print(f"[WARN] No exchange rate for {inferred_currency}/KRW, treating as 1:1")
+
+        total_value_krw = cash_balance_krw + stock_value_krw
+
+        return cash_balance, stock_value_krw, total_value_krw, inferred_currency
+
     def list_accounts(self, db: Session) -> List[AccountListItemResponse]:
         """
-        List all accounts with balance summary.
+        List all accounts with balance summary (includes stock valuations).
 
         Args:
             db: Database session
@@ -226,41 +315,81 @@ class AccountService:
         Returns:
             List of accounts with balance info
         """
+        from app.utils.currency_inference import is_currency_ticker
+
         accounts = db.query(Account).all()
 
-        # Get default exchange rate (USD/KRW)
-        usd_krw_rate = to_decimal(1300, precision=4)  # Placeholder
+        # Fetch latest USD/KRW exchange rate (with auto-fetch from API)
+        usd_krw_rate = self.market_data_service.get_latest_exchange_rate("USD", "KRW", db)
+        if not usd_krw_rate:
+            usd_krw_rate = to_decimal(1300, precision=4)
+            print("[WARN] USD/KRW exchange rate API fetch failed, using emergency fallback 1300. Please check internet connection or Yahoo Finance API availability.")
 
+        # Batch fetch: Collect all unique tickers across all accounts
+        all_tickers = set()
+        account_holdings_map = {}
+
+        for account in accounts:
+            holdings = self.holding_service.get_all_holdings_for_account(
+                account.id, db, include_zero=False
+            )
+            account_holdings_map[account.id] = holdings
+
+            # Collect stock tickers (not currencies)
+            for holding in holdings:
+                if not is_currency_ticker(holding.ticker):
+                    all_tickers.add(holding.ticker)
+
+        # Batch fetch latest prices (single database query)
+        price_cache = {}
+        if all_tickers:
+            from app.models.market_data import MarketData
+            latest_prices = db.query(MarketData).filter(
+                MarketData.ticker.in_(all_tickers),
+                MarketData.closing_price.isnot(None)
+            ).order_by(MarketData.ticker, MarketData.date.desc()).all()
+
+            # Build cache: first occurrence is most recent (due to ORDER BY date DESC)
+            for md in latest_prices:
+                if md.ticker not in price_cache:
+                    price_cache[md.ticker] = md.closing_price
+
+        # Build response list
         account_list = []
         for account in accounts:
-            # Get holdings for this account
-            holdings = self.holding_service.get_all_holdings_for_account(account.id, db, include_zero=False)
+            holdings = account_holdings_map.get(account.id, [])
 
-            # Infer currency from holdings
-            inferred_currency = infer_currency_from_holdings(holdings, account.type)
+            # Calculate valuations using helper method
+            cash_balance, stock_value_krw, total_value_krw, inferred_currency = \
+                self._calculate_account_valuation(
+                    holdings, account.type, usd_krw_rate, price_cache, db
+                )
 
-            # Calculate total balance in account's currency
-            balance_raw = sum((h.quantity for h in holdings if h.ticker in ["CASH", inferred_currency]), Decimal("0"))
-
-            # Quantize based on currency type
+            # Quantize cash balance based on currency
             decimal_places = get_decimal_places(inferred_currency)
-            balance = balance_raw.quantize(Decimal(decimal_places))
+            cash_balance = cash_balance.quantize(Decimal(decimal_places))
 
-            # Convert to USD for comparison
+            # Convert total to USD
+            total_value_usd = (total_value_krw / usd_krw_rate).quantize(Decimal("0.01"))
+
+            # Calculate total_value in account's primary currency
             if inferred_currency == "KRW":
-                balance_usd = balance / usd_krw_rate
+                total_value = total_value_krw
             elif inferred_currency == "USD":
-                balance_usd = balance
+                total_value = total_value_usd
             else:
-                # TODO: Handle other currencies
-                balance_usd = balance
+                # For other currencies, use USD as fallback
+                total_value = total_value_usd
 
             account_list.append(AccountListItemResponse(
                 id=account.id,
                 name=account.name,
                 type=account.type,
-                balance=balance,
-                balance_usd=balance_usd.quantize(Decimal("0.01")),
+                balance=cash_balance,  # Cash only (backward compat)
+                total_value=total_value.quantize(Decimal(decimal_places)),  # NEW
+                total_value_krw=total_value_krw.quantize(Decimal("1")),  # NEW
+                stock_value=stock_value_krw.quantize(Decimal("1")),  # NEW
+                balance_usd=total_value_usd,  # CHANGED: now total portfolio USD value
                 currency=inferred_currency,
                 holdings_count=len(holdings),
                 created_at=account.created_at

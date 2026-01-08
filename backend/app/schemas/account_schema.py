@@ -50,6 +50,32 @@ class InitialHoldingItem(BaseModel):
 
         return v
 
+    @validator('price_currency', always=True)
+    def validate_price_currency_requirement(cls, v, values):
+        """price_currency required for non-currency tickers (auto-infer if missing)."""
+        from app.utils.currency_inference import is_currency_ticker, infer_price_currency_from_ticker
+
+        ticker = values.get('ticker')
+        price = values.get('price')
+
+        if not ticker:
+            return v
+
+        # Currency tickers should NOT have price_currency
+        if is_currency_ticker(ticker):
+            if v is not None:
+                raise ValueError(f'price_currency should not be provided for currency ticker {ticker}')
+            return None
+
+        # Non-currency tickers with price MUST have price_currency
+        if price is not None:
+            # Auto-infer if not provided
+            if v is None:
+                v = infer_price_currency_from_ticker(ticker)
+            return v
+
+        return v
+
 
 class AccountCreateRequest(BaseModel):
     """Create a new account with optional initial balance or multiple initial holdings."""
@@ -149,8 +175,11 @@ class AccountListItemResponse(BaseModel):
     id: int
     name: str
     type: str
-    balance: Decimal  # Total balance in account's currency
-    balance_usd: Decimal  # Converted to USD
+    balance: Decimal  # Cash only (backward compatibility)
+    total_value: Decimal  # NEW: Total portfolio value (cash + stocks) in account currency
+    total_value_krw: Decimal  # NEW: Total value converted to KRW for dashboard aggregation
+    stock_value: Decimal  # NEW: Stock holdings value in KRW
+    balance_usd: Decimal  # CHANGED: Now shows total portfolio USD value (not just cash)
     currency: str  # Inferred primary currency from holdings (e.g., "KRW", "USD")
     holdings_count: int  # Number of different assets (including CASH)
     created_at: datetime

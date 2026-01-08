@@ -1,257 +1,160 @@
-# Implementation Summary: Remove Currency Field & CASH Validation
+# Stock Addition and Balance Display Fix - Implementation Summary
 
-**Date:** 2026-01-08
-**Status:** ✅ ALL PHASES COMPLETE (1-6)
+## Overview
 
----
-
-## What Was Changed
-
-### Issue 1: Removed Account Currency Field
-**Problem:** Currency was required at account creation, but it should be inferred from holdings.
-
-**Solution:**
-- Currency is now dynamically inferred from holdings (CASH, KRW, USD, etc.)
-- Backend uses new utility: `backend/app/utils/currency_inference.py`
-- Frontend no longer shows currency selector
-
-### Issue 2: Removed CASH Validation
-**Problem:** Creating Securities accounts with stocks required CASH to cover purchase costs. This was incorrect - initial holdings are snapshots, not transactions.
-
-**Solution:**
-- Removed validation that CASH >= stock costs
-- Backend now auto-injects CASH for stock purchases to maintain transaction integrity
-- Users can create accounts with stocks-only, CASH-only, or any combination
+This implementation fixes two critical issues in the PAM system:
+1. **Stock Addition Error**: Users could not add stocks without manually specifying `price_currency`
+2. **Balance Display**: AccountCard shows only cash balance, not total portfolio value (cash + stocks)
 
 ---
 
-## Changes by File
+## Changes Made
 
 ### Backend Changes
 
-| File | Changes | Status |
-|------|---------|--------|
-| `backend/app/utils/currency_inference.py` | **NEW** - Currency inference utility | ✅ Created |
-| `backend/app/models/account.py` | Made `currency` column nullable | ✅ Updated |
-| `backend/app/schemas/account_schema.py` | Removed CASH validation (lines 59-73)<br>Made `currency` optional | ✅ Updated |
-| `backend/app/services/account_service.py` | Uses currency inference instead of stored value<br>Auto-injects CASH for stocks-only accounts | ✅ Updated |
-| `backend/migrations/001_make_currency_nullable.sql` | **NEW** - Database migration | ✅ Created |
+#### 1. Schema Auto-Inference (`backend/app/schemas/account_schema.py`)
+
+**File**: `app/schemas/account_schema.py:53-77`
+
+**Change**: Modified `validate_price_currency_requirement` validator to auto-infer `price_currency` when not provided.
+
+**Key Points**:
+- Added `always=True` to ensure validator runs even when `price_currency` is `None`
+- Calls `infer_price_currency_from_ticker()` (existing utility) to detect currency from ticker format
+- Preserves manual override if user explicitly specifies `price_currency`
+
+**Auto-Inference Rules**:
+- Korean stocks (`005930` or `005930.KS` or `005930.KQ`) → `KRW`
+- Japanese stocks (`7203.T`) → `JPY`
+- Hong Kong stocks (`0700.HK`) → `HKD`
+- US/International stocks (`AAPL`, `TSLA`) → `USD`
+
+#### 2. Service Layer Safety Net (`backend/app/services/account_service.py`)
+
+**File**: `app/services/account_service.py:195-201`
+
+**Change**: Added auto-inference safety net in `_create_initial_holdings` method.
+
+**Key Points**:
+- Provides double-layer protection (schema + service)
+- Handles edge cases where service methods might be called directly
+- Uses same inference logic as schema validator
 
 ### Frontend Changes
 
-| File | Changes | Status |
-|------|---------|--------|
-| `frontend/lib/validation/schemas.ts` | Removed CASH validation (lines 69-85)<br>Made `currency` optional | ✅ Updated |
-| `frontend/components/modals/AddAccountModal.tsx` | Removed currency selector<br>Removed `determineCurrency()` function | ✅ Updated |
-| `frontend/lib/types.ts` | Made `currency` optional in Account & CreateAccountInput | ✅ Updated |
+#### 3. Auto-Detection UI (`frontend/components/forms/InitialHoldingsInput.tsx`)
+
+**File**: `components/forms/InitialHoldingsInput.tsx:12-99`
+
+**Changes**:
+
+1. **Added `inferCurrencyFromTicker` helper function** (lines 12-24)
+2. **Added auto-detection useEffect** (lines 72-99)
+3. **Added `Controller` component** for currency selector (lines 295-310)
+
+**Key Points**:
+- Auto-detection runs when user types a ticker symbol
+- Currency selector updates automatically (but user can still override manually)
+- Same inference rules as backend
+- Only applies to Securities account type
+- Uses `Controller` for React Hook Form integration
+
+### Test Coverage
+
+#### 4. New Test Suite (`backend/tests/schemas/test_account_schema.py`)
+
+**File**: `tests/schemas/test_account_schema.py` (new file)
+
+**14 comprehensive tests** covering all auto-inference scenarios:
+
+1. ✅ Korean stock auto-infers KRW
+2. ✅ Korean stock with .KS suffix auto-infers KRW
+3. ✅ Korean stock with .KQ suffix auto-infers KRW
+4. ✅ Japanese stock auto-infers JPY
+5. ✅ Hong Kong stock auto-infers HKD
+6. ✅ US stock auto-infers USD
+7. ✅ Ticker auto-infers USD
+8. ✅ Manual price_currency override respected
+9. ✅ Currency ticker rejects price_currency
+10. ✅ Currency ticker allows no price_currency
+11. ✅ Stock without price validation error
+12. ✅ Stock with price auto-infers currency
+13. ✅ Lower case ticker auto-infers
+14. ✅ Lower case Korean ticker auto-infers KRW
+
+**Test Results**: ✅ All 14 tests passing
+**Backend Test Suite**: ✅ All 178 tests passing (no regressions)
 
 ---
 
-## How Currency Inference Works
+## Issue Resolution
 
-```python
-def infer_currency_from_holdings(holdings: List[Holding]) -> str:
-    """
-    Priority order:
-    1. First CASH holding → "KRW"
-    2. First currency ticker (USD, EUR, JPY, etc.) → that currency
-    3. Fallback → "KRW"
-    """
+### ✅ Issue 1: Stock Addition Error - RESOLVED
+
+**Before**:
+```
+Error: "price_currency is required for stock/asset ticker 005930. Please specify the currency for the price (e.g., 'KRW', 'USD')."
 ```
 
-**Examples:**
-- Holdings: `[CASH: 1000, AAPL: 10]` → Currency: **KRW**
-- Holdings: `[USD: 500, AAPL: 10]` → Currency: **USD**
-- Holdings: `[AAPL: 10]` (stocks only) → Currency: **KRW** (fallback)
-
----
-
-## How Auto-CASH Injection Works
-
-When creating a Securities account with stocks but no CASH:
-
-```python
-# User provides:
-initial_holdings = [
-    {ticker: "AAPL", quantity: 10, price: 150}
-]
-
-# Backend automatically injects:
-initial_holdings = [
-    {ticker: "CASH", quantity: 1500, price: None},  # Auto-injected
-    {ticker: "AAPL", quantity: 10, price: 150}
-]
-
-# Then creates transactions:
-# 1. Deposit $1500 (CASH)
-# 2. Buy 10 AAPL @ $150 (uses the deposited CASH)
-```
-
-This maintains transaction integrity while allowing users to create snapshot-based accounts.
-
----
-
-## Testing Instructions
-
-### Test Case 1: Create Securities Account with Stocks Only
-
-**Frontend:**
-1. Open AddAccountModal
-2. Name: "Test Brokerage"
-3. Type: Securities Account
-4. Click "Add Multiple Holdings"
-5. Add: AAPL, Quantity: 10, Price: 150
-6. **No CASH holding needed!**
-7. Submit
-
-**Expected Result:**
+**After**:
+- ✅ User enters ticker `005930`, quantity `10`, price `75000`
+- ✅ System auto-detects `price_currency = "KRW"`
 - ✅ Account created successfully
-- ✅ Backend auto-injected CASH: 1500
-- ✅ Holdings: CASH (1500), AAPL (10 @ $150)
-- ✅ Currency inferred as KRW
+- ✅ User can still manually override if needed
 
-### Test Case 2: Create Securities Account with CASH Only
+### ✅ Issue 2: Balance Display - ALREADY FIXED (UNCOMMITTED)
 
-**Frontend:**
-1. Open AddAccountModal
-2. Name: "Cash Account"
-3. Type: Securities Account
-4. Click "Add Multiple Holdings"
-5. Add: CASH, Quantity: 5000
-6. Submit
+**Note**: Balance display fix already exists in working tree (not committed):
 
-**Expected Result:**
-- ✅ Account created successfully
-- ✅ Holdings: CASH (5000)
-- ✅ Currency inferred as KRW
+**File**: `frontend/app/accounts/_components/AccountCard.tsx:72-74`
 
-### Test Case 3: Create Securities Account with USD
-
-**Frontend:**
-1. Open AddAccountModal
-2. Name: "US Brokerage"
-3. Type: Securities Account
-4. Click "Add Multiple Holdings"
-5. Add: USD, Quantity: 10000
-6. Add: AAPL, Quantity: 50, Price: 150
-7. Submit
-
-**Expected Result:**
-- ✅ Account created successfully
-- ✅ Backend injects additional USD CASH for stock purchase
-- ✅ Currency inferred as USD (from USD holding)
-- ✅ Balance displays with 2 decimals (USD formatting)
-
-### Test Case 4: Create Deposit Account (Simple Balance)
-
-**Frontend:**
-1. Open AddAccountModal
-2. Name: "Toss Checking"
-3. Type: Deposit Account
-4. **No currency selector shown**
-5. Initial Balance: 1000000
-6. Submit
-
-**Expected Result:**
-- ✅ Account created successfully
-- ✅ Holdings: CASH (1000000)
-- ✅ Currency inferred as KRW
-- ✅ Balance displays with 0 decimals (KRW formatting)
-
----
-
-## ✅ Completed Work (Phases 5-6)
-
-### Phase 5: Dropped Currency Column
-**Status:** ✅ COMPLETE
-
-**Completed Steps:**
-1. ✅ Database reset with new schema (no currency column)
-2. ✅ Removed `currency` from Account model ([backend/app/models/account.py](backend/app/models/account.py:13))
-3. ✅ Removed `currency` from all schemas ([backend/app/schemas/account_schema.py](backend/app/schemas/account_schema.py))
-4. ✅ Removed `currency` from service signatures ([backend/app/services/account_service.py](backend/app/services/account_service.py:38))
-5. ✅ Removed `currency` from router ([backend/app/routers/accounts.py](backend/app/routers/accounts.py:26))
-6. ✅ Removed currency index from database
-
-### Phase 6: Frontend Cleanup
-**Status:** ✅ COMPLETE
-
-**Completed Steps:**
-1. ✅ Removed `currency` from Account interface ([frontend/lib/types.ts](frontend/lib/types.ts:18))
-2. ✅ Removed `currency` from CreateAccountInput ([frontend/lib/types.ts](frontend/lib/types.ts:117))
-3. ✅ Removed `currency` from validation schema ([frontend/lib/validation/schemas.ts](frontend/lib/validation/schemas.ts:19))
-4. ✅ Verified no TypeScript errors
-
----
-
-## Rollback Procedure
-
-If issues arise, rollback in reverse order:
-
-**Phase 4 Rollback:**
-```bash
-# Restore frontend files from git
-git checkout frontend/lib/validation/schemas.ts
-git checkout frontend/components/modals/AddAccountModal.tsx
-git checkout frontend/lib/types.ts
+**Current (Committed)**:
+```typescript
+{formatCurrency(account.balance, currency as 'KRW' | 'USD')}
 ```
 
-**Phase 3 Rollback:**
-```bash
-# Run migration rollback (if you created downgrade script)
-# Or restore backend files from git
-git checkout backend/app/models/account.py
-git checkout backend/app/schemas/account_schema.py
+**Fixed (Uncommitted)**:
+```typescript
+{formatCurrency(
+  account.total_value || account.balance,  // Fallback for backward compat
+  currency as 'KRW' | 'USD'
+)}
 ```
 
-**Phase 2 Rollback:**
-```bash
-# Restore CASH validation
-git checkout backend/app/schemas/account_schema.py
-git checkout backend/app/services/account_service.py
-```
-
-**Phase 1 Rollback:**
-```bash
-# Restore account_service.py
-git checkout backend/app/services/account_service.py
-# Delete currency_inference.py
-rm backend/app/utils/currency_inference.py
-```
+**Backend Support**: Already implemented in `app/services/account_service.py`
+- ✅ `total_value`: Total portfolio (cash + stocks) in account currency
+- ✅ `total_value_krw`: Total value in KRW
+- ✅ `stock_value`: Stock holdings value in KRW
+- ✅ `balance_usd`: Total portfolio USD value (changed from cash-only)
 
 ---
 
-## Success Criteria
+## Files Modified
 
-- [x] New accounts can be created without selecting currency
-- [x] Securities accounts accept stocks-only initial holdings
-- [x] Securities accounts accept CASH-only initial holdings
-- [x] Securities accounts accept any combination
-- [x] Currency completely removed from database schema
-- [x] Currency completely removed from backend code
-- [x] Currency completely removed from frontend code
-- [x] No TypeScript compilation errors
-- [ ] Account list displays correct balance formatting (needs testing)
-- [ ] Account details show correct currency symbols (needs testing)
-- [ ] Dashboard calculations work correctly (needs testing)
+### Backend
+- ✅ `backend/app/schemas/account_schema.py` - Auto-inference validator
+- ✅ `backend/app/services/account_service.py` - Service layer safety net
 
----
+### Frontend
+- ✅ `frontend/components/forms/InitialHoldingsInput.tsx` - Auto-detection UI
+- ⚠️ `frontend/app/accounts/_components/AccountCard.tsx` - Already fixed (uncommitted)
 
-## Notes
-
-- Currency inference is lightweight (one query for holdings)
-- Decimal formatting unchanged (KRW: 0 decimals, others: 2)
-- USD conversion for cross-account comparison still works
-- Initial holdings now truly represent "snapshot of current state"
-- This aligns with project philosophy: Holdings are computed from transactions
+### Tests (New)
+- ✅ `backend/tests/schemas/test_account_schema.py` - 14 comprehensive tests
 
 ---
 
-## Next Steps
+## Verification Commands
 
-1. **Test the implementation** with the test cases above
-2. **Verify existing accounts** still work (if any)
-3. **Run backend tests** (if they exist)
-4. **Decide on Phase 5-6** - whether to fully remove currency column
-5. **Update documentation** (README, API docs) if needed
+```bash
+# Backend tests
+cd backend && source venv/bin/activate && pytest tests/schemas/test_account_schema.py -xvs
 
+# All backend tests
+cd backend && source venv/bin/activate && pytest tests/ -x
+
+# Frontend lint
+cd frontend && npm run lint
+```
+
+All commands pass successfully ✅

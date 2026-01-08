@@ -50,6 +50,7 @@ export function BuySellModal({
       ticker: '',
       quantity: 0,
       price: 0,
+      price_currency: 'USD',
       date: getCurrentDateTimeLocal(),
     },
   });
@@ -59,6 +60,7 @@ export function BuySellModal({
   const ticker = watch('ticker');
   const quantity = watch('quantity');
   const price = watch('price');
+  const priceCurrency = watch('price_currency');
   const date = watch('date');
 
   const accounts = accountsData?.accounts || [];
@@ -74,6 +76,39 @@ export function BuySellModal({
       setValue('price', parseFloat(priceData.price));
     }
   }, [priceData, price, setValue]);
+
+  // Auto-detect price currency from ticker
+  useEffect(() => {
+    if (ticker) {
+      const inferred = inferCurrencyFromTicker(ticker);
+      if (inferred !== priceCurrency) {
+        setValue('price_currency', inferred);
+      }
+    }
+  }, [ticker, priceCurrency, setValue]);
+
+  // Helper function to infer currency from ticker
+  function inferCurrencyFromTicker(ticker: string): 'USD' | 'KRW' | 'JPY' | 'EUR' | 'GBP' | 'HKD' {
+    const upper = ticker.toUpperCase();
+
+    // Korean stocks: 6-digit numeric or .KS/.KQ suffix
+    if (/^\d{6}$/.test(upper) || upper.endsWith('.KS') || upper.endsWith('.KQ')) {
+      return 'KRW';
+    }
+
+    // Japanese stocks: .T suffix
+    if (upper.endsWith('.T')) {
+      return 'JPY';
+    }
+
+    // Hong Kong stocks: .HK suffix
+    if (upper.endsWith('.HK')) {
+      return 'HKD';
+    }
+
+    // Default to USD
+    return 'USD';
+  }
 
   const totalValue = quantity * price;
 
@@ -97,6 +132,7 @@ export function BuySellModal({
           ticker: data.ticker,
           quantity: data.quantity,
           price: data.price,
+          price_currency: data.price_currency,
           date: data.date,
           description: data.description,
         });
@@ -106,6 +142,7 @@ export function BuySellModal({
           ticker: data.ticker,
           quantity: data.quantity,
           price: data.price,
+          price_currency: data.price_currency,
           date: data.date,
           description: data.description,
         });
@@ -204,11 +241,27 @@ export function BuySellModal({
           />
         </div>
 
+        <Select
+          label="Price Currency"
+          {...register('price_currency')}
+          error={errors.price_currency?.message}
+        >
+          <option value="USD">USD ($)</option>
+          <option value="KRW">KRW (₩)</option>
+          <option value="JPY">JPY (¥)</option>
+          <option value="EUR">EUR (€)</option>
+          <option value="GBP">GBP (£)</option>
+          <option value="HKD">HKD (HK$)</option>
+        </Select>
+        <p className="text-xs text-gray-500 -mt-2">
+          Auto-detected from ticker. You can change manually.
+        </p>
+
         {totalValue > 0 && (
           <div className="bg-gray-50 border border-gray-200 rounded p-3 text-gray-900">
             <span className="font-medium text-gray-900">Total Value:</span>{' '}
             <span className="text-lg font-bold text-gray-900">
-              {totalValue.toLocaleString()} {selectedAccount ? (['Securities', 'ForeignCurrency'].includes(selectedAccount.type) ? 'USD' : 'KRW') : ''}
+              {totalValue.toLocaleString()} {priceCurrency}
             </span>
           </div>
         )}

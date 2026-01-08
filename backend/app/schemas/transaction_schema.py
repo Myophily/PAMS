@@ -58,6 +58,7 @@ class BuyCreate(BaseModel):
     ticker: str
     quantity: Decimal
     price: Decimal
+    price_currency: str = 'USD'  # Currency of the price (USD, KRW, JPY, EUR, etc.)
     date: datetime
     description: Optional[str] = None
 
@@ -68,6 +69,7 @@ class SellCreate(BaseModel):
     ticker: str
     quantity: Decimal
     price: Decimal
+    price_currency: str = 'USD'  # Currency of the price (USD, KRW, JPY, EUR, etc.)
     date: datetime
     description: Optional[str] = None
 

@@ -122,7 +122,10 @@ export default function AccountDetailPage() {
           account={{
             ...account,
             balance: summary.total_value,
-            balance_usd: summary.total_value, // Using total_value as fallback
+            total_value: summary.total_value,
+            total_value_krw: '0',  // Not available in details API
+            stock_value: '0',      // Not available in details API
+            balance_usd: summary.total_value,
             holdings_count: holdings.length,
             currency: currency,
           }}

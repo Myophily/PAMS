@@ -92,14 +92,32 @@ def infer_currency_from_holdings(holdings: List[Holding], account_type: str = No
     Returns:
         str: Inferred currency code (e.g., "KRW", "USD")
     """
+    # Collect all currency holdings
+    currency_holdings = []
     for holding in holdings:
         # Normalize ticker (handles legacy CASH)
         ticker_normalized = normalize_ticker(holding.ticker, account_type)
 
         if ticker_normalized in CURRENCY_TICKERS:
-            return ticker_normalized
+            currency_holdings.append(ticker_normalized)
 
-    # Fallback if no currency holdings found
+    # If single currency found, use it
+    if len(currency_holdings) == 1:
+        return currency_holdings[0]
+
+    # If multiple currencies, prefer KRW if present, else first one
+    if len(currency_holdings) > 1:
+        if "KRW" in currency_holdings:
+            return "KRW"
+        return currency_holdings[0]
+
+    # Fallback: Check price_currency of stock holdings
+    for holding in holdings:
+        if not is_currency_ticker(holding.ticker) and hasattr(holding, 'price_currency'):
+            if holding.price_currency:
+                return holding.price_currency
+
+    # Last resort fallback
     if account_type in ["Securities", "ForeignCurrency"]:
         return "USD"
 
@@ -128,3 +146,50 @@ def get_decimal_places(currency: str) -> str:
         return "1"
     # All other currencies use 2 decimal places
     return "0.01"
+
+
+def infer_price_currency_from_ticker(ticker: str) -> str:
+    """
+    Infer price currency from ticker symbol.
+
+    Korean stocks (numeric or .KS suffix) → KRW
+    Japanese stocks (.T suffix) → JPY
+    US stocks and others → USD
+
+    Args:
+        ticker: Stock ticker symbol
+
+    Returns:
+        Inferred currency code (USD, KRW, JPY, etc.)
+
+    Examples:
+        >>> infer_price_currency_from_ticker("AAPL")
+        "USD"
+        >>> infer_price_currency_from_ticker("005930")
+        "KRW"
+        >>> infer_price_currency_from_ticker("005930.KS")
+        "KRW"
+        >>> infer_price_currency_from_ticker("7203.T")
+        "JPY"
+    """
+    if not ticker:
+        return "USD"
+
+    ticker_upper = ticker.upper()
+
+    # Korean stocks: 6-digit numeric or .KS/.KQ suffix
+    if ticker_upper.isdigit() and len(ticker_upper) == 6:
+        return "KRW"
+    if ticker_upper.endswith('.KS') or ticker_upper.endswith('.KQ'):
+        return "KRW"
+
+    # Japanese stocks: .T suffix
+    if ticker_upper.endswith('.T'):
+        return "JPY"
+
+    # Hong Kong stocks: .HK suffix
+    if ticker_upper.endswith('.HK'):
+        return "HKD"
+
+    # Default to USD for US and international stocks
+    return "USD"

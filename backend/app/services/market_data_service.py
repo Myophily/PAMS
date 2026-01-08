@@ -418,6 +418,8 @@ class MarketDataService:
         """
         Get the most recent price for a ticker.
 
+        NEW: If not found in cache, automatically fetches from API.
+
         Args:
             ticker: Stock ticker
             db: Database session
@@ -425,12 +427,32 @@ class MarketDataService:
         Returns:
             Latest price or None
         """
+        from datetime import date
+
+        # Check cache first
         latest = db.query(MarketData).filter(
             MarketData.ticker == ticker,
             MarketData.closing_price.isnot(None)
         ).order_by(MarketData.date.desc()).first()
 
-        return latest.closing_price if latest else None
+        if latest:
+            return latest.closing_price
+
+        # NEW: Auto-fetch if not in cache
+        print(f"[AUTO-FETCH] Price for {ticker} not in cache, fetching from API...")
+        price = self._fetch_stock_price_from_api(ticker, date.today())
+
+        if price:
+            # Cache it
+            self._cache_stock_price(ticker, date.today(), price, "api", db)
+            try:
+                db.commit()
+            except Exception as e:
+                print(f"[WARN] Failed to cache price for {ticker}: {e}")
+                db.rollback()
+            return price
+
+        return None
 
     def get_latest_exchange_rate(
         self,
@@ -441,6 +463,8 @@ class MarketDataService:
         """
         Get the most recent exchange rate.
 
+        NEW: If not found in cache, automatically fetches from API.
+
         Args:
             from_currency: Source currency
             to_currency: Target currency
@@ -449,14 +473,34 @@ class MarketDataService:
         Returns:
             Latest exchange rate or None
         """
+        from datetime import date
+
         ticker_symbol = f"{from_currency}_{to_currency}"
 
+        # Check cache first
         latest = db.query(MarketData).filter(
             MarketData.ticker == ticker_symbol,
             MarketData.exchange_rate.isnot(None)
         ).order_by(MarketData.date.desc()).first()
 
-        return latest.exchange_rate if latest else None
+        if latest:
+            return latest.exchange_rate
+
+        # NEW: Auto-fetch if not in cache
+        print(f"[AUTO-FETCH] Exchange rate {from_currency}/{to_currency} not in cache, fetching from API...")
+        rate = self._fetch_exchange_rate_from_api(from_currency, to_currency, date.today())
+
+        if rate:
+            # Cache it
+            self._cache_exchange_rate(from_currency, to_currency, date.today(), rate, "api", db)
+            try:
+                db.commit()
+            except Exception as e:
+                print(f"[WARN] Failed to cache exchange rate for {from_currency}/{to_currency}: {e}")
+                db.rollback()
+            return rate
+
+        return None
 
     def _normalize_ticker(self, ticker: str) -> str:
         """

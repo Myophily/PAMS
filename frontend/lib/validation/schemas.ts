@@ -11,8 +11,20 @@ const initialHoldingItemSchema = z.object({
   price: z.number()
     .positive('Price must be greater than 0')
     .optional(),
-  price_currency: z.enum(['KRW', 'USD']).optional()
-});
+  price_currency: z.enum(['KRW', 'USD', 'JPY', 'EUR']).optional()
+}).refine(
+  (data) => {
+    // If price is provided, price_currency must also be provided
+    if (data.price !== undefined && data.price !== null) {
+      return data.price_currency !== undefined;
+    }
+    return true;
+  },
+  {
+    message: 'price_currency is required when price is provided',
+    path: ['price_currency'],
+  }
+);
 
 // Account creation schema
 export const createAccountSchema = z.object({
@@ -132,6 +144,7 @@ export const createBuySellSchema = z.object({
   ticker: z.string().min(1, 'Ticker is required'),
   quantity: z.number().positive('Quantity must be greater than 0'),
   price: z.number().positive('Price must be greater than 0'),
+  price_currency: z.enum(['USD', 'KRW', 'JPY', 'EUR', 'GBP', 'HKD']),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid datetime format'),
   description: z.string().optional(),
 });
