@@ -87,23 +87,37 @@ class AccountService:
         # Determine which initialization method to use
         balance_date = initial_balance_date or datetime.now().replace(second=0, microsecond=0)
 
+        # Convert deprecated initial_balance to initial_holdings format
+        if initial_balance and initial_balance > 0 and (not initial_holdings or len(initial_holdings) == 0):
+            from app.schemas.account_schema import InitialHoldingItem
+
+            # Determine appropriate currency ticker
+            if account_type in ["Deposit", "Savings", "MoneyMarket"]:
+                ticker = "KRW"
+            elif account_type in ["Securities", "ForeignCurrency"]:
+                ticker = "USD"  # Default for foreign currency/securities
+            else:
+                ticker = "KRW"
+
+            # Convert to holdings format
+            initial_holdings = [
+                InitialHoldingItem(
+                    ticker=ticker,
+                    quantity=initial_balance,
+                    price=None
+                )
+            ]
+
+            print(f"[DEPRECATED] Converted initial_balance to initial_holdings with ticker {ticker}")
+
         if initial_holdings and len(initial_holdings) > 0:
-            # NEW: Multiple initial holdings (Securities only)
+            # Create initial holdings (now for ALL account types)
             self._create_initial_holdings(
                 account_id=account.id,
+                account_type=account_type,  # Pass account type for validation
                 holdings=initial_holdings,
                 transaction_date=balance_date,
                 db=db
-            )
-        elif initial_balance and initial_balance > 0:
-            # EXISTING: Simple initial balance
-            self.transaction_service.create_deposit(
-                account_id=account.id,
-                amount=initial_balance,
-                transaction_date=balance_date,
-                description="Initial balance",
-                db=db,
-                auto_commit=False  # Let parent handle commit
             )
 
         # Refresh to ensure account is bound to session
@@ -114,23 +128,24 @@ class AccountService:
     def _create_initial_holdings(
         self,
         account_id: int,
+        account_type: str,
         holdings: List,
         transaction_date: datetime,
         db: Session
     ) -> None:
         """
-        Create initial holdings for a Securities account.
+        Create initial holdings for any account type.
 
-        For each holding:
-        - CASH: Create Deposit transaction
-        - Stocks: Create Buy transaction with user-specified price
+        Account type determines transaction types and ticker normalization:
+        - Deposit/Savings/MoneyMarket: Creates Deposit transactions for KRW only
+        - ForeignCurrency: Creates Deposit transactions for foreign currencies
+        - Securities: Creates Deposit for currencies, Buy for stocks/commodities
 
-        If no CASH holding is provided but stocks are, automatically inject
-        the exact CASH amount needed for purchases to maintain transaction integrity.
-        This allows users to create accounts with stocks-only snapshots.
+        Handles legacy CASH ticker by auto-converting to appropriate currency.
 
         Args:
             account_id: Account ID
+            account_type: Account type for validation and normalization
             holdings: List of InitialHoldingItem objects
             transaction_date: Date for all transactions
             db: Database session
@@ -138,45 +153,64 @@ class AccountService:
         Raises:
             ValueError: If validation fails
         """
-        # Check if CASH exists in holdings
-        has_cash = any(h.ticker == 'CASH' for h in holdings)
+        from app.utils.currency_inference import normalize_ticker, is_currency_ticker
+        from app.schemas.account_schema import InitialHoldingItem
 
-        # If no CASH but has stocks, inject exact CASH amount needed
-        if not has_cash and holdings:
-            total_buy_cost = sum(
-                h.quantity * h.price for h in holdings
-                if h.ticker != 'CASH' and h.price is not None
+        # Normalize all tickers (convert legacy CASH)
+        normalized_holdings = []
+        for h in holdings:
+            normalized_ticker = normalize_ticker(h.ticker, account_type)
+            normalized_holdings.append(
+                InitialHoldingItem(
+                    ticker=normalized_ticker,
+                    quantity=h.quantity,
+                    price=h.price
+                )
             )
 
-            if total_buy_cost > 0:
-                # Create a CASH holding with the exact buy cost
-                from app.schemas.account_schema import InitialHoldingItem
-                cash_holding = InitialHoldingItem(
-                    ticker='CASH',
-                    quantity=total_buy_cost,
-                    price=None
-                )
-                holdings = [cash_holding] + list(holdings)
+        holdings = normalized_holdings
 
-        # Sort: CASH first, then stocks alphabetically
+        # For Securities accounts: Auto-inject cash if needed
+        if account_type == "Securities":
+            has_cash = any(is_currency_ticker(h.ticker) for h in holdings)
+
+            if not has_cash:
+                # Calculate total cost of non-currency assets
+                total_buy_cost = sum(
+                    h.quantity * h.price for h in holdings
+                    if not is_currency_ticker(h.ticker) and h.price is not None
+                )
+
+                if total_buy_cost > 0:
+                    # Inject KRW cash to cover purchases
+                    cash_holding = InitialHoldingItem(
+                        ticker='KRW',
+                        quantity=total_buy_cost,
+                        price=None
+                    )
+                    holdings = [cash_holding] + list(holdings)
+
+        # Sort: Currencies first, then stocks alphabetically
         sorted_holdings = sorted(
             holdings,
-            key=lambda h: (h.ticker != 'CASH', h.ticker)
+            key=lambda h: (not is_currency_ticker(h.ticker), h.ticker)
         )
 
         for holding in sorted_holdings:
-            if holding.ticker == 'CASH':
-                # Create Deposit transaction for cash
+            if is_currency_ticker(holding.ticker):
+                # Create Deposit transaction for currency holdings
                 self.transaction_service.create_deposit(
                     account_id=account_id,
                     amount=holding.quantity,
                     transaction_date=transaction_date,
-                    description="Initial cash balance",
+                    description=f"Initial {holding.ticker} balance",
                     db=db,
-                    auto_commit=False
+                    auto_commit=False,
+                    ticker=holding.ticker  # NEW: Pass ticker to create_deposit
                 )
             else:
-                # Create Buy transaction for stocks
+                # Create Buy transaction for non-currency assets (stocks, commodities)
+                # Only valid for Securities accounts (validation already done in schema)
                 self.transaction_service.create_buy(
                     account_id=account_id,
                     ticker=holding.ticker,

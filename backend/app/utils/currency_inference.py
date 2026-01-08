@@ -5,7 +5,75 @@ from app.models.holding import Holding
 
 
 # Currency tickers that represent cash holdings in different currencies
-CURRENCY_TICKERS = ["CASH", "KRW", "USD", "EUR", "JPY", "GBP", "CHF", "CNY", "HKD", "SGD"]
+# Note: "CASH" is deprecated in favor of explicit currency codes (KRW, USD, etc.)
+CURRENCY_TICKERS = ["KRW", "USD", "EUR", "JPY", "GBP", "CHF", "CNY", "HKD", "SGD"]
+
+
+def is_currency_ticker(ticker: str) -> bool:
+    """
+    Check if ticker is a currency code.
+
+    Args:
+        ticker: Ticker symbol to check
+
+    Returns:
+        bool: True if ticker is a recognized currency
+
+    Examples:
+        >>> is_currency_ticker("KRW")
+        True
+        >>> is_currency_ticker("AAPL")
+        False
+        >>> is_currency_ticker("CASH")  # Legacy
+        True  # For backward compatibility only
+    """
+    if not ticker:
+        return False
+
+    ticker_upper = ticker.upper()
+
+    # Accept legacy CASH during transition
+    if ticker_upper == "CASH":
+        return True
+
+    return ticker_upper in CURRENCY_TICKERS
+
+
+def normalize_ticker(ticker: str, account_type: str = None) -> str:
+    """
+    Normalize legacy CASH ticker to explicit currency.
+
+    Args:
+        ticker: Original ticker
+        account_type: Account type for context
+
+    Returns:
+        str: Normalized ticker (CASH → KRW/USD based on account type)
+
+    Examples:
+        >>> normalize_ticker("CASH", "Deposit")
+        "KRW"
+        >>> normalize_ticker("CASH", "Securities")
+        "USD"
+        >>> normalize_ticker("USD", "Securities")
+        "USD"
+    """
+    if not ticker:
+        return ticker
+
+    ticker_upper = ticker.upper()
+
+    if ticker_upper != "CASH":
+        return ticker_upper
+
+    # Auto-convert CASH based on account type
+    if account_type in ["Deposit", "Savings", "MoneyMarket"]:
+        return "KRW"
+    elif account_type in ["Securities", "ForeignCurrency"]:
+        return "USD"
+    else:
+        # Fallback to KRW
+        return "KRW"
 
 
 def infer_currency_from_holdings(holdings: List[Holding], account_type: str = None) -> str:
@@ -13,34 +81,28 @@ def infer_currency_from_holdings(holdings: List[Holding], account_type: str = No
     Infer account currency from holdings.
 
     Priority order:
-    1. First CASH holding → returns "KRW" (CASH is treated as KRW)
-    2. First currency ticker (KRW, USD, EUR, JPY, etc.)
-    3. Fallback: "KRW"
+    1. First currency ticker (KRW, USD, EUR, etc.) - explicit currencies preferred
+    2. Legacy CASH → normalized to KRW/USD based on account_type
+    3. Fallback: "KRW" for Deposit/Savings/MoneyMarket, "USD" for others
 
     Args:
         holdings: List of Holding objects for an account
-        account_type: Optional account type for better fallback inference
+        account_type: Account type for better inference
 
     Returns:
-        str: Inferred currency code (e.g., "KRW", "USD", "EUR")
+        str: Inferred currency code (e.g., "KRW", "USD")
     """
     for holding in holdings:
-        if holding.ticker in CURRENCY_TICKERS:
-            # CASH is treated as KRW by default unless we know better?
-            # Actually, if we have account_type, we might want to override CASH=KRW assumption
-            # But for now, let's keep existing logic and only change fallback
-            if holding.ticker == "CASH":
-                # If it's a Securities/Foreign account with CASH, assume USD
-                if account_type in ["Securities", "ForeignCurrency"]:
-                    return "USD"
-                return "KRW"
-            # Other currency tickers return as-is
-            return holding.ticker
+        # Normalize ticker (handles legacy CASH)
+        ticker_normalized = normalize_ticker(holding.ticker, account_type)
+
+        if ticker_normalized in CURRENCY_TICKERS:
+            return ticker_normalized
 
     # Fallback if no currency holdings found
     if account_type in ["Securities", "ForeignCurrency"]:
         return "USD"
-        
+
     return "KRW"
 
 

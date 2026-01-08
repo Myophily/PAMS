@@ -7,24 +7,46 @@ from typing import Optional, List
 # ========== REQUEST SCHEMAS ==========
 
 class InitialHoldingItem(BaseModel):
-    """Single initial holding item for Securities accounts."""
-    ticker: str  # "AAPL", "TSLA", or "CASH"
+    """Single initial holding item for any account type."""
+    ticker: str  # "KRW", "USD", "AAPL", "TSLA", "GOLD" (currency or asset ticker)
     quantity: Decimal
-    price: Optional[Decimal] = None  # Required for stocks, ignored for CASH
+    price: Optional[Decimal] = None  # Required for non-currency tickers
 
     @validator('ticker')
     def validate_ticker_format(cls, v):
         if not v or len(v) == 0:
             raise ValueError('Ticker cannot be empty')
-        return v.upper()
+
+        # Warn on legacy CASH ticker (will be auto-converted)
+        ticker_upper = v.upper()
+        if ticker_upper == 'CASH':
+            import warnings
+            warnings.warn(
+                "CASH ticker is deprecated. Use explicit currency codes (KRW, USD, etc.)",
+                DeprecationWarning
+            )
+
+        return ticker_upper
 
     @validator('price')
-    def validate_price_required_for_stocks(cls, v, values):
+    def validate_price_requirement(cls, v, values):
+        """Price required for non-currency tickers."""
+        from app.utils.currency_inference import is_currency_ticker
+
         ticker = values.get('ticker')
-        if ticker and ticker != 'CASH' and v is None:
-            raise ValueError('Price is required for stock holdings')
-        if ticker == 'CASH' and v is not None:
-            raise ValueError('Price should not be provided for CASH')
+        if not ticker:
+            return v
+
+        # Currency tickers should NOT have price
+        if is_currency_ticker(ticker):
+            if v is not None:
+                raise ValueError(f'Price should not be provided for currency ticker {ticker}')
+            return None
+
+        # Non-currency tickers (stocks, commodities) MUST have price
+        if v is None:
+            raise ValueError(f'Price is required for asset ticker {ticker}')
+
         return v
 
 
@@ -32,28 +54,73 @@ class AccountCreateRequest(BaseModel):
     """Create a new account with optional initial balance or multiple initial holdings."""
     name: str
     type: str  # Deposit | Securities | ForeignCurrency | MoneyMarket | Savings
-    initial_balance: Optional[Decimal] = None
+    initial_balance: Optional[Decimal] = None  # DEPRECATED: Use initial_holdings instead
     initial_balance_date: Optional[datetime] = None  # Defaults to current datetime
-    initial_holdings: Optional[List[InitialHoldingItem]] = None  # For Securities accounts
+    initial_holdings: Optional[List[InitialHoldingItem]] = None  # Now for ALL account types
 
     @validator('initial_holdings')
     def validate_initial_holdings(cls, v, values):
+        from app.utils.currency_inference import is_currency_ticker, normalize_ticker, CURRENCY_TICKERS
+
         account_type = values.get('type')
         initial_balance = values.get('initial_balance')
 
-        # Only Securities accounts can use initial_holdings
-        if v is not None and account_type != 'Securities':
-            raise ValueError('initial_holdings can only be used with Securities accounts')
+        # Warn if using deprecated initial_balance
+        if initial_balance is not None and initial_balance > 0:
+            import warnings
+            warnings.warn(
+                "initial_balance is deprecated. Use initial_holdings instead.",
+                DeprecationWarning
+            )
+            # Allow both for now (service layer will handle conversion)
 
-        # Cannot use both initial_balance and initial_holdings
-        if v is not None and initial_balance is not None and initial_balance > 0:
+        # Cannot use both with positive values
+        if v is not None and len(v) > 0 and initial_balance is not None and initial_balance > 0:
             raise ValueError('Cannot use both initial_balance and initial_holdings')
 
-        # Check for duplicate tickers
+        # Account-type-specific ticker validation
         if v:
             tickers = [item.ticker for item in v]
+
+            # Check for duplicate tickers
             if len(tickers) != len(set(tickers)):
                 raise ValueError('Duplicate tickers in initial_holdings')
+
+            # Validate ticker constraints by account type
+            for item in v:
+                ticker_normalized = item.ticker
+
+                # Normalize CASH for validation
+                if ticker_normalized == "CASH":
+                    if account_type in ["Deposit", "Savings", "MoneyMarket"]:
+                        ticker_normalized = "KRW"
+                    else:
+                        ticker_normalized = "USD"
+
+                if account_type in ["Deposit", "Savings", "MoneyMarket"]:
+                    # Only KRW allowed
+                    if ticker_normalized != "KRW":
+                        raise ValueError(
+                            f'{account_type} accounts can only hold KRW. '
+                            f'Found ticker: {item.ticker}'
+                        )
+
+                elif account_type == "ForeignCurrency":
+                    # Only non-KRW currencies allowed
+                    if not is_currency_ticker(ticker_normalized):
+                        raise ValueError(
+                            f'ForeignCurrency accounts can only hold currencies. '
+                            f'Found non-currency ticker: {item.ticker}'
+                        )
+                    if ticker_normalized == "KRW":
+                        raise ValueError(
+                            'ForeignCurrency accounts cannot hold KRW. '
+                            'Use Deposit account type for KRW.'
+                        )
+
+                elif account_type == "Securities":
+                    # Any ticker allowed (currencies, stocks, commodities)
+                    pass  # No restrictions
 
         return v
 

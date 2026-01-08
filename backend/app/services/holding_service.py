@@ -22,40 +22,29 @@ class HoldingService:
 
     def get_or_create_cash_holding(self, account_id: int, db: Session) -> Holding:
         """
-        Get CASH holding for an account, create if not exists.
+        DEPRECATED: Get CASH holding (auto-converted to KRW).
 
-        CASH is a special ticker that represents the account's cash balance.
+        Use get_or_create_holding(account_id, "KRW", db) instead.
 
         Args:
             account_id: Account ID
             db: Database session
 
         Returns:
-            CASH Holding record
+            KRW Holding record
 
         Examples:
             >>> holding = service.get_or_create_cash_holding(1, db)
             >>> holding.ticker
-            'CASH'
-            >>> holding.avg_price
-            Decimal('1.0')  # CASH always has avg_price = 1
+            'KRW'  # Auto-converted from legacy CASH
         """
-        cash = db.query(Holding).filter(
-            Holding.account_id == account_id,
-            Holding.ticker == "CASH"
-        ).first()
-
-        if not cash:
-            cash = Holding(
-                account_id=account_id,
-                ticker="CASH",
-                quantity=to_decimal(0, precision=2),
-                avg_price=to_decimal(1.0, precision=4)  # CASH always has avg_price = 1
-            )
-            db.add(cash)
-            db.flush()  # Get the ID without committing
-
-        return cash
+        import warnings
+        warnings.warn(
+            "get_or_create_cash_holding is deprecated. Use get_or_create_holding with explicit ticker.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        return self.get_or_create_holding(account_id, "KRW", db)
 
     def get_or_create_holding(
         self,
@@ -65,6 +54,9 @@ class HoldingService:
     ) -> Holding:
         """
         Get holding for account + ticker, create if not exists.
+
+        Automatically normalizes legacy CASH ticker to appropriate currency
+        based on account type.
 
         Args:
             account_id: Account ID
@@ -80,7 +72,20 @@ class HoldingService:
             'AAPL'
             >>> holding.quantity
             Decimal('0')  # Initially zero
+
+            >>> # Legacy CASH auto-converted
+            >>> holding = service.get_or_create_holding(1, "CASH", db)
+            >>> holding.ticker
+            'KRW'  # Auto-normalized for Deposit account
         """
+        from app.utils.currency_inference import normalize_ticker
+        from app.models.account import Account
+
+        # Get account for normalization context
+        account = db.query(Account).get(account_id)
+        if account:
+            ticker = normalize_ticker(ticker, account.type)
+
         holding = db.query(Holding).filter(
             Holding.account_id == account_id,
             Holding.ticker == ticker

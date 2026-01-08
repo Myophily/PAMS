@@ -44,7 +44,8 @@ class TransactionService:
         transaction_date: datetime,
         description: Optional[str],
         db: Session,
-        auto_commit: bool = True
+        auto_commit: bool = True,
+        ticker: Optional[str] = None  # NEW: Optional ticker (defaults to "KRW")
     ) -> Transaction:
         """
         Create deposit transaction (Pattern ①).
@@ -58,6 +59,7 @@ class TransactionService:
             description: Optional user notes
             db: Database session
             auto_commit: Whether to commit the transaction (default: True)
+            ticker: Currency ticker (default: "KRW" for backward compatibility)
 
         Returns:
             Created transaction
@@ -71,13 +73,18 @@ class TransactionService:
             ...     amount=Decimal("1000000"),
             ...     transaction_date=date.today(),
             ...     description="Monthly salary",
-            ...     db=db
+            ...     db=db,
+            ...     ticker="KRW"
             ... )
             >>> tx.type
             'Deposit'
+            >>> tx.ticker
+            'KRW'
             >>> tx.amount
             Decimal('1000000.00')
         """
+        from app.utils.currency_inference import normalize_ticker, is_currency_ticker
+
         # Validate
         validate_transaction_date(transaction_date)
         validate_positive(amount, "Deposit amount")
@@ -89,11 +96,22 @@ class TransactionService:
         # Validate transaction type allowed for account type
         validate_transaction_type(account.type, "Deposit")
 
+        # Determine ticker (default to KRW for backward compatibility)
+        if ticker is None:
+            ticker = "KRW"
+
+        # Normalize ticker (handle legacy CASH)
+        ticker = normalize_ticker(ticker, account.type)
+
+        # Validate ticker is a currency
+        if not is_currency_ticker(ticker):
+            raise ValueError(f"Deposit ticker must be a currency. Got: {ticker}")
+
         # Create transaction
         transaction = Transaction(
             account_id=account_id,
             type="Deposit",
-            ticker=None,
+            ticker=ticker,  # NOW: Store currency ticker
             quantity=None,
             price=None,
             amount=to_decimal(amount, precision=2),
@@ -104,9 +122,9 @@ class TransactionService:
         db.add(transaction)
         db.flush()
 
-        # Update CASH holding
-        cash_holding = self.holding_service.get_or_create_cash_holding(account_id, db)
-        cash_holding.quantity += transaction.amount
+        # Update currency holding (not hardcoded "CASH")
+        holding = self.holding_service.get_or_create_holding(account_id, ticker, db)
+        holding.quantity += transaction.amount
 
         # Trigger recalculation if past transaction
         if is_past_transaction(transaction_date):

@@ -105,17 +105,17 @@ export interface AssetChartData {
 
 // Form input types
 export interface InitialHoldingItem {
-  ticker: string;      // "AAPL", "TSLA", or "CASH"
+  ticker: string;      // "KRW", "USD", "AAPL", "TSLA", "GOLD" (currency or asset ticker)
   quantity: number;
-  price?: number;      // Required for stocks, optional for CASH
+  price?: number;      // Required for non-currency tickers
 }
 
 export interface CreateAccountInput {
   name: string;
   type: 'Deposit' | 'Securities' | 'ForeignCurrency' | 'MoneyMarket' | 'Savings';
-  initial_balance?: number;
+  initial_balance?: number;  // DEPRECATED: Use initial_holdings instead
   initial_balance_date: string;
-  initial_holdings?: InitialHoldingItem[];  // For Securities accounts
+  initial_holdings?: InitialHoldingItem[];  // Now for ALL account types
 }
 
 export interface CreateTransactionInput {

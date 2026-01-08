@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isCurrencyTicker, validateTickerForAccountType, getTickerConstraints } from '@/lib/utils/currency';
 
 // Initial holding item schema
 const initialHoldingItemSchema = z.object({
@@ -31,27 +32,37 @@ export const createAccountSchema = z.object({
   path: ['initial_holdings']
 })
 .refine(data => {
-  // Only Securities accounts can use initial_holdings
-  if (data.initial_holdings?.length && data.type !== 'Securities') {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Multiple holdings only supported for Securities accounts',
-  path: ['initial_holdings']
-})
-.refine(data => {
-  // Price required for stocks (non-CASH)
+  // Validate tickers for account type
   if (data.initial_holdings) {
     for (const holding of data.initial_holdings) {
-      if (holding.ticker !== 'CASH' && !holding.price) {
+      const validation = validateTickerForAccountType(holding.ticker, data.type);
+      if (!validation.valid) {
         return false;
       }
     }
   }
   return true;
 }, {
-  message: 'Price is required for stock holdings',
+  message: 'Invalid ticker for account type',
+  path: ['initial_holdings']
+})
+.refine(data => {
+  // Price requirement based on ticker type
+  if (data.initial_holdings) {
+    const constraints = getTickerConstraints(data.type);
+    for (const holding of data.initial_holdings) {
+      const needsPrice = constraints.requirePrice(holding.ticker);
+      if (needsPrice && !holding.price) {
+        return false;
+      }
+      if (!needsPrice && holding.price) {
+        return false;
+      }
+    }
+  }
+  return true;
+}, {
+  message: 'Price mismatch for ticker type',
   path: ['initial_holdings']
 })
 .refine(data => {
