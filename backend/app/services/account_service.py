@@ -433,18 +433,22 @@ class AccountService:
         total_unrealized_pl = Decimal("0")
 
         for holding in holdings:
-            if holding.ticker == "CASH":
-                # CASH holding
-                cash_balance = holding.quantity
+            # Check if this is a currency holding (KRW, USD, EUR, etc.) - not a stock
+            from app.utils.currency_inference import is_currency_ticker
+
+            if is_currency_ticker(holding.ticker):
+                # Currency holding (KRW, USD, EUR, etc.)
+                cash_balance += holding.quantity
                 total_value += holding.quantity
 
                 holding_responses.append(HoldingResponse(
                     id=holding.id,
                     account_id=holding.account_id,
-                    ticker="CASH",
-                    ticker_name="Cash",
+                    ticker=holding.ticker,
+                    ticker_name=f"{holding.ticker} Cash",
                     quantity=holding.quantity,
                     avg_price=Decimal("1.0"),
+                    price_currency=None,
                     current_price=Decimal("1.0"),
                     current_value=holding.quantity,
                     cost_basis=holding.quantity,
