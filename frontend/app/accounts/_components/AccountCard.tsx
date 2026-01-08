@@ -42,8 +42,8 @@ export function AccountCard({ account }: AccountCardProps) {
   const accountConfig = getAccountTypeConfig(account.type);
   const actions = accountConfig.primaryActions;
 
-  // Derive currency from account type
-  const currency = ['Securities', 'ForeignCurrency'].includes(account.type) ? 'USD' : 'KRW';
+  // Use inferred currency from backend
+  const currency = account.currency;
 
   const handleAction = (action: string, e: React.MouseEvent) => {
     e.preventDefault();

@@ -21,6 +21,7 @@ export interface Account {
 export interface AccountWithBalance extends Account {
   balance: DecimalString;  // Decimal as string from backend
   balance_usd: DecimalString;  // Decimal as string from backend
+  currency: string;  // Inferred primary currency from holdings (e.g., "KRW", "USD")
   holdings_count: number;
 }
 

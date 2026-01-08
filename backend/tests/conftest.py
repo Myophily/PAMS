@@ -21,6 +21,7 @@ from app.models.transaction import Transaction
 from app.models.holding import Holding
 from app.models.market_data import MarketData
 from app.models.asset_snapshot import AssetSnapshot
+from app.utils.currency_inference import normalize_ticker
 
 
 # ============================================================================
@@ -248,12 +249,13 @@ def create_deposit(db_session):
             transaction_date = date.today()
 
         amount = Decimal(str(amount))
+        ticker = normalize_ticker("CASH", account.type)
 
         # Create transaction
         transaction = Transaction(
             account_id=account.id,
             type="Deposit",
-            ticker="CASH",
+            ticker=ticker,
             quantity=amount,
             price=Decimal("1.0000"),
             amount=amount,
@@ -262,10 +264,10 @@ def create_deposit(db_session):
         )
         db_session.add(transaction)
 
-        # Update or create CASH holding
+        # Update or create holding with normalized ticker
         holding = db_session.query(Holding).filter(
             Holding.account_id == account.id,
-            Holding.ticker == "CASH"
+            Holding.ticker == ticker
         ).first()
 
         if holding:
@@ -273,7 +275,7 @@ def create_deposit(db_session):
         else:
             holding = Holding(
                 account_id=account.id,
-                ticker="CASH",
+                ticker=ticker,
                 quantity=amount,
                 avg_price=Decimal("1.0000")
             )
@@ -290,12 +292,16 @@ def create_deposit(db_session):
 def get_cash_balance(db_session):
     """
     Helper to get CASH balance for an account.
+    Uses normalized currency ticker based on account type.
     """
+    from app.utils.currency_inference import normalize_ticker
+
     def _get_cash_balance(account: Account) -> Decimal:
-        """Return the CASH balance of an account."""
+        """Return CASH balance of an account."""
+        ticker = normalize_ticker("CASH", account.type)
         holding = db_session.query(Holding).filter(
             Holding.account_id == account.id,
-            Holding.ticker == "CASH"
+            Holding.ticker == ticker
         ).first()
         return holding.quantity if holding else Decimal("0")
 

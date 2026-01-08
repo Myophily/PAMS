@@ -26,8 +26,8 @@ export function DeleteAccountModal({
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Derive currency from account type
-  const currency = ['Securities', 'ForeignCurrency'].includes(account.type) ? 'USD' : 'KRW';
+  // Use inferred currency from backend
+  const currency = account.currency;
 
   // User must type account name to confirm
   const isConfirmed = confirmText === account.name;

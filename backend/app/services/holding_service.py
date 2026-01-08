@@ -24,19 +24,19 @@ class HoldingService:
         """
         DEPRECATED: Get CASH holding (auto-converted to KRW).
 
-        Use get_or_create_holding(account_id, "KRW", db) instead.
+        Use get_or_create_holding(account_id, "CASH", db) instead.
 
         Args:
             account_id: Account ID
             db: Database session
 
         Returns:
-            KRW Holding record
+            Holding record (currency ticker normalized based on account type)
 
         Examples:
             >>> holding = service.get_or_create_cash_holding(1, db)
             >>> holding.ticker
-            'KRW'  # Auto-converted from legacy CASH
+            'KRW'  # Auto-normalized for Deposit account
         """
         import warnings
         warnings.warn(
@@ -44,7 +44,7 @@ class HoldingService:
             DeprecationWarning,
             stacklevel=2
         )
-        return self.get_or_create_holding(account_id, "KRW", db)
+        return self.get_or_create_holding(account_id, "CASH", db)
 
     def get_or_create_holding(
         self,

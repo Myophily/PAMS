@@ -170,26 +170,6 @@ class AccountService:
 
         holdings = normalized_holdings
 
-        # For Securities accounts: Auto-inject cash if needed
-        if account_type == "Securities":
-            has_cash = any(is_currency_ticker(h.ticker) for h in holdings)
-
-            if not has_cash:
-                # Calculate total cost of non-currency assets
-                total_buy_cost = sum(
-                    h.quantity * h.price for h in holdings
-                    if not is_currency_ticker(h.ticker) and h.price is not None
-                )
-
-                if total_buy_cost > 0:
-                    # Inject KRW cash to cover purchases
-                    cash_holding = InitialHoldingItem(
-                        ticker='KRW',
-                        quantity=total_buy_cost,
-                        price=None
-                    )
-                    holdings = [cash_holding] + list(holdings)
-
         # Sort: Currencies first, then stocks alphabetically
         sorted_holdings = sorted(
             holdings,
@@ -209,20 +189,32 @@ class AccountService:
                     ticker=holding.ticker  # NEW: Pass ticker to create_deposit
                 )
             else:
-                # Create Buy transaction for non-currency assets (stocks, commodities)
-                # Only valid for Securities accounts (validation already done in schema)
-                price_currency = holding.price_currency or 'USD'  # Default to USD
-                self.transaction_service.create_buy(
+                # Create Deposit transaction for initial holdings (stocks, commodities, etc.)
+                # Semantically "depositing" existing holdings into the system
+                # This avoids cash balance validation needed for Buy transactions
+                price_currency = holding.price_currency or 'USD'
+                current_value = holding.quantity * (holding.price or Decimal("1"))
+
+                transaction = Transaction(
                     account_id=account_id,
+                    type="Deposit",
                     ticker=holding.ticker,
                     quantity=holding.quantity,
                     price=holding.price,
                     price_currency=price_currency,
-                    transaction_date=transaction_date,
-                    description=f"Initial holding: {holding.ticker}",
-                    db=db,
-                    auto_commit=False
+                    amount=current_value,
+                    date=transaction_date,
+                    linked_tx_id=None,
+                    description=f"Initial holding: {holding.ticker}"
                 )
+                db.add(transaction)
+                db.flush()
+
+                # Update holding directly (skip cash validation)
+                stock_holding = self.holding_service.get_or_create_holding(account_id, holding.ticker, db)
+                stock_holding.quantity += holding.quantity
+                stock_holding.avg_price = holding.price or Decimal("1")
+                stock_holding.price_currency = price_currency
 
     def list_accounts(self, db: Session) -> List[AccountListItemResponse]:
         """
@@ -269,6 +261,7 @@ class AccountService:
                 type=account.type,
                 balance=balance,
                 balance_usd=balance_usd.quantize(Decimal("0.01")),
+                currency=inferred_currency,
                 holdings_count=len(holdings),
                 created_at=account.created_at
             ))

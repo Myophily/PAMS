@@ -10,7 +10,7 @@ import { parseDecimal } from './decimal';
  */
 export function formatCurrency(
   amount: number | string,
-  currency: 'KRW' | 'USD',
+  currency: string,
   isHidden: boolean = false
 ): string {
   if (isHidden) return '••••••••';
@@ -20,8 +20,8 @@ export function formatCurrency(
   return new Intl.NumberFormat('ko-KR', {
     style: 'currency',
     currency: currency,
-    minimumFractionDigits: currency === 'KRW' ? 0 : 2,
-    maximumFractionDigits: currency === 'KRW' ? 0 : 2,
+    minimumFractionDigits: currency === 'KRW' || currency === 'JPY' ? 0 : 2,
+    maximumFractionDigits: currency === 'KRW' || currency === 'JPY' ? 0 : 2,
   }).format(numValue);
 }
 

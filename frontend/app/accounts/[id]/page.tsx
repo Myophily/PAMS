@@ -124,6 +124,7 @@ export default function AccountDetailPage() {
             balance: summary.total_value,
             balance_usd: summary.total_value, // Using total_value as fallback
             holdings_count: holdings.length,
+            currency: currency,
           }}
         />
       )}

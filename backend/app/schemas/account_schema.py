@@ -151,6 +151,7 @@ class AccountListItemResponse(BaseModel):
     type: str
     balance: Decimal  # Total balance in account's currency
     balance_usd: Decimal  # Converted to USD
+    currency: str  # Inferred primary currency from holdings (e.g., "KRW", "USD")
     holdings_count: int  # Number of different assets (including CASH)
     created_at: datetime
 
