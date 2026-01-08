@@ -97,6 +97,7 @@ class TransactionResponse(BaseModel):
     ticker: Optional[str] = None
     quantity: Optional[Decimal] = None
     price: Optional[Decimal] = None
+    price_currency: Optional[str] = None
     amount: Decimal
     date: datetime
     linked_tx_id: Optional[int] = None
@@ -118,6 +119,7 @@ class TransactionDetailResponse(BaseModel):
     ticker_name: Optional[str] = None
     quantity: Optional[Decimal] = None
     price: Optional[Decimal] = None
+    price_currency: Optional[str] = None
     amount: Decimal
     date: datetime
     linked_tx_id: Optional[int] = None

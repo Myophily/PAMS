@@ -214,6 +214,7 @@ class AccountSummaryResponse(BaseModel):
     invested_amount: Decimal  # Cost basis (non-cash assets)
     unrealized_pl: Decimal  # Total unrealized P/L
     unrealized_pl_percent: Decimal  # Percentage P/L
+    currency: str  # Inferred primary currency from holdings
 
 
 class AccountDetailResponse(BaseModel):

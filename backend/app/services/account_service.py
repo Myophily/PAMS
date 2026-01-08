@@ -478,6 +478,7 @@ class AccountService:
                     ticker_name=None,  # TODO: Add ticker name lookup
                     quantity=holding.quantity,
                     avg_price=holding.avg_price,
+                    price_currency=holding.price_currency,
                     current_price=current_price,
                     current_value=current_value,
                     cost_basis=cost_basis,
@@ -507,7 +508,8 @@ class AccountService:
                 cash_balance=cash_balance,
                 invested_amount=invested_amount,
                 unrealized_pl=total_unrealized_pl,
-                unrealized_pl_percent=unrealized_pl_percent
+                unrealized_pl_percent=unrealized_pl_percent,
+                currency=inferred_currency
             ),
             holdings=holding_responses
         )

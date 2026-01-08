@@ -44,6 +44,7 @@ export interface TransactionDetail extends Transaction {
   ticker_name?: string;
   quantity?: DecimalString;  // Decimal as string from backend
   price?: DecimalString;  // Decimal as string from backend
+  price_currency?: string;  // Currency for stock prices (KRW, USD, JPY, etc.)
   linked_tx_id?: number;
 }
 
@@ -70,6 +71,7 @@ export interface AccountDetails {
     invested_amount: DecimalString;  // Decimal as string from backend
     unrealized_pl: DecimalString;  // Decimal as string from backend
     unrealized_pl_percent: DecimalString;  // Decimal as string from backend
+    currency: string;  // Inferred primary currency from holdings (e.g., "KRW", "USD")
   };
   holdings: Holding[];
 }

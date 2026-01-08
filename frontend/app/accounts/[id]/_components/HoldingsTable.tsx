@@ -10,6 +10,18 @@ interface HoldingsTableProps {
   currency: string;
 }
 
+const getCurrencySymbol = (currency?: string): string => {
+  if (!currency) return '$';
+  switch (currency) {
+    case 'KRW': return '₩';
+    case 'JPY': return '¥';
+    case 'EUR': return '€';
+    case 'GBP': return '£';
+    case 'HKD': return 'HK$';
+    default: return '$';
+  }
+};
+
 export function HoldingsTable({ holdings, currency }: HoldingsTableProps) {
   if (holdings.length === 0) {
     return (
@@ -47,7 +59,7 @@ export function HoldingsTable({ holdings, currency }: HoldingsTableProps) {
         <tbody className="bg-white divide-y divide-gray-200">
           {holdings.map((holding) => {
             const isStock = !isCurrencyTicker(holding.ticker);
-            const priceSymbol = holding.price_currency === 'KRW' ? '₩' : '$';
+            const priceSymbol = getCurrencySymbol(holding.price_currency);
 
             return (
               <tr key={holding.id} className="hover:bg-gray-50">

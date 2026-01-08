@@ -11,6 +11,18 @@ interface TransactionTimelineProps {
   accountId: number;
 }
 
+const getCurrencySymbol = (currency?: string): string => {
+  if (!currency) return '$';
+  switch (currency) {
+    case 'KRW': return '₩';
+    case 'JPY': return '¥';
+    case 'EUR': return '€';
+    case 'GBP': return '£';
+    case 'HKD': return 'HK$';
+    default: return '$';
+  }
+};
+
 export function TransactionTimeline({ accountId }: TransactionTimelineProps) {
   const [filters, setFilters] = useState({
     type: '',
@@ -134,7 +146,12 @@ export function TransactionTimeline({ accountId }: TransactionTimelineProps) {
 
                   <div className="text-lg font-semibold text-gray-900">
                     {tx.ticker && `${tx.ticker} `}
-                    {tx.quantity && tx.price && `${formatDecimal(tx.quantity)} shares @ ${formatDecimal(tx.price)}`}
+                    {tx.quantity && tx.price && (
+                      <>
+                        {formatDecimal(tx.quantity)} shares @ {getCurrencySymbol(tx.price_currency)}
+                        {formatDecimal(tx.price)}
+                      </>
+                    )}
                     {tx.amount && `${parseFloat(tx.amount).toLocaleString()}`}
                   </div>
 

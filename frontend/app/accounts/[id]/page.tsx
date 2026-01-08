@@ -60,7 +60,7 @@ export default function AccountDetailPage() {
 
   // Get account type configuration
   const accountConfig = getAccountTypeConfig(account.type);
-  const currency = ['Securities', 'ForeignCurrency'].includes(account.type) ? 'USD' : 'KRW';
+  const currency = summary.currency || 'KRW';
 
   // Build dynamic tabs based on account type
   const ALL_POSSIBLE_TABS = [
