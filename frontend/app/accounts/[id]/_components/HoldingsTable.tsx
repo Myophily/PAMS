@@ -3,6 +3,7 @@
 import type { Holding } from '@/lib/types';
 import { formatPercent } from '@/lib/utils/format';
 import { formatDecimal, isPositive } from '@/lib/utils/decimal';
+import { isCurrencyTicker } from '@/lib/utils/currency';
 
 interface HoldingsTableProps {
   holdings: Holding[];
@@ -44,43 +45,50 @@ export function HoldingsTable({ holdings, currency }: HoldingsTableProps) {
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {holdings.map((holding) => (
-            <tr key={holding.id} className="hover:bg-gray-50">
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm font-medium text-gray-900">
-                  {holding.ticker}
-                </div>
-                {holding.ticker_name && (
-                  <div className="text-sm text-gray-500">
-                    {holding.ticker_name}
+          {holdings.map((holding) => {
+            const isStock = !isCurrencyTicker(holding.ticker);
+            const priceSymbol = holding.price_currency === 'KRW' ? '₩' : '$';
+
+            return (
+              <tr key={holding.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900">
+                    {holding.ticker}
                   </div>
-                )}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
-                {formatDecimal(holding.quantity)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
-                {formatDecimal(holding.avg_price)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
-                {formatDecimal(holding.current_price)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
-                {formatDecimal(holding.current_value)} {currency}
-              </td>
-              <td
-                className={`px-6 py-4 whitespace-nowrap text-right text-sm font-medium ${
-                  isPositive(holding.unrealized_pl) ? 'text-green-600' : 'text-red-600'
-                }`}
-              >
-                {formatPercent(holding.unrealized_pl_percent)}
-                <div className="text-xs">
-                  ({isPositive(holding.unrealized_pl) ? '+' : ''}
-                  {formatDecimal(holding.unrealized_pl)})
-                </div>
-              </td>
-            </tr>
-          ))}
+                  {holding.ticker_name && (
+                    <div className="text-sm text-gray-500">
+                      {holding.ticker_name}
+                    </div>
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                  {formatDecimal(holding.quantity)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                  {isStock && holding.price_currency ? priceSymbol : ''}
+                  {formatDecimal(holding.avg_price)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                  {isStock && holding.price_currency ? priceSymbol : ''}
+                  {formatDecimal(holding.current_price)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                  {formatDecimal(holding.current_value)} {currency}
+                </td>
+                <td
+                  className={`px-6 py-4 whitespace-nowrap text-right text-sm font-medium ${
+                    isPositive(holding.unrealized_pl) ? 'text-green-600' : 'text-red-600'
+                  }`}
+                >
+                  {formatPercent(holding.unrealized_pl_percent)}
+                  <div className="text-xs">
+                    ({isPositive(holding.unrealized_pl) ? '+' : ''}
+                    {formatDecimal(holding.unrealized_pl)})
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

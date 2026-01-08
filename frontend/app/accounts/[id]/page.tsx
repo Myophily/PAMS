@@ -98,7 +98,10 @@ export default function AccountDetailPage() {
 
         <div className="p-6">
           {activeTab === 'holdings' && isTabAllowed(account.type, 'holdings') && (
-            <HoldingsTable holdings={holdings} currency={currency} />
+            <HoldingsTable
+              holdings={holdings}
+              currency={currency}
+            />
           )}
 
           {activeTab === 'transactions' && (

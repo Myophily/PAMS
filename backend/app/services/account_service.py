@@ -57,7 +57,7 @@ class AccountService:
             account_type: Account type (Deposit, Securities, ForeignCurrency, MoneyMarket)
             initial_balance: Simple initial balance (for non-Securities or backwards compat)
             initial_balance_date: Date for initial transactions (default: now)
-            initial_holdings: List of initial holdings (Securities accounts only)
+            initial_holdings: List of initial holdings with per-stock price_currency
             db: Database session
 
         Returns:
@@ -211,11 +211,13 @@ class AccountService:
             else:
                 # Create Buy transaction for non-currency assets (stocks, commodities)
                 # Only valid for Securities accounts (validation already done in schema)
+                price_currency = holding.price_currency or 'USD'  # Default to USD
                 self.transaction_service.create_buy(
                     account_id=account_id,
                     ticker=holding.ticker,
                     quantity=holding.quantity,
                     price=holding.price,
+                    price_currency=price_currency,
                     transaction_date=transaction_date,
                     description=f"Initial holding: {holding.ticker}",
                     db=db,

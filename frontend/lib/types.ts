@@ -50,6 +50,7 @@ export interface Holding {
   ticker_name?: string;
   quantity: DecimalString;  // Decimal as string from backend
   avg_price: DecimalString;  // Decimal as string from backend
+  price_currency?: string;  // Currency for stock prices (KRW, USD, JPY, etc.)
   current_price: DecimalString;  // Decimal as string from backend
   current_value: DecimalString;  // Decimal as string from backend
   cost_basis: DecimalString;  // Decimal as string from backend
@@ -108,6 +109,7 @@ export interface InitialHoldingItem {
   ticker: string;      // "KRW", "USD", "AAPL", "TSLA", "GOLD" (currency or asset ticker)
   quantity: number;
   price?: number;      // Required for non-currency tickers
+  price_currency?: string;  // Currency for stock prices (KRW or USD)
 }
 
 export interface CreateAccountInput {

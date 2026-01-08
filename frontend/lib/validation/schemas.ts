@@ -10,7 +10,8 @@ const initialHoldingItemSchema = z.object({
     .positive('Quantity must be greater than 0'),
   price: z.number()
     .positive('Price must be greater than 0')
-    .optional()
+    .optional(),
+  price_currency: z.enum(['KRW', 'USD']).optional()
 });
 
 // Account creation schema

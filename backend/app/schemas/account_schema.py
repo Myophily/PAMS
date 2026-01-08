@@ -11,6 +11,7 @@ class InitialHoldingItem(BaseModel):
     ticker: str  # "KRW", "USD", "AAPL", "TSLA", "GOLD" (currency or asset ticker)
     quantity: Decimal
     price: Optional[Decimal] = None  # Required for non-currency tickers
+    price_currency: Optional[str] = None  # Currency for stock prices (KRW or USD)
 
     @validator('ticker')
     def validate_ticker_format(cls, v):
@@ -165,6 +166,7 @@ class HoldingResponse(BaseModel):
     ticker_name: Optional[str] = None
     quantity: Decimal
     avg_price: Decimal
+    price_currency: Optional[str] = None  # Currency for stock prices (KRW, USD, etc.)
     current_price: Optional[Decimal] = None
     current_value: Optional[Decimal] = None
     cost_basis: Decimal

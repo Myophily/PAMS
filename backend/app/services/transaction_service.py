@@ -398,9 +398,10 @@ class TransactionService:
         ticker: str,
         quantity: Decimal,
         price: Decimal,
-        transaction_date: datetime,
-        description: Optional[str],
-        db: Session,
+        price_currency: str = 'USD',
+        transaction_date: datetime = None,
+        description: Optional[str] = None,
+        db: Session = None,
         auto_commit: bool = True
     ) -> Transaction:
         """
@@ -466,6 +467,7 @@ class TransactionService:
             ticker=ticker,
             quantity=to_decimal(quantity, precision=8),
             price=to_decimal(price, precision=4),
+            price_currency=price_currency,
             amount=-to_decimal(total_cost, precision=2),  # Negative (cash outflow)
             date=transaction_date,
             linked_tx_id=None,
@@ -491,6 +493,7 @@ class TransactionService:
 
         stock_holding.quantity += transaction.quantity
         stock_holding.avg_price = new_avg_price
+        stock_holding.price_currency = price_currency  # Store price currency with holding
 
         if is_past_transaction(transaction_date):
             self._trigger_recalculation(transaction_date, db)

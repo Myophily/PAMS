@@ -13,6 +13,7 @@ class Transaction(Base):
     ticker = Column(String(20), nullable=True)
     quantity = Column(Numeric(18, 8), nullable=True)
     price = Column(Numeric(18, 4), nullable=True)
+    price_currency = Column(String(3), nullable=True)  # Currency for stock prices (USD, KRW, JPY, etc.)
     amount = Column(Numeric(18, 2), nullable=False)  # CRITICAL: Decimal for money, NEVER Float
     date = Column(DateTime, nullable=False)  # DateTime with minute precision (HH:MM)
     linked_tx_id = Column(Integer, ForeignKey('transaction.id', ondelete='SET NULL'), nullable=True)  # Self-referencing

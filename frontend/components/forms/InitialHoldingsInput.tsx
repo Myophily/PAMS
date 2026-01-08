@@ -186,7 +186,7 @@ export function InitialHoldingsInput({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => append({ ticker: '', quantity: 0, price: undefined })}
+            onClick={() => append({ ticker: '', quantity: 0, price: undefined, price_currency: 'USD' })}
           >
             <Plus className="w-4 h-4 mr-1" />
             Add Holding
@@ -205,11 +205,12 @@ export function InitialHoldingsInput({
         {fields.map((field, index) => {
           const ticker = watch(`initial_holdings.${index}.ticker`);
           const isCurrency = ticker ? isCurrencyTicker(ticker) : false;
+          const selectedCurrency = watch(`initial_holdings.${index}.price_currency`) || 'USD';
 
           return (
             <div key={field.id} className="p-3 bg-gray-50 rounded-lg">
               <div className="flex items-start gap-2">
-                <div className="flex-1 grid grid-cols-3 gap-2">
+                <div className={`flex-1 grid ${isCurrency ? 'grid-cols-2' : 'grid-cols-4'} gap-2`}>
                   <Input
                     label={index === 0 ? 'Ticker' : undefined}
                     {...register(`initial_holdings.${index}.ticker`)}
@@ -224,15 +225,25 @@ export function InitialHoldingsInput({
                     error={errors.initial_holdings?.[index]?.quantity?.message}
                     placeholder="100"
                   />
-                  <Input
-                    label={index === 0 ? 'Price' : undefined}
-                    type="number"
-                    step="0.0001"
-                    {...register(`initial_holdings.${index}.price`, { valueAsNumber: true })}
-                    error={errors.initial_holdings?.[index]?.price?.message}
-                    placeholder={isCurrency ? 'N/A' : '150.50'}
-                    disabled={isCurrency}
-                  />
+                  {!isCurrency && (
+                    <>
+                      <Input
+                        label={index === 0 ? 'Price' : undefined}
+                        type="number"
+                        step="0.0001"
+                        {...register(`initial_holdings.${index}.price`, { valueAsNumber: true })}
+                        error={errors.initial_holdings?.[index]?.price?.message}
+                        placeholder={selectedCurrency === 'KRW' ? '65000' : '150.50'}
+                      />
+                      <Select
+                        label={index === 0 ? 'Currency' : undefined}
+                        {...register(`initial_holdings.${index}.price_currency`)}
+                      >
+                        <option value="USD">USD</option>
+                        <option value="KRW">KRW</option>
+                      </Select>
+                    </>
+                  )}
                 </div>
                 {fields.length > 0 && (
                   <Button
@@ -249,6 +260,11 @@ export function InitialHoldingsInput({
               {isCurrency && ticker && (
                 <p className="text-xs text-blue-600 mt-1">
                   Currency detected - price not required
+                </p>
+              )}
+              {!isCurrency && ticker && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Price currency: {selectedCurrency === 'KRW' ? '₩ Korean Won' : '$ US Dollar'}
                 </p>
               )}
             </div>

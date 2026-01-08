@@ -11,6 +11,7 @@ class Holding(Base):
     ticker = Column(String(20), nullable=False)
     quantity = Column(Numeric(18, 8), nullable=False, default=0)  # NEVER use Float for money
     avg_price = Column(Numeric(18, 4), nullable=False, default=0)  # NEVER use Float for money
+    price_currency = Column(String(3), nullable=True)  # Currency for stock prices (USD, KRW, JPY, etc.)
 
     # Relationship
     account = relationship("Account", back_populates="holdings")
