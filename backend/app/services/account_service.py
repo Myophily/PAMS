@@ -425,12 +425,20 @@ class AccountService:
         # Infer currency from holdings
         inferred_currency = infer_currency_from_holdings(holdings, account.type)
 
+        # Get USD/KRW exchange rate for KRW conversions
+        usd_krw_rate = self.market_data_service.get_latest_exchange_rate("USD", "KRW", db)
+        if not usd_krw_rate:
+            usd_krw_rate = to_decimal(1300, precision=4)
+
         # Build holding responses with market data
         holding_responses = []
         total_value = Decimal("0")
+        total_value_krw = Decimal("0")
         cash_balance = Decimal("0")
+        cash_balance_krw = Decimal("0")
         total_cost_basis = Decimal("0")
         total_unrealized_pl = Decimal("0")
+        total_unrealized_pl_krw = Decimal("0")
 
         for holding in holdings:
             # Check if this is a currency holding (KRW, USD, EUR, etc.) - not a stock
@@ -440,6 +448,18 @@ class AccountService:
                 # Currency holding (KRW, USD, EUR, etc.)
                 cash_balance += holding.quantity
                 total_value += holding.quantity
+
+                # Convert cash to KRW
+                if inferred_currency == "KRW":
+                    cash_balance_krw += holding.quantity
+                elif inferred_currency == "USD":
+                    cash_balance_krw += holding.quantity * usd_krw_rate
+                else:
+                    # Fetch other currency rates or fallback to 1:1
+                    fx_rate = self.market_data_service.get_latest_exchange_rate(
+                        inferred_currency, "KRW", db
+                    ) or Decimal("1")
+                    cash_balance_krw += holding.quantity * fx_rate
 
                 holding_responses.append(HoldingResponse(
                     id=holding.id,
@@ -475,6 +495,24 @@ class AccountService:
                 total_cost_basis += cost_basis
                 total_unrealized_pl += unrealized_pl
 
+                # Convert stock values to KRW based on price_currency
+                if holding.price_currency == "USD":
+                    current_value_krw = current_value * usd_krw_rate
+                    unrealized_pl_krw = unrealized_pl * usd_krw_rate
+                elif holding.price_currency == "KRW" or inferred_currency == "KRW":
+                    current_value_krw = current_value
+                    unrealized_pl_krw = unrealized_pl
+                else:
+                    # Fetch other currency rates or fallback to 1:1
+                    fx_rate = self.market_data_service.get_latest_exchange_rate(
+                        holding.price_currency or inferred_currency, "KRW", db
+                    ) or Decimal("1")
+                    current_value_krw = current_value * fx_rate
+                    unrealized_pl_krw = unrealized_pl * fx_rate
+
+                total_value_krw += current_value_krw
+                total_unrealized_pl_krw += unrealized_pl_krw
+
                 holding_responses.append(HoldingResponse(
                     id=holding.id,
                     account_id=holding.account_id,
@@ -509,9 +547,12 @@ class AccountService:
             ),
             summary=AccountSummaryResponse(
                 total_value=total_value,
+                total_value_krw=total_value_krw.quantize(Decimal("1")),
                 cash_balance=cash_balance,
+                cash_balance_krw=cash_balance_krw.quantize(Decimal("1")),
                 invested_amount=invested_amount,
                 unrealized_pl=total_unrealized_pl,
+                unrealized_pl_krw=total_unrealized_pl_krw.quantize(Decimal("1")),
                 unrealized_pl_percent=unrealized_pl_percent,
                 currency=inferred_currency
             ),

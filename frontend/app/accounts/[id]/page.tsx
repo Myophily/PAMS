@@ -87,8 +87,11 @@ export default function AccountDetailPage() {
         type={account.type}
         currency={currency}
         totalValue={summary.total_value}
+        totalValueKRW={summary.total_value_krw}
         cashBalance={summary.cash_balance}
+        cashBalanceKRW={summary.cash_balance_krw}
         unrealizedPL={summary.unrealized_pl}
+        unrealizedPLKRW={summary.unrealized_pl_krw}
         unrealizedPLPercent={summary.unrealized_pl_percent}
         isRefetching={isFetching}
       />
@@ -123,7 +126,7 @@ export default function AccountDetailPage() {
             ...account,
             balance: summary.total_value,
             total_value: summary.total_value,
-            total_value_krw: '0',  // Not available in details API
+            total_value_krw: summary.total_value_krw,
             stock_value: '0',      // Not available in details API
             balance_usd: summary.total_value,
             holdings_count: holdings.length,

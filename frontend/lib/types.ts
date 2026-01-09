@@ -67,9 +67,12 @@ export interface AccountDetails {
   account: Account;
   summary: {
     total_value: DecimalString;  // Decimal as string from backend
+    total_value_krw: DecimalString;  // Total value converted to KRW
     cash_balance: DecimalString;  // Decimal as string from backend
+    cash_balance_krw: DecimalString;  // Cash balance converted to KRW
     invested_amount: DecimalString;  // Decimal as string from backend
     unrealized_pl: DecimalString;  // Decimal as string from backend
+    unrealized_pl_krw: DecimalString;  // Unrealized P/L converted to KRW
     unrealized_pl_percent: DecimalString;  // Decimal as string from backend
     currency: string;  // Inferred primary currency from holdings (e.g., "KRW", "USD")
   };

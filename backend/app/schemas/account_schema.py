@@ -209,10 +209,13 @@ class HoldingResponse(BaseModel):
 
 class AccountSummaryResponse(BaseModel):
     """Account summary statistics."""
-    total_value: Decimal  # Current total value
-    cash_balance: Decimal  # CASH balance
+    total_value: Decimal  # Current total value in native currency
+    total_value_krw: Decimal  # Total value converted to KRW
+    cash_balance: Decimal  # CASH balance in native currency
+    cash_balance_krw: Decimal  # Cash balance converted to KRW
     invested_amount: Decimal  # Cost basis (non-cash assets)
-    unrealized_pl: Decimal  # Total unrealized P/L
+    unrealized_pl: Decimal  # Total unrealized P/L in native currency
+    unrealized_pl_krw: Decimal  # Unrealized P/L converted to KRW
     unrealized_pl_percent: Decimal  # Percentage P/L
     currency: str  # Inferred primary currency from holdings
 

@@ -13,8 +13,11 @@ interface AccountSummaryHeaderProps {
   type: string;
   currency: string;
   totalValue: DecimalString;
+  totalValueKRW: DecimalString;
   cashBalance: DecimalString;
+  cashBalanceKRW: DecimalString;
   unrealizedPL: DecimalString;
+  unrealizedPLKRW: DecimalString;
   unrealizedPLPercent: DecimalString;
   isRefetching?: boolean;
 }
@@ -25,8 +28,11 @@ export function AccountSummaryHeader({
   type,
   currency,
   totalValue,
+  totalValueKRW,
   cashBalance,
+  cashBalanceKRW,
   unrealizedPL,
+  unrealizedPLKRW,
   unrealizedPLPercent,
   isRefetching = false,
 }: AccountSummaryHeaderProps) {
@@ -67,20 +73,29 @@ export function AccountSummaryHeader({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Total Value - Primary: KRW, Secondary: Native */}
         <div>
           <div className="text-sm text-gray-600 mb-1">Total Value</div>
           <div className="text-2xl font-bold text-gray-900">
-            {formatDecimal(totalValue)} {currency}
+            {formatCurrency(totalValueKRW, 'KRW')}
+          </div>
+          <div className="text-sm text-gray-600 mt-1">
+            ≈ {formatDecimal(totalValue)} {currency}
           </div>
         </div>
 
+        {/* Cash Balance - Primary: KRW, Secondary: Native */}
         <div>
           <div className="text-sm text-gray-600 mb-1">Cash Balance</div>
           <div className="text-2xl font-bold text-gray-900">
-            {formatDecimal(cashBalance)} {currency}
+            {formatCurrency(cashBalanceKRW, 'KRW')}
+          </div>
+          <div className="text-sm text-gray-600 mt-1">
+            ≈ {formatDecimal(cashBalance)} {currency}
           </div>
         </div>
 
+        {/* Unrealized P/L - Primary: KRW, Secondary: Native + Percent */}
         <div>
           <div className="text-sm text-gray-600 mb-1">Unrealized P/L</div>
           <div
@@ -89,14 +104,14 @@ export function AccountSummaryHeader({
             }`}
           >
             {isPlPositive ? '+' : ''}
-            {formatDecimal(unrealizedPL)} {currency}
+            {formatCurrency(unrealizedPLKRW, 'KRW')}
           </div>
           <div
             className={`text-sm ${
               isPlPositive ? 'text-green-600' : 'text-red-600'
             }`}
           >
-            {formatPercent(unrealizedPLPercent)}
+            {formatPercent(unrealizedPLPercent)} • ≈ {formatDecimal(unrealizedPL)} {currency}
           </div>
         </div>
       </div>
