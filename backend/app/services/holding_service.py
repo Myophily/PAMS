@@ -6,6 +6,7 @@ CRITICAL: Holdings are ALWAYS computed from transaction history.
 """
 
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from app.models.holding import Holding
 from app.utils.decimal_helpers import to_decimal
 from decimal import Decimal
@@ -92,14 +93,24 @@ class HoldingService:
         ).first()
 
         if not holding:
-            holding = Holding(
-                account_id=account_id,
-                ticker=ticker,
-                quantity=to_decimal(0, precision=8),
-                avg_price=to_decimal(0, precision=4)
-            )
-            db.add(holding)
-            db.flush()
+            try:
+                holding = Holding(
+                    account_id=account_id,
+                    ticker=ticker,
+                    quantity=to_decimal(0, precision=8),
+                    avg_price=to_decimal(0, precision=4)
+                )
+                db.add(holding)
+                db.flush()
+            except IntegrityError:
+                db.rollback()
+                holding = db.query(Holding).filter(
+                    Holding.account_id == account_id,
+                    Holding.ticker == ticker
+                ).first()
+                
+                if not holding:
+                    raise
 
         return holding
 
@@ -237,6 +248,26 @@ class HoldingService:
                 total_value += holding.quantity * current_prices[holding.ticker]
 
         return total_value.quantize(Decimal("0.01"))
+
+    def get_or_create_krw_cash_holding(self, account_id: int, db: Session) -> Holding:
+        """
+        Get KRW cash holding for transfers.
+
+        CRITICAL: ALL transfers use KRW cash regardless of account type.
+
+        Args:
+            account_id: Account ID
+            db: Database session
+
+        Returns:
+            KRW holding record (creates if not exists)
+
+        Examples:
+            >>> holding = service.get_or_create_krw_cash_holding(1, db)
+            >>> holding.ticker
+            'KRW'
+        """
+        return self.get_or_create_holding(account_id, "KRW", db)
 
     def delete_zero_holdings(self, account_id: int, db: Session) -> int:
         """

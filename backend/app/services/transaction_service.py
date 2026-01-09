@@ -334,16 +334,16 @@ class TransactionService:
         validate_transaction_type(from_account.type, "Transfer_Out")
         validate_transaction_type(to_account.type, "Transfer_In")
 
-        # Check sufficient balance
+        # Check sufficient KRW balance (KRW-only transfer constraint)
         self.holding_service.validate_sufficient_balance(
-            from_account_id, "CASH", amount, db
+            from_account_id, "KRW", amount, db
         )
 
         # Create outflow transaction
         tx_out = Transaction(
             account_id=from_account_id,
             type="Transfer_Out",
-            ticker=None,
+            ticker="KRW",
             quantity=None,
             price=None,
             amount=-to_decimal(amount, precision=2),
@@ -358,7 +358,7 @@ class TransactionService:
         tx_in = Transaction(
             account_id=to_account_id,
             type="Transfer_In",
-            ticker=None,
+            ticker="KRW",
             quantity=None,
             price=None,
             amount=to_decimal(amount, precision=2),
@@ -373,9 +373,9 @@ class TransactionService:
         tx_out.linked_tx_id = tx_in.id
         tx_in.linked_tx_id = tx_out.id
 
-        # Update holdings
-        cash_out = self.holding_service.get_or_create_cash_holding(from_account_id, db)
-        cash_in = self.holding_service.get_or_create_cash_holding(to_account_id, db)
+        # Update KRW holdings (KRW-only transfer constraint)
+        cash_out = self.holding_service.get_or_create_krw_cash_holding(from_account_id, db)
+        cash_in = self.holding_service.get_or_create_krw_cash_holding(to_account_id, db)
 
         cash_out.quantity += tx_out.amount  # Decrease
         cash_in.quantity += tx_in.amount    # Increase
