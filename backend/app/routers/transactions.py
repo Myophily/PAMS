@@ -291,20 +291,40 @@ def list_transactions(
     account_id: Optional[int] = None,
     type: Optional[str] = None,
     ticker: Optional[str] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    start_date: Optional[str] = None,  # Accept as string first
+    end_date: Optional[str] = None,    # Accept as string first
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db)
 ):
     """List transactions with filtering and pagination."""
+    # Convert empty strings to None and parse dates
+    type_filter = type if type and type.strip() else None
+    ticker_filter = ticker if ticker and ticker.strip() else None
+
+    # Parse date strings
+    start_date_parsed = None
+    end_date_parsed = None
+
+    if start_date and start_date.strip():
+        try:
+            start_date_parsed = date.fromisoformat(start_date)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Invalid start_date format: {start_date}")
+
+    if end_date and end_date.strip():
+        try:
+            end_date_parsed = date.fromisoformat(end_date)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Invalid end_date format: {end_date}")
+
     transactions = transaction_service.list_transactions(
         db=db,
         account_id=account_id,
-        type=type,
-        ticker=ticker,
-        start_date=start_date,
-        end_date=end_date,
+        type=type_filter,
+        ticker=ticker_filter,
+        start_date=start_date_parsed,
+        end_date=end_date_parsed,
         limit=limit,
         offset=offset
     )

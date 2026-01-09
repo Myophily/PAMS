@@ -223,15 +223,17 @@ class HoldingService:
             >>> total
             Decimal('15000.00')  # Example: 1000 cash + 10 AAPL + 20 TSLA
         """
+        from app.utils.currency_inference import is_currency_ticker
+
         holdings = self.get_all_holdings_for_account(account_id, db, include_zero=False)
 
         total_value = Decimal("0")
         for holding in holdings:
-            if holding.ticker == "CASH":
-                # CASH has value = quantity (1:1)
+            if is_currency_ticker(holding.ticker):
+                # Currency holdings (KRW, USD, etc.) have value = quantity (1:1)
                 total_value += holding.quantity
             elif holding.ticker in current_prices:
-                # Stock/currency has value = quantity × price
+                # Stock has value = quantity × price
                 total_value += holding.quantity * current_prices[holding.ticker]
 
         return total_value.quantize(Decimal("0.01"))
@@ -241,6 +243,7 @@ class HoldingService:
         Delete holdings with zero quantity (cleanup).
 
         This is optional cleanup - holdings with zero quantity don't affect calculations.
+        Never deletes currency holdings (KRW, USD, etc.) as they can legitimately be zero.
 
         Args:
             account_id: Account ID
@@ -253,11 +256,20 @@ class HoldingService:
             >>> count = service.delete_zero_holdings(1, db)
             >>> print(f"Deleted {count} zero-quantity holdings")
         """
-        result = db.query(Holding).filter(
+        from app.utils.currency_inference import is_currency_ticker
+
+        # Get zero-quantity holdings that are NOT currencies
+        zero_holdings = db.query(Holding).filter(
             Holding.account_id == account_id,
-            Holding.quantity == 0,
-            Holding.ticker != "CASH"  # Never delete CASH holding
-        ).delete()
+            Holding.quantity == 0
+        ).all()
+
+        delete_count = 0
+        for holding in zero_holdings:
+            # Never delete currency holdings (they can legitimately be zero)
+            if not is_currency_ticker(holding.ticker):
+                db.delete(holding)
+                delete_count += 1
 
         db.flush()
-        return result
+        return delete_count

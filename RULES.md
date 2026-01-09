@@ -68,7 +68,7 @@ PAM formalizes the flow of money in reality into 4 fundamental patterns:
 #### Schema Constraints
 - `Account.type` MUST be one of: `Deposit`, `Securities`, `ForeignCurrency`, `MoneyMarket`
 - `Transaction.type` MUST be one of: `Buy`, `Sell`, `Transfer_In`, `Transfer_Out`, `Deposit`, `Withdrawal`, `Dividend`, `Exchange`, `Interest`
-- `Holding.ticker` includes special value `CASH` for account balances
+- `Holding.ticker` uses explicit currency codes (KRW, USD, EUR, etc.) for cash balances, not the legacy "CASH" value
 - `MarketData` MUST have unique constraint on `(date, ticker)`
 
 #### Account Type Asset Restrictions
@@ -83,10 +83,10 @@ Each account type has restrictions on which assets (currencies and securities) i
 | **Securities** | All (KRW, USD, etc.) | Stocks, ETFs, Gold, Bonds, etc. | Full investment account (증권계좌). Can hold multiple currencies and all asset types. |
 
 **Enforcement Rules:**
-- `Deposit` accounts can only have `CASH` holdings with `ticker="KRW"`
-- `MoneyMarket` accounts can only have `CASH` holdings with `ticker="KRW"`
-- `ForeignCurrency` accounts can only have `CASH` holdings with `ticker="USD"`
-- `Securities` accounts can hold `CASH` in any currency (KRW, USD, etc.) and any securities
+- `Deposit` accounts can only have holdings with `ticker="KRW"` (Korean Won currency)
+- `MoneyMarket` accounts can only have holdings with `ticker="KRW"` (Korean Won currency)
+- `ForeignCurrency` accounts can only have currency holdings (USD, EUR, JPY, etc.) but NOT KRW
+- `Securities` accounts can hold multiple currency holdings (KRW, USD, EUR, etc.) and any securities (stocks, ETFs, bonds, etc.)
 
 **Examples:**
 - ✅ **Valid:** Deposit account with KRW cash balance

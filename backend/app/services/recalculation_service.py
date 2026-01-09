@@ -12,6 +12,7 @@ from app.models.account import Account
 from app.models.asset_snapshot import AssetSnapshot
 from app.utils.calculation_engine import calculate_avg_price_on_buy
 from app.utils.date_helpers import get_date_range
+from app.utils.currency_inference import is_currency_ticker, normalize_ticker, CURRENCY_TICKERS
 from decimal import Decimal
 from datetime import datetime, date
 from typing import List, Dict, Union
@@ -110,7 +111,8 @@ class RecalculationService:
         # This is less efficient but correct and simpler to implement
         for holding in holdings:
             holding.quantity = Decimal("0")
-            if holding.ticker != "CASH":
+            # Currency holdings always have avg_price of 1.0
+            if not is_currency_ticker(holding.ticker):
                 holding.avg_price = Decimal("0")
 
         # Get ALL transactions for this account (from beginning), ordered by date
@@ -144,49 +146,62 @@ class RecalculationService:
         """
         # Pattern ① - Income/Expense (Deposit, Withdrawal, Dividend)
         if tx.type in ["Deposit", "Withdrawal", "Dividend"]:
-            cash = holding_map.get("CASH")
-            if not cash:
-                cash = Holding(
+            # Use the currency ticker from the transaction (KRW, USD, etc.)
+            ticker = tx.ticker
+            currency_holding = holding_map.get(ticker)
+            if not currency_holding:
+                currency_holding = Holding(
                     account_id=tx.account_id,
-                    ticker="CASH",
+                    ticker=ticker,
                     quantity=Decimal("0"),
                     avg_price=Decimal("1.0")
                 )
-                holding_map["CASH"] = cash
-                db.add(cash)
+                holding_map[ticker] = currency_holding
+                db.add(currency_holding)
 
-            cash.quantity += tx.amount
+            currency_holding.quantity += tx.amount
 
         # Pattern ② - Transfer (handled separately, not in this loop)
         elif tx.type in ["Transfer_Out", "Transfer_In"]:
-            cash = holding_map.get("CASH")
-            if not cash:
-                cash = Holding(
+            # Use the currency ticker from the transaction (KRW, USD, etc.)
+            ticker = tx.ticker
+            currency_holding = holding_map.get(ticker)
+            if not currency_holding:
+                currency_holding = Holding(
                     account_id=tx.account_id,
-                    ticker="CASH",
+                    ticker=ticker,
                     quantity=Decimal("0"),
                     avg_price=Decimal("1.0")
                 )
-                holding_map["CASH"] = cash
-                db.add(cash)
+                holding_map[ticker] = currency_holding
+                db.add(currency_holding)
 
-            cash.quantity += tx.amount
+            currency_holding.quantity += tx.amount
 
         # Pattern ③ - Buy
         elif tx.type == "Buy":
-            # Update CASH
-            cash = holding_map.get("CASH")
-            if not cash:
-                cash = Holding(
+            # Determine cash currency from transaction price_currency
+            # If not specified, infer from account type
+            if tx.price_currency:
+                cash_ticker = tx.price_currency
+            else:
+                # Fallback: infer from account type
+                account = db.query(Account).get(tx.account_id)
+                cash_ticker = normalize_ticker("CASH", account.type) if account else "KRW"
+
+            # Update cash holding
+            currency_holding = holding_map.get(cash_ticker)
+            if not currency_holding:
+                currency_holding = Holding(
                     account_id=tx.account_id,
-                    ticker="CASH",
+                    ticker=cash_ticker,
                     quantity=Decimal("0"),
                     avg_price=Decimal("1.0")
                 )
-                holding_map["CASH"] = cash
-                db.add(cash)
+                holding_map[cash_ticker] = currency_holding
+                db.add(currency_holding)
 
-            cash.quantity += tx.amount  # Negative amount (decrease cash)
+            currency_holding.quantity += tx.amount  # Negative amount (decrease cash)
 
             # Update stock holding
             stock = holding_map.get(tx.ticker)
@@ -213,19 +228,28 @@ class RecalculationService:
 
         # Pattern ③ - Sell
         elif tx.type == "Sell":
-            # Update CASH
-            cash = holding_map.get("CASH")
-            if not cash:
-                cash = Holding(
+            # Determine cash currency from transaction price_currency
+            # If not specified, infer from account type
+            if tx.price_currency:
+                cash_ticker = tx.price_currency
+            else:
+                # Fallback: infer from account type
+                account = db.query(Account).get(tx.account_id)
+                cash_ticker = normalize_ticker("CASH", account.type) if account else "KRW"
+
+            # Update cash holding
+            currency_holding = holding_map.get(cash_ticker)
+            if not currency_holding:
+                currency_holding = Holding(
                     account_id=tx.account_id,
-                    ticker="CASH",
+                    ticker=cash_ticker,
                     quantity=Decimal("0"),
                     avg_price=Decimal("1.0")
                 )
-                holding_map["CASH"] = cash
-                db.add(cash)
+                holding_map[cash_ticker] = currency_holding
+                db.add(currency_holding)
 
-            cash.quantity += tx.amount  # Positive amount (increase cash)
+            currency_holding.quantity += tx.amount  # Positive amount (increase cash)
 
             # Update stock holding
             stock = holding_map.get(tx.ticker)

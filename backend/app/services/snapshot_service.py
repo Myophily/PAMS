@@ -82,10 +82,12 @@ class SnapshotService:
             # Infer currency from holdings
             inferred_currency = infer_currency_from_holdings(holdings, account.type)
 
+            from app.utils.currency_inference import is_currency_ticker
+
             for holding in holdings:
                 # Calculate value
-                if holding.ticker == "CASH" or holding.ticker in ["KRW", "USD", "EUR"]:
-                    # For cash and currencies, value = quantity
+                if is_currency_ticker(holding.ticker):
+                    # For all currency holdings (KRW, USD, EUR, etc.), value = quantity
                     value = holding.quantity
 
                     # Convert to KRW if needed
@@ -97,7 +99,7 @@ class SnapshotService:
                         if eur_krw_rate is None:
                             eur_krw_rate = to_decimal(1400, precision=4)  # Fallback
                         value = value * eur_krw_rate
-                    # KRW and CASH stay as-is
+                    # KRW stays as-is (no conversion needed)
 
                 else:
                     # For stocks, fetch current price for snapshot_date

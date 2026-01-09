@@ -206,14 +206,18 @@ class DashboardService:
         stocks_value = Decimal("0")
         foreign_currency_value = Decimal("0")
 
+        from app.utils.currency_inference import is_currency_ticker
+
         for account in accounts:
             holdings = self.holding_service.get_all_holdings_for_account(account.id, db, include_zero=False)
 
             for holding in holdings:
-                if holding.ticker == "CASH":
-                    cash_value += holding.quantity
-                elif holding.ticker in ["KRW", "USD", "EUR"]:
-                    foreign_currency_value += holding.quantity
+                if is_currency_ticker(holding.ticker):
+                    # All currencies (KRW, USD, EUR, etc.)
+                    if holding.ticker == "KRW":
+                        cash_value += holding.quantity
+                    else:
+                        foreign_currency_value += holding.quantity
                 else:
                     # Stock
                     # TODO: Get current price and convert to KRW
@@ -291,25 +295,21 @@ class DashboardService:
             # Infer currency from holdings since Account doesn't store it
             inferred_currency = infer_currency_from_holdings(holdings, account.type)
 
+            from app.utils.currency_inference import is_currency_ticker
+
             for holding in holdings:
-                # Handle CASH and currencies
-                if holding.ticker == "CASH":
-                    if inferred_currency == "USD":
-                        cash_usd_value_in_krw += holding.quantity * usd_krw_rate
-                    else:  # KRW or other (treat as KRW default)
+                # Handle all currency tickers (KRW, USD, EUR, etc.)
+                if is_currency_ticker(holding.ticker):
+                    if holding.ticker == "KRW":
                         cash_krw_value += holding.quantity
-                    continue
-
-                if holding.ticker == "KRW":
-                    cash_krw_value += holding.quantity
-                    continue
-
-                if holding.ticker == "USD":
-                    cash_usd_value_in_krw += holding.quantity * usd_krw_rate
-                    continue
-
-                if holding.ticker == "EUR":
-                    # Skip EUR for now as we don't have exchange rate logic here
+                    elif holding.ticker == "USD":
+                        cash_usd_value_in_krw += holding.quantity * usd_krw_rate
+                    elif holding.ticker == "EUR":
+                        # Skip EUR for now as we don't have exchange rate logic here
+                        pass
+                    else:
+                        # Other currencies - skip for now
+                        pass
                     continue
 
                 # Get current price (fallback to avg_price if market data unavailable)
