@@ -16,7 +16,7 @@ interface TransactionFilters {
 export function useTransactions(filters: TransactionFilters = {}) {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([key, value]) => {
-    if (value !== undefined) params.append(key, value.toString());
+    if (value !== undefined && value !== '' && value !== null) params.append(key, value.toString());
   });
 
   return useQuery<{ transactions: TransactionDetail[]; total: number }>({
