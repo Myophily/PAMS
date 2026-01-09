@@ -85,7 +85,7 @@ export function HoldingsTable({ holdings, currency }: HoldingsTableProps) {
                   {formatDecimal(holding.current_price)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
-                  {formatDecimal(holding.current_value)} {isStock && holding.price_currency ? holding.price_currency : currency}
+                  {formatDecimal(holding.current_value)} {isCurrencyTicker(holding.ticker) ? holding.ticker : (isStock && holding.price_currency ? holding.price_currency : currency)}
                 </td>
                 <td
                   className={`px-6 py-4 whitespace-nowrap text-right text-sm font-medium ${
