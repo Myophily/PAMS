@@ -250,12 +250,41 @@ class AccountService:
         inferred_currency = infer_currency_from_holdings(holdings, account_type)
 
         cash_balance = Decimal("0")  # In account's primary currency
+        cash_balance_krw = Decimal("0")  # Cash balance in KRW
         stock_value_krw = Decimal("0")
 
         for holding in holdings:
             if is_currency_ticker(holding.ticker):
                 # Currency holding (KRW, USD, EUR, etc.)
-                cash_balance += holding.quantity
+                # Convert each currency holding to KRW based on its ticker
+                if holding.ticker == "KRW":
+                    holding_value_krw = holding.quantity
+                    holding_value_native = holding.quantity
+                elif holding.ticker == "USD":
+                    holding_value_krw = holding.quantity * usd_krw_rate
+                    # For native value: if account is KRW, convert USD to KRW; otherwise keep as USD
+                    holding_value_native = holding.quantity * usd_krw_rate if inferred_currency == "KRW" else holding.quantity
+                else:
+                    # Other currencies (EUR, JPY, etc.)
+                    fx_rate_to_krw = self.market_data_service.get_latest_exchange_rate(
+                        holding.ticker, "KRW", db
+                    ) or Decimal("1")
+                    holding_value_krw = holding.quantity * fx_rate_to_krw
+
+                    # Calculate native value based on inferred currency
+                    if inferred_currency == "KRW":
+                        holding_value_native = holding_value_krw
+                    elif inferred_currency == holding.ticker:
+                        holding_value_native = holding.quantity
+                    else:
+                        # Need cross-currency conversion
+                        fx_rate = self.market_data_service.get_latest_exchange_rate(
+                            holding.ticker, inferred_currency, db
+                        ) or Decimal("1")
+                        holding_value_native = holding.quantity * fx_rate
+
+                cash_balance += holding_value_native
+                cash_balance_krw += holding_value_krw
             else:
                 # Stock/commodity holding
                 current_price = price_cache.get(holding.ticker)
@@ -283,23 +312,6 @@ class AccountService:
                         holding_value_krw = holding_value
 
                 stock_value_krw += holding_value_krw
-
-        # Convert cash to KRW
-        if inferred_currency == "KRW":
-            cash_balance_krw = cash_balance
-        elif inferred_currency == "USD":
-            cash_balance_krw = cash_balance * usd_krw_rate
-        else:
-            # Try fetching other currency rates (EUR, JPY, etc.)
-            fx_rate = self.market_data_service.get_latest_exchange_rate(
-                inferred_currency, "KRW", db
-            )
-            if fx_rate:
-                cash_balance_krw = cash_balance * fx_rate
-            else:
-                # Fallback: treat as KRW 1:1
-                cash_balance_krw = cash_balance
-                print(f"[WARN] No exchange rate for {inferred_currency}/KRW, treating as 1:1")
 
         total_value_krw = cash_balance_krw + stock_value_krw
 
@@ -446,20 +458,37 @@ class AccountService:
 
             if is_currency_ticker(holding.ticker):
                 # Currency holding (KRW, USD, EUR, etc.)
-                cash_balance += holding.quantity
-                total_value += holding.quantity
-
-                # Convert cash to KRW
-                if inferred_currency == "KRW":
-                    cash_balance_krw += holding.quantity
-                elif inferred_currency == "USD":
-                    cash_balance_krw += holding.quantity * usd_krw_rate
+                # Convert each currency holding to KRW based on its ticker
+                if holding.ticker == "KRW":
+                    holding_value_krw = holding.quantity
+                    holding_value_native = holding.quantity
+                elif holding.ticker == "USD":
+                    holding_value_krw = holding.quantity * usd_krw_rate
+                    # For native value: if account is KRW, convert USD to KRW; otherwise keep as USD
+                    holding_value_native = holding.quantity * usd_krw_rate if inferred_currency == "KRW" else holding.quantity
                 else:
-                    # Fetch other currency rates or fallback to 1:1
-                    fx_rate = self.market_data_service.get_latest_exchange_rate(
-                        inferred_currency, "KRW", db
+                    # Other currencies (EUR, JPY, etc.)
+                    fx_rate_to_krw = self.market_data_service.get_latest_exchange_rate(
+                        holding.ticker, "KRW", db
                     ) or Decimal("1")
-                    cash_balance_krw += holding.quantity * fx_rate
+                    holding_value_krw = holding.quantity * fx_rate_to_krw
+
+                    # Calculate native value based on inferred currency
+                    if inferred_currency == "KRW":
+                        holding_value_native = holding_value_krw
+                    elif inferred_currency == holding.ticker:
+                        holding_value_native = holding.quantity
+                    else:
+                        # Need cross-currency conversion
+                        fx_rate = self.market_data_service.get_latest_exchange_rate(
+                            holding.ticker, inferred_currency, db
+                        ) or Decimal("1")
+                        holding_value_native = holding.quantity * fx_rate
+
+                cash_balance += holding_value_native
+                total_value += holding_value_native
+                cash_balance_krw += holding_value_krw
+                total_value_krw += holding_value_krw
 
                 holding_responses.append(HoldingResponse(
                     id=holding.id,

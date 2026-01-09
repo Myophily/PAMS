@@ -38,6 +38,7 @@ export function AccountSummaryHeader({
 }: AccountSummaryHeaderProps) {
   const router = useRouter();
   const isPlPositive = isPositive(unrealizedPL);
+  const isKRWAccount = currency === 'KRW';
 
   const handleDeleteClick = () => {
     router.push(`/accounts?modal=delete-account&accountId=${accountId}`);
@@ -73,29 +74,33 @@ export function AccountSummaryHeader({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Total Value - Primary: KRW, Secondary: Native */}
+        {/* Total Value - Primary: KRW, Secondary: Native (only if not KRW) */}
         <div>
           <div className="text-sm text-gray-600 mb-1">Total Value</div>
           <div className="text-2xl font-bold text-gray-900">
             {formatCurrency(totalValueKRW, 'KRW')}
           </div>
-          <div className="text-sm text-gray-600 mt-1">
-            ≈ {formatDecimal(totalValue)} {currency}
-          </div>
+          {!isKRWAccount && (
+            <div className="text-sm text-gray-600 mt-1">
+              ≈ {formatDecimal(totalValue)} {currency}
+            </div>
+          )}
         </div>
 
-        {/* Cash Balance - Primary: KRW, Secondary: Native */}
+        {/* Cash Balance - Primary: KRW, Secondary: Native (only if not KRW) */}
         <div>
           <div className="text-sm text-gray-600 mb-1">Cash Balance</div>
           <div className="text-2xl font-bold text-gray-900">
             {formatCurrency(cashBalanceKRW, 'KRW')}
           </div>
-          <div className="text-sm text-gray-600 mt-1">
-            ≈ {formatDecimal(cashBalance)} {currency}
-          </div>
+          {!isKRWAccount && (
+            <div className="text-sm text-gray-600 mt-1">
+              ≈ {formatDecimal(cashBalance)} {currency}
+            </div>
+          )}
         </div>
 
-        {/* Unrealized P/L - Primary: KRW, Secondary: Native + Percent */}
+        {/* Unrealized P/L - Primary: KRW, Secondary: Percent + Native (only if not KRW) */}
         <div>
           <div className="text-sm text-gray-600 mb-1">Unrealized P/L</div>
           <div
@@ -111,7 +116,11 @@ export function AccountSummaryHeader({
               isPlPositive ? 'text-green-600' : 'text-red-600'
             }`}
           >
-            {formatPercent(unrealizedPLPercent)} • ≈ {formatDecimal(unrealizedPL)} {currency}
+            {isKRWAccount ? (
+              formatPercent(unrealizedPLPercent)
+            ) : (
+              `${formatPercent(unrealizedPLPercent)} • ≈ ${formatDecimal(unrealizedPL)} ${currency}`
+            )}
           </div>
         </div>
       </div>
