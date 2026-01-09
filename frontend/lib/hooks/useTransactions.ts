@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { TransactionDetail, CreateTransactionInput, CreateTransferInput } from '../types';
+import { extractErrorMessage } from '../utils/error';
 
 interface TransactionFilters {
   account_id?: number;
@@ -55,7 +56,8 @@ export function useCreateDeposit() {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.detail || 'Failed to create deposit');
+        const message = extractErrorMessage(error, 'Failed to create deposit');
+        throw new Error(message);
       }
       return res.json();
     },
@@ -79,7 +81,8 @@ export function useCreateWithdrawal() {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.detail || 'Failed to create withdrawal');
+        const message = extractErrorMessage(error, 'Failed to create withdrawal');
+        throw new Error(message);
       }
       return res.json();
     },
@@ -103,7 +106,8 @@ export function useCreateDividend() {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.detail || 'Failed to create dividend');
+        const message = extractErrorMessage(error, 'Failed to create dividend');
+        throw new Error(message);
       }
       return res.json();
     },
@@ -127,7 +131,8 @@ export function useCreateInterest() {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.detail || 'Failed to create interest');
+        const message = extractErrorMessage(error, 'Failed to create interest');
+        throw new Error(message);
       }
       return res.json();
     },
@@ -152,7 +157,8 @@ export function useCreateTransfer() {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.detail || 'Failed to create transfer');
+        const message = extractErrorMessage(error, 'Failed to create transfer');
+        throw new Error(message);
       }
       return res.json();
     },
@@ -178,7 +184,8 @@ export function useCreateBuy() {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.detail || 'Failed to create buy transaction');
+        const message = extractErrorMessage(error, 'Failed to create buy transaction');
+        throw new Error(message);
       }
       return res.json();
     },
@@ -202,7 +209,8 @@ export function useCreateSell() {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.detail || 'Failed to create sell transaction');
+        const message = extractErrorMessage(error, 'Failed to create sell transaction');
+        throw new Error(message);
       }
       return res.json();
     },
@@ -227,7 +235,8 @@ export function useCreateExchange() {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.detail || 'Failed to create exchange');
+        const message = extractErrorMessage(error, 'Failed to create exchange');
+        throw new Error(message);
       }
       return res.json();
     },
@@ -253,7 +262,8 @@ export function useUpdateTransaction(id: number) {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.detail || 'Failed to update transaction');
+        const message = extractErrorMessage(error, 'Failed to update transaction');
+        throw new Error(message);
       }
       return res.json();
     },
@@ -277,7 +287,8 @@ export function useDeleteTransaction() {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.detail || 'Failed to delete transaction');
+        const message = extractErrorMessage(error, 'Failed to delete transaction');
+        throw new Error(message);
       }
       return res.json();
     },

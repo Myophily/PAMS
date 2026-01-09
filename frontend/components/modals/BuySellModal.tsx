@@ -17,6 +17,7 @@ import {
   type CreateBuySellFormData,
 } from '@/lib/validation/schemas';
 import { getCurrentDateTimeLocal } from '@/lib/utils/datetime';
+import { extractErrorMessage } from '@/lib/utils/error';
 
 interface BuySellModalProps {
   isOpen: boolean;
@@ -154,9 +155,10 @@ export function BuySellModal({
       reset();
       onClose();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to create transaction'
-      );
+      const message = error instanceof Error
+        ? error.message
+        : extractErrorMessage(error, 'Failed to create transaction');
+      toast.error(message);
     }
   };
 

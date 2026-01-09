@@ -21,6 +21,7 @@ import {
   type CreateTransactionFormData,
 } from '@/lib/validation/schemas';
 import { getCurrentDateTimeLocal } from '@/lib/utils/datetime';
+import { extractErrorMessage } from '@/lib/utils/error';
 
 interface AddTransactionModalProps {
   isOpen: boolean;
@@ -113,9 +114,10 @@ export function AddTransactionModal({
       reset();
       onClose();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to create transaction'
-      );
+      const message = error instanceof Error
+        ? error.message
+        : extractErrorMessage(error, 'Failed to create transaction');
+      toast.error(message);
     }
   };
 

@@ -88,6 +88,15 @@ export function InitialHoldingsInput({
             shouldDirty: false,
           });
         }
+      } else if (isCurrency) {
+        // Clear price_currency for currency tickers (USD, KRW, etc.)
+        const currentPriceCurrency = watch(`initial_holdings.${index}.price_currency`);
+        if (currentPriceCurrency !== undefined) {
+          setValue(`initial_holdings.${index}.price_currency`, undefined, {
+            shouldValidate: true,
+            shouldDirty: false,
+          });
+        }
       }
     });
   }, [
@@ -229,7 +238,7 @@ export function InitialHoldingsInput({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => append({ ticker: '', quantity: 0, price: undefined, price_currency: 'USD' })}
+            onClick={() => append({ ticker: '', quantity: 0, price: undefined, price_currency: undefined })}
           >
             <Plus className="w-4 h-4 mr-1" />
             Add Holding

@@ -15,6 +15,8 @@ import {
   type CreateAccountFormData,
 } from '@/lib/validation/schemas';
 import { getCurrentDateTimeLocal } from '@/lib/utils/datetime';
+import { extractErrorMessage } from '@/lib/utils/error';
+import { isCurrencyTicker } from '@/lib/utils/currency';
 
 interface AddAccountModalProps {
   isOpen: boolean;
@@ -70,10 +72,17 @@ export function AddAccountModal({ isOpen, onClose }: AddAccountModalProps) {
         ...data,
         // Remove initial_balance (deprecated)
         initial_balance: undefined,
-        // Filter out empty holdings
-        initial_holdings: data.initial_holdings?.filter(
-          h => h.ticker && h.quantity > 0
-        ),
+        // Filter out empty holdings and clean up price_currency for currency tickers
+        initial_holdings: data.initial_holdings
+          ?.filter(h => h.ticker && h.quantity > 0)
+          .map(h => {
+            // If ticker is a currency (USD, KRW, etc.), remove price_currency
+            if (isCurrencyTicker(h.ticker)) {
+              const { price_currency, ...rest } = h;
+              return rest;
+            }
+            return h;
+          }),
       };
 
       await createAccount.mutateAsync(payload);
@@ -81,9 +90,10 @@ export function AddAccountModal({ isOpen, onClose }: AddAccountModalProps) {
       reset();
       onClose();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to create account'
-      );
+      const message = error instanceof Error
+        ? error.message
+        : extractErrorMessage(error, 'Failed to create account');
+      toast.error(message);
     }
   };
 

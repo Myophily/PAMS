@@ -16,6 +16,7 @@ import {
   type CreateExchangeFormData,
 } from '@/lib/validation/schemas';
 import { getCurrentDateTimeLocal } from '@/lib/utils/datetime';
+import { extractErrorMessage } from '@/lib/utils/error';
 
 interface ExchangeModalProps {
   isOpen: boolean;
@@ -84,9 +85,10 @@ export function ExchangeModal({
       reset();
       onClose();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to create exchange'
-      );
+      const message = error instanceof Error
+        ? error.message
+        : extractErrorMessage(error, 'Failed to create exchange');
+      toast.error(message);
     }
   };
 

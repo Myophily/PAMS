@@ -15,6 +15,7 @@ import {
   type CreateTransferFormData,
 } from '@/lib/validation/schemas';
 import { getCurrentDateTimeLocal } from '@/lib/utils/datetime';
+import { extractErrorMessage } from '@/lib/utils/error';
 
 interface TransferModalProps {
   isOpen: boolean;
@@ -65,9 +66,10 @@ export function TransferModal({
       reset();
       onClose();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to create transfer'
-      );
+      const message = error instanceof Error
+        ? error.message
+        : extractErrorMessage(error, 'Failed to create transfer');
+      toast.error(message);
     }
   };
 

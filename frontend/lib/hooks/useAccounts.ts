@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Account, AccountWithBalance, AccountDetails, CreateAccountInput } from '../types';
+import { extractErrorMessage } from '../utils/error';
 
 // List all accounts
 export function useAccounts() {
@@ -41,7 +42,8 @@ export function useCreateAccount() {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.detail || 'Failed to create account');
+        const message = extractErrorMessage(error, 'Failed to create account');
+        throw new Error(message);
       }
       return res.json();
     },
@@ -65,7 +67,8 @@ export function useUpdateAccount(id: number) {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.detail || 'Failed to update account');
+        const message = extractErrorMessage(error, 'Failed to update account');
+        throw new Error(message);
       }
       return res.json();
     },
@@ -88,7 +91,8 @@ export function useDeleteAccount() {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.detail || 'Failed to delete account');
+        const message = extractErrorMessage(error, 'Failed to delete account');
+        throw new Error(message);
       }
       // Backend now returns 200 with stats, not 204
       return res.json();

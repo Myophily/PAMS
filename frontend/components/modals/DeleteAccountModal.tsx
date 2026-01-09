@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { useDeleteAccount } from '@/lib/hooks/useAccounts';
 import { formatCurrency } from '@/lib/utils/format';
 import type { AccountWithBalance } from '@/lib/types';
+import { extractErrorMessage } from '@/lib/utils/error';
 
 interface DeleteAccountModalProps {
   isOpen: boolean;
@@ -42,9 +43,10 @@ export function DeleteAccountModal({
       router.push('/accounts'); // Redirect to account list
       onClose();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to delete account'
-      );
+      const message = error instanceof Error
+        ? error.message
+        : extractErrorMessage(error, 'Failed to delete account');
+      toast.error(message);
     } finally {
       setIsDeleting(false);
     }
