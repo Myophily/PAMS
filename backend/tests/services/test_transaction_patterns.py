@@ -462,67 +462,116 @@ class TestPattern3BuySell:
 
 
 # =============================================================================
-# PATTERN ④ EXCHANGE TESTS
+# PATTERN ④+② CROSS-ACCOUNT EXCHANGE-TRANSFER TESTS
 # =============================================================================
 
-class TestPattern4Exchange:
-    """Test Pattern ④ - Currency conversion, same account, total assets UNCHANGED."""
+class TestPattern4CrossAccountExchange:
+    """Test Pattern ④+② - Cross-account exchange-transfer, total assets UNCHANGED."""
 
-    def test_exchange_creates_two_linked_transactions_same_account(self, db_session, foreign_account, create_deposit):
-        """Exchange should create two linked transactions for same account."""
+    def test_foreign_to_deposit_creates_four_transactions(self, db_session, foreign_account, checking_account, create_deposit):
+        """Foreign Currency → Deposit should create 4 transactions (Exchange + Transfer)."""
         service = TransactionService()
 
-        # Setup: add CASH which is default currency
-        create_deposit(foreign_account, "1300000")
-
-        # Exchange CASH → USD (using CASH as from_ticker since that's what deposit creates)
-        tx_sell, tx_buy = service.create_exchange(
+        # Setup: add USD to foreign account (must specify ticker for foreign accounts)
+        from app.utils.currency_inference import normalize_ticker
+        usd_ticker = normalize_ticker("CASH", foreign_account.type)
+        service.create_deposit(
             account_id=foreign_account.id,
-            from_ticker="CASH",
-            to_ticker="USD",
-            from_amount=Decimal("1300000"),
-            to_amount=Decimal("1000"),
+            ticker=usd_ticker,
+            amount=Decimal("1000"),
             transaction_date=date.today(),
-            description="Exchange test",
+            description="Initial USD",
             db=db_session
         )
 
-        # Verify both transactions for SAME account
-        assert tx_sell.account_id == foreign_account.id
-        assert tx_buy.account_id == foreign_account.id
+        # Exchange USD → KRW and transfer to checking account
+        tx1, tx2, tx3, tx4 = service.create_exchange(
+            account_id=foreign_account.id,
+            from_ticker="USD",
+            to_ticker="KRW",
+            from_amount=Decimal("1000"),
+            to_amount=Decimal("1300000"),
+            transaction_date=date.today(),
+            description="Transfer USD to checking",
+            to_account_id=checking_account.id,
+            db=db_session
+        )
+
+        # Step 1: Exchange transactions in foreign account
+        assert tx1.type == "Exchange"
+        assert tx1.ticker == "USD"
+        assert tx1.amount == Decimal("-1000.00")
+        assert tx1.account_id == foreign_account.id
+
+        assert tx2.type == "Exchange"
+        assert tx2.ticker == "KRW"
+        assert tx2.amount == Decimal("1300000.00")
+        assert tx2.account_id == foreign_account.id
+
+        # Step 2: Transfer transactions between accounts
+        assert tx3.type == "Transfer_Out"
+        assert tx3.ticker == "KRW"
+        assert tx3.amount == Decimal("-1300000.00")
+        assert tx3.account_id == foreign_account.id
+
+        assert tx4.type == "Transfer_In"
+        assert tx4.ticker == "KRW"
+        assert tx4.amount == Decimal("1300000.00")
+        assert tx4.account_id == checking_account.id
 
         # Verify bidirectional linking
-        assert tx_sell.linked_tx_id == tx_buy.id
-        assert tx_buy.linked_tx_id == tx_sell.id
+        assert tx1.linked_tx_id == tx2.id
+        assert tx2.linked_tx_id == tx1.id
+        assert tx3.linked_tx_id == tx4.id
+        assert tx4.linked_tx_id == tx3.id
 
-    def test_exchange_updates_currency_holdings(self, db_session, foreign_account, create_deposit, get_holding):
-        """Exchange should update both currency holdings."""
+    def test_deposit_to_foreign_creates_four_transactions(self, db_session, checking_account, foreign_account, create_deposit):
+        """Deposit → Foreign Currency should create 4 transactions (Transfer + Exchange)."""
         service = TransactionService()
 
-        # Setup: add CASH
-        create_deposit(foreign_account, "1300000")
+        # Setup: add KRW to checking account
+        create_deposit(checking_account, "1300000")
 
-        # Exchange CASH → USD
-        service.create_exchange(
-            account_id=foreign_account.id,
-            from_ticker="CASH",
+        # Transfer KRW → foreign account and exchange to USD
+        tx1, tx2, tx3, tx4 = service.create_exchange(
+            account_id=checking_account.id,
+            from_ticker="KRW",
             to_ticker="USD",
             from_amount=Decimal("1300000"),
             to_amount=Decimal("1000"),
             transaction_date=date.today(),
-            description="Currency exchange",
+            description="Fund foreign account",
+            to_account_id=foreign_account.id,
             db=db_session
         )
 
-        # Verify CASH decreased (should be deleted or zero)
-        cash_holding = get_holding(foreign_account, "CASH")
-        if cash_holding:
-            assert cash_holding.quantity == Decimal("0")
+        # Step 1: Transfer transactions between accounts
+        assert tx1.type == "Transfer_Out"
+        assert tx1.ticker == "KRW"
+        assert tx1.amount == Decimal("-1300000.00")
+        assert tx1.account_id == checking_account.id
 
-        # Verify USD increased
-        usd_holding = get_holding(foreign_account, "USD")
-        assert usd_holding is not None
-        assert usd_holding.quantity == Decimal("1000.00000000")
+        assert tx2.type == "Transfer_In"
+        assert tx2.ticker == "KRW"
+        assert tx2.amount == Decimal("1300000.00")
+        assert tx2.account_id == foreign_account.id
+
+        # Step 2: Exchange transactions in foreign account
+        assert tx3.type == "Exchange"
+        assert tx3.ticker == "KRW"
+        assert tx3.amount == Decimal("-1300000.00")
+        assert tx3.account_id == foreign_account.id
+
+        assert tx4.type == "Exchange"
+        assert tx4.ticker == "USD"
+        assert tx4.amount == Decimal("1000.00")
+        assert tx4.account_id == foreign_account.id
+
+        # Verify bidirectional linking
+        assert tx1.linked_tx_id == tx2.id
+        assert tx2.linked_tx_id == tx1.id
+        assert tx3.linked_tx_id == tx4.id
+        assert tx4.linked_tx_id == tx3.id
 
 
 # =============================================================================

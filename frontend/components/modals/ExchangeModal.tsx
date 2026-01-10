@@ -264,6 +264,11 @@ export function ExchangeModal({
             disabled={
               sourceAccount?.type === 'ForeignCurrency' && targetAccount?.type !== 'ForeignCurrency'
             }
+            value={
+              sourceAccount?.type === 'ForeignCurrency' && targetAccount?.type !== 'ForeignCurrency'
+                ? 'KRW'
+                : undefined
+            }
           >
             {currencies
               .filter((curr) => curr.value !== fromTicker)

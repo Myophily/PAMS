@@ -778,15 +778,46 @@ class TransactionService:
                 db=db
             )
 
-            # Step 2: Transfer KRW from source to target
-            tx3, tx4 = self.create_transfer(
-                from_account_id=account_id,
-                to_account_id=to_account_id,
-                amount=to_amount,  # KRW amount from exchange
-                transaction_date=transaction_date,
-                description=description,
-                db=db
+            # Step 2: Transfer KRW from source to target (direct creation, no validation)
+            # Create outflow transaction
+            tx3 = Transaction(
+                account_id=account_id,
+                type="Transfer_Out",
+                ticker="KRW",
+                quantity=None,
+                price=None,
+                amount=-to_decimal(to_amount, precision=2),
+                date=transaction_date,
+                linked_tx_id=None,
+                description=description or f"Transfer to {target_account.name}"
             )
+            db.add(tx3)
+            db.flush()
+
+            # Create inflow transaction
+            tx4 = Transaction(
+                account_id=to_account_id,
+                type="Transfer_In",
+                ticker="KRW",
+                quantity=None,
+                price=None,
+                amount=to_decimal(to_amount, precision=2),
+                date=transaction_date,
+                linked_tx_id=None,
+                description=description or f"Transfer from {source_account.name}"
+            )
+            db.add(tx4)
+            db.flush()
+
+            # Link transactions bidirectionally
+            tx3.linked_tx_id = tx4.id
+            tx4.linked_tx_id = tx3.id
+
+            # Update KRW holdings
+            cash_out = self.holding_service.get_or_create_krw_cash_holding(account_id, db)
+            cash_in = self.holding_service.get_or_create_krw_cash_holding(to_account_id, db)
+            cash_out.quantity += tx3.amount
+            cash_in.quantity += tx4.amount
 
             if is_past_transaction(transaction_date):
                 self._trigger_recalculation(transaction_date, db)
@@ -801,15 +832,46 @@ class TransactionService:
                     "Must transfer KRW to Foreign Currency account before exchange"
                 )
 
-            # Step 1: Transfer KRW from source to target
-            tx1, tx2 = self.create_transfer(
-                from_account_id=account_id,
-                to_account_id=to_account_id,
-                amount=from_amount,  # KRW amount
-                transaction_date=transaction_date,
-                description=description,
-                db=db
+            # Step 1: Transfer KRW from source to target (direct creation, no validation)
+            # Create outflow transaction
+            tx1 = Transaction(
+                account_id=account_id,
+                type="Transfer_Out",
+                ticker="KRW",
+                quantity=None,
+                price=None,
+                amount=-to_decimal(from_amount, precision=2),
+                date=transaction_date,
+                linked_tx_id=None,
+                description=description or f"Transfer to {target_account.name}"
             )
+            db.add(tx1)
+            db.flush()
+
+            # Create inflow transaction
+            tx2 = Transaction(
+                account_id=to_account_id,
+                type="Transfer_In",
+                ticker="KRW",
+                quantity=None,
+                price=None,
+                amount=to_decimal(from_amount, precision=2),
+                date=transaction_date,
+                linked_tx_id=None,
+                description=description or f"Transfer from {source_account.name}"
+            )
+            db.add(tx2)
+            db.flush()
+
+            # Link transactions bidirectionally
+            tx1.linked_tx_id = tx2.id
+            tx2.linked_tx_id = tx1.id
+
+            # Update KRW holdings
+            cash_out = self.holding_service.get_or_create_krw_cash_holding(account_id, db)
+            cash_in = self.holding_service.get_or_create_krw_cash_holding(to_account_id, db)
+            cash_out.quantity += tx1.amount
+            cash_in.quantity += tx2.amount
 
             # Step 2: Exchange KRW to foreign currency in target
             tx3, tx4 = self._create_exchange_pair(
