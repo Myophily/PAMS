@@ -106,15 +106,39 @@ export const createTransactionSchema = z.object({
 
 export type CreateTransactionFormData = z.infer<typeof createTransactionSchema>;
 
-// Transfer schema
+// Transfer schema (supports -1 for External accounts)
 export const createTransferSchema = z.object({
-  from_account_id: z.number().positive('Please select source account'),
-  to_account_id: z.number().positive('Please select destination account'),
+  from_account_id: z.number().int(),
+  to_account_id: z.number().int(),
   amount: z.number().positive('Amount must be greater than 0'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid datetime format'),
   description: z.string().optional(),
-}).refine(data => data.from_account_id !== data.to_account_id, {
+})
+.refine(data => {
+  // Prevent External → External
+  if (data.from_account_id === -1 && data.to_account_id === -1) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Cannot transfer from External to External',
+  path: ['to_account_id'],
+})
+.refine(data => {
+  // When both are internal accounts (positive), they must be different
+  if (data.from_account_id > 0 && data.to_account_id > 0) {
+    return data.from_account_id !== data.to_account_id;
+  }
+  return true;
+}, {
   message: 'Source and destination accounts must be different',
+  path: ['to_account_id'],
+})
+.refine(data => {
+  // At least one must be a valid internal account
+  return data.from_account_id > 0 || data.to_account_id > 0;
+}, {
+  message: 'At least one account must be selected',
   path: ['to_account_id'],
 });
 

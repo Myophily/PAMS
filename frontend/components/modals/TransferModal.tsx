@@ -8,7 +8,11 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { useAccounts } from '@/lib/hooks/useAccounts';
-import { useCreateTransfer } from '@/lib/hooks/useTransactions';
+import {
+  useCreateTransfer,
+  useCreateDeposit,
+  useCreateWithdrawal,
+} from '@/lib/hooks/useTransactions';
 import { formatDecimal, parseDecimal } from '@/lib/utils/decimal';
 import {
   createTransferSchema,
@@ -30,6 +34,8 @@ export function TransferModal({
 }: TransferModalProps) {
   const { data: accountsData } = useAccounts();
   const createTransfer = useCreateTransfer();
+  const createDeposit = useCreateDeposit();
+  const createWithdrawal = useCreateWithdrawal();
 
   const {
     register,
@@ -48,6 +54,7 @@ export function TransferModal({
   });
 
   const fromAccountId = watch('from_account_id');
+  const toAccountId = watch('to_account_id');
   const accounts = accountsData?.accounts || [];
 
   // Get selected from account for balance display
@@ -55,14 +62,42 @@ export function TransferModal({
 
   const onSubmit = async (data: CreateTransferFormData) => {
     try {
-      // Validate sufficient balance
-      if (fromAccount && data.amount > parseDecimal(fromAccount.balance)) {
-        toast.error('Insufficient balance in source account');
-        return;
+      const isFromExternal = data.from_account_id === -1;
+      const isToExternal = data.to_account_id === -1;
+
+      if (isFromExternal && !isToExternal) {
+        // External → Internal = Deposit
+        await createDeposit.mutateAsync({
+          account_id: data.to_account_id,
+          amount: data.amount,
+          date: data.date,
+          description: data.description,
+        });
+        toast.success('Deposit completed successfully!');
+      } else if (!isFromExternal && isToExternal) {
+        // Internal → External = Withdrawal
+        // Validate sufficient balance
+        if (fromAccount && data.amount > parseDecimal(fromAccount.balance)) {
+          toast.error('Insufficient balance in source account');
+          return;
+        }
+        await createWithdrawal.mutateAsync({
+          account_id: data.from_account_id,
+          amount: data.amount,
+          date: data.date,
+          description: data.description,
+        });
+        toast.success('Withdrawal completed successfully!');
+      } else {
+        // Internal → Internal = Transfer (existing logic)
+        if (fromAccount && data.amount > parseDecimal(fromAccount.balance)) {
+          toast.error('Insufficient balance in source account');
+          return;
+        }
+        await createTransfer.mutateAsync(data);
+        toast.success('Transfer completed successfully!');
       }
 
-      await createTransfer.mutateAsync(data);
-      toast.success('Transfer completed successfully!');
       reset();
       onClose();
     } catch (error) {
@@ -87,6 +122,8 @@ export function TransferModal({
           error={errors.from_account_id?.message}
         >
           <option value={0}>Select source account</option>
+          <option value={-1}>External (Outside PAM)</option>
+          <option disabled>──────────────</option>
           {accounts.map((account) => (
             <option key={account.id} value={account.id}>
               {account.name} ({formatDecimal(account.balance)} {['Securities', 'ForeignCurrency'].includes(account.type) ? 'USD' : 'KRW'})
@@ -94,12 +131,24 @@ export function TransferModal({
           ))}
         </Select>
 
-        {fromAccount && (
+        {fromAccount && fromAccountId > 0 && (
           <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-900">
             <span className="font-medium text-blue-900">Available Balance:</span>{' '}
             <span className="text-gray-900">
               {formatDecimal(fromAccount.balance)} KRW
             </span>
+          </div>
+        )}
+
+        {/* Context-aware helper text */}
+        {(fromAccountId === -1 || toAccountId === -1) && (
+          <div className="bg-amber-50 border border-amber-200 rounded p-3 text-sm text-gray-700">
+            {fromAccountId === -1 && toAccountId > 0 && (
+              <span><strong>Deposit:</strong> Adding money from external source (total assets increase)</span>
+            )}
+            {fromAccountId > 0 && toAccountId === -1 && (
+              <span><strong>Withdrawal:</strong> Sending money to external account (total assets decrease)</span>
+            )}
           </div>
         )}
 
@@ -109,6 +158,8 @@ export function TransferModal({
           error={errors.to_account_id?.message}
         >
           <option value={0}>Select destination account</option>
+          <option value={-1}>External (Outside PAM)</option>
+          <option disabled>──────────────</option>
           {accounts
             .filter((account) => account.id !== fromAccountId)
             .map((account) => (
@@ -144,7 +195,10 @@ export function TransferModal({
           <Button type="button" variant="secondary" onClick={handleClose}>
             Cancel
           </Button>
-          <Button type="submit" loading={createTransfer.isPending}>
+          <Button
+            type="submit"
+            loading={createTransfer.isPending || createDeposit.isPending || createWithdrawal.isPending}
+          >
             Transfer Funds
           </Button>
         </div>

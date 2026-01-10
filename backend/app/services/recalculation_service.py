@@ -146,7 +146,13 @@ class RecalculationService:
         """
         # Pattern ① - Income/Expense (Deposit, Withdrawal, Dividend)
         if tx.type in ["Deposit", "Withdrawal", "Dividend"]:
-            ticker = tx.ticker
+            # CRITICAL FIX: Handle ticker=None for Withdrawal/Deposit transactions
+            # Infer default currency ticker based on account type
+            if tx.ticker is None:
+                account = db.query(Account).get(tx.account_id)
+                ticker = normalize_ticker("CASH", account.type) if account else "KRW"
+            else:
+                ticker = tx.ticker
 
             # CRITICAL FIX: Distinguish between currency deposits and stock deposits
             # - Currency deposits: Deposit with ticker="USD"/"KRW" (cash transactions)

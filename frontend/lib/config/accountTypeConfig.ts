@@ -28,7 +28,7 @@ export const ACCOUNT_TYPE_CONFIG: Record<string, AccountTypeConfig> = {
     displayName: 'Deposit Account',
     description: 'Daily spending and cash management',
     allowedTabs: ['transactions'],
-    primaryActions: ['deposit', 'withdrawal', 'transfer'],
+    primaryActions: ['deposit', 'transfer'],
   },
   Securities: {
     displayName: 'Securities Account',
@@ -52,7 +52,7 @@ export const ACCOUNT_TYPE_CONFIG: Record<string, AccountTypeConfig> = {
     displayName: 'Savings Account',
     description: 'Interest-bearing savings account',
     allowedTabs: ['transactions', 'analysis'],
-    primaryActions: ['deposit', 'withdrawal', 'interest', 'transfer'],
+    primaryActions: ['deposit', 'interest', 'transfer'],
   },
 };
 
