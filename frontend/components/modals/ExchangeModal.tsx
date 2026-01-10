@@ -80,6 +80,7 @@ export function ExchangeModal({
         targetAccount.type !== 'ForeignCurrency'
       ) {
         // Foreign → Non-Foreign: Must convert to KRW
+        setValue('from_ticker', 'USD');
         setValue('to_ticker', 'KRW');
       } else if (
         sourceAccount.type !== 'ForeignCurrency' &&
@@ -87,6 +88,7 @@ export function ExchangeModal({
       ) {
         // Non-Foreign → Foreign: Must start with KRW
         setValue('from_ticker', 'KRW');
+        setValue('to_ticker', 'USD');
       }
     }
   }, [isCrossAccount, sourceAccount, targetAccount, setValue]);
@@ -248,6 +250,11 @@ export function ExchangeModal({
             error={errors.from_ticker?.message}
             disabled={
               sourceAccount?.type === 'Deposit' && targetAccount?.type === 'ForeignCurrency'
+            }
+            value={
+              sourceAccount?.type === 'Deposit' && targetAccount?.type === 'ForeignCurrency'
+                ? 'KRW'
+                : undefined
             }
           >
             {currencies.map((curr) => (
