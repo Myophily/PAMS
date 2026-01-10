@@ -146,20 +146,80 @@ class RecalculationService:
         """
         # Pattern ① - Income/Expense (Deposit, Withdrawal, Dividend)
         if tx.type in ["Deposit", "Withdrawal", "Dividend"]:
-            # Use the currency ticker from the transaction (KRW, USD, etc.)
             ticker = tx.ticker
-            currency_holding = holding_map.get(ticker)
-            if not currency_holding:
-                currency_holding = Holding(
-                    account_id=tx.account_id,
-                    ticker=ticker,
-                    quantity=Decimal("0"),
-                    avg_price=Decimal("1.0")
-                )
-                holding_map[ticker] = currency_holding
-                db.add(currency_holding)
 
-            currency_holding.quantity += tx.amount
+            # CRITICAL FIX: Distinguish between currency deposits and stock deposits
+            # - Currency deposits: Deposit with ticker="USD"/"KRW" (cash transactions)
+            # - Stock deposits: Deposit with ticker="AAPL" + quantity + price (initial stock holdings)
+            #
+            # Background: account_service.py creates "Deposit" transactions for initial stock holdings
+            # with ticker, quantity, price, AND amount fields. These must be processed differently
+            # from true currency deposits to prevent quantity/price corruption.
+
+            if is_currency_ticker(ticker):
+                # PATH A: Currency deposit/withdrawal (KRW, USD, etc.)
+                # This is a true cash transaction - use tx.amount and avg_price=1.0
+                currency_holding = holding_map.get(ticker)
+                if not currency_holding:
+                    currency_holding = Holding(
+                        account_id=tx.account_id,
+                        ticker=ticker,
+                        quantity=Decimal("0"),
+                        avg_price=Decimal("1.0")
+                    )
+                    holding_map[ticker] = currency_holding
+                    db.add(currency_holding)
+
+                currency_holding.quantity += tx.amount
+
+            else:
+                # PATH B: Stock deposit (initial holdings created by account_service)
+                # These transactions have ticker (e.g., "AAPL"), quantity, price, AND amount
+                # We must use quantity/price fields, NOT amount
+
+                # Only process as stock deposit if quantity and price are present
+                if tx.quantity is not None and tx.price is not None:
+                    # Update stock holding using quantity and price (NOT amount!)
+                    stock_holding = holding_map.get(ticker)
+                    if not stock_holding:
+                        stock_holding = Holding(
+                            account_id=tx.account_id,
+                            ticker=ticker,
+                            quantity=Decimal("0"),
+                            avg_price=Decimal("0")
+                        )
+                        holding_map[ticker] = stock_holding
+                        db.add(stock_holding)
+
+                    # Calculate weighted average price (same logic as Buy transactions)
+                    new_avg_price = calculate_avg_price_on_buy(
+                        stock_holding.quantity,
+                        stock_holding.avg_price,
+                        tx.quantity,  # CRITICAL: Use quantity, NOT amount
+                        tx.price      # CRITICAL: Use actual price, NOT 1.0
+                    )
+
+                    stock_holding.quantity += tx.quantity
+                    stock_holding.avg_price = new_avg_price
+
+                    # Store price currency if available
+                    if tx.price_currency:
+                        stock_holding.price_currency = tx.price_currency
+                else:
+                    # Fallback: treat as currency if no quantity/price (edge case)
+                    # This handles malformed transactions gracefully
+                    currency_holding = holding_map.get(ticker)
+                    if not currency_holding:
+                        currency_holding = Holding(
+                            account_id=tx.account_id,
+                            ticker=ticker,
+                            quantity=Decimal("0"),
+                            avg_price=Decimal("1.0")
+                        )
+                        holding_map[ticker] = currency_holding
+                        db.add(currency_holding)
+
+                    currency_holding.quantity += tx.amount
 
         # Pattern ② - Transfer (handled separately, not in this loop)
         elif tx.type in ["Transfer_Out", "Transfer_In"]:
