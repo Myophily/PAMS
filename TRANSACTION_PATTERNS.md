@@ -639,13 +639,11 @@ def validate_buy_sell(transaction: Transaction, db: Session):
 
 ---
 
-## Pattern ④ Exchange
+## ~~Pattern ④ Exchange~~ (REMOVED - 2024-01-20)
 
-**Reality:** Converting one currency to another.
+**Note:** Same-account exchange within a single Foreign Currency Account is NO LONGER SUPPORTED.
 
-**Examples:**
-- Sell KRW to buy USD
-- Sell USD to buy EUR
+All exchange operations now REQUIRE a target account and create 4 transactions. See Pattern ④+② Cross-Account Exchange-Transfer below for the current implementation.
 
 **Characteristic:** Single account, two currency holdings affected, total asset value unchanged at transaction time (same account, different currencies).
 
@@ -814,6 +812,215 @@ def validate_exchange(from_ticker: str, to_ticker: str, from_amount: float,
 
 ---
 
+## Pattern ④+② Cross-Account Exchange-Transfer
+
+**Reality:** Transferring money from/to a Foreign Currency Account requires automatic currency conversion.
+
+**Examples:**
+- Transfer USD from Foreign Currency Account to Deposit Account (convert to KRW first)
+- Transfer KRW from Deposit Account to Foreign Currency Account holding USD (convert to USD after transfer)
+
+**Characteristic:** Two accounts involved, one must be ForeignCurrency type, creates 4 transactions total (Exchange + Transfer), total asset value unchanged.
+
+**Important:** Direct transfers between two Foreign Currency accounts are NOT supported. User must perform separate Exchange and Transfer operations.
+
+---
+
+### Implementation
+
+This is a composite operation that combines Pattern ④ (Exchange) and Pattern ② (Transfer):
+
+**Case 1: Foreign Currency Account → Non-Foreign Currency Account**
+
+1. Exchange foreign currency to KRW in source account (2 transactions, Pattern ④)
+2. Transfer KRW from source to target account (2 transactions, Pattern ②)
+3. Total: 4 transactions
+
+**Case 2: Non-Foreign Currency Account → Foreign Currency Account**
+
+1. Transfer KRW from source to target account (2 transactions, Pattern ②)
+2. Exchange KRW to foreign currency in target account (2 transactions, Pattern ④)
+3. Total: 4 transactions
+
+**Database Operations:**
+
+```python
+# Case 1: Foreign Currency (USD) → Deposit (KRW)
+# Assumption: Source has 100 USD, rate = 1 USD = 1,300 KRW
+
+# Step 1a: Exchange USD → KRW in source account
+tx1 = Transaction(
+    account_id=source_account_id,
+    type="Exchange",
+    ticker="USD",
+    amount=-100.00,  # Sell USD
+    date=transaction_date,
+    linked_tx_id=None  # Will be set to tx2.id
+)
+
+tx2 = Transaction(
+    account_id=source_account_id,
+    type="Exchange",
+    ticker="KRW",
+    amount=130000.00,  # Receive KRW
+    date=transaction_date,
+    linked_tx_id=tx1.id
+)
+
+# Step 1b: Update holdings in source account
+usd_holding.quantity -= 100  # Decrease USD
+krw_holding.quantity += 130000  # Increase KRW
+
+# Step 2a: Transfer KRW between accounts
+tx3 = Transaction(
+    account_id=source_account_id,
+    type="Transfer_Out",
+    ticker="KRW",
+    amount=-130000.00,  # Send KRW
+    date=transaction_date,
+    linked_tx_id=None  # Will be set to tx4.id
+)
+
+tx4 = Transaction(
+    account_id=target_account_id,
+    type="Transfer_In",
+    ticker="KRW",
+    amount=130000.00,  # Receive KRW
+    date=transaction_date,
+    linked_tx_id=tx3.id
+)
+
+# Step 2b: Update KRW holdings in both accounts
+source_krw_holding.quantity -= 130000
+target_krw_holding.quantity += 130000
+```
+
+---
+
+### Cross-Account Exchange-Transfer Example
+
+**Scenario:** Transfer $100 USD from Foreign Currency Account to Deposit Account
+
+**Before:**
+```
+Source Account: Foreign Currency Account (ID=1)
+  - USD: 100
+  - KRW: 0
+Total Value: 130,000 KRW (at rate 1 USD = 1,300 KRW)
+
+Target Account: Deposit Account (ID=2)
+  - KRW: 500,000
+Total Value: 500,000 KRW
+
+Overall Total Assets: 630,000 KRW
+```
+
+**Transactions Created:**
+```sql
+-- Exchange: USD → KRW in source account
+INSERT INTO transaction VALUES (401, 1, 'Exchange', 'USD', NULL, NULL, -100.00, '2024-01-20', 402, 'Exchange for transfer', ...);
+INSERT INTO transaction VALUES (402, 1, 'Exchange', 'KRW', NULL, NULL, 130000.00, '2024-01-20', 401, 'Exchange for transfer', ...);
+
+-- Transfer: KRW from source to target
+INSERT INTO transaction VALUES (403, 1, 'Transfer_Out', 'KRW', NULL, NULL, -130000.00, '2024-01-20', 404, 'Transfer to deposit', ...);
+INSERT INTO transaction VALUES (404, 2, 'Transfer_In', 'KRW', NULL, NULL, 130000.00, '2024-01-20', 403, 'Transfer to deposit', ...);
+```
+
+**After:**
+```
+Source Account: Foreign Currency Account (ID=1)
+  - USD: 0
+  - KRW: 0
+Total Value: 0 KRW
+
+Target Account: Deposit Account (ID=2)
+  - KRW: 630,000
+Total Value: 630,000 KRW
+
+Overall Total Assets: 630,000 KRW (UNCHANGED)
+```
+
+---
+
+### API Usage
+
+**Backend Endpoint:**
+```http
+POST /api/transactions/exchange
+Content-Type: application/json
+
+{
+  "account_id": 1,
+  "from_ticker": "USD",
+  "to_ticker": "KRW",
+  "from_amount": 100,
+  "to_amount": 130000,
+  "to_account_id": 2,
+  "date": "2024-01-20T10:00:00",
+  "description": "Transfer USD to deposit account"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "exchange_sell_id": 401,
+    "exchange_buy_id": 402,
+    "transfer_out_id": 403,
+    "transfer_in_id": 404
+  }
+}
+```
+
+---
+
+### Validation Rules
+
+```python
+def validate_cross_account_exchange(
+    source_account: Account,
+    target_account: Account,
+    from_ticker: str,
+    to_ticker: str
+) -> None:
+    """Validate cross-account exchange-transfer constraints."""
+
+    # Rule 1: Cannot transfer between two Foreign Currency accounts
+    if (source_account.type == 'ForeignCurrency' and
+        target_account.type == 'ForeignCurrency'):
+        raise ValueError(
+            "Transfer between Foreign Currency accounts not supported. "
+            "Use separate Exchange and Transfer operations."
+        )
+
+    # Rule 2: Foreign → Non-Foreign must convert to KRW
+    if (source_account.type == 'ForeignCurrency' and
+        target_account.type != 'ForeignCurrency'):
+        if to_ticker != 'KRW':
+            raise ValueError(
+                "Must convert to KRW before transferring to non-Foreign Currency account"
+            )
+
+    # Rule 3: Non-Foreign → Foreign must use KRW
+    if (source_account.type != 'ForeignCurrency' and
+        target_account.type == 'ForeignCurrency'):
+        if from_ticker != 'KRW':
+            raise ValueError(
+                "Must transfer KRW to Foreign Currency account before exchange"
+            )
+
+    # Rule 4: Both accounts must exist and be active
+    if not source_account or not target_account:
+        raise ValueError("Source and target accounts must exist")
+
+    if source_account.deleted_at or target_account.deleted_at:
+        raise ValueError("Cannot transfer to/from deleted accounts")
+```
+
+---
+
 ## Pattern Summary Table
 
 | Pattern | Accounts Involved | Holdings Updated | Total Assets Change | Linked Transactions |
@@ -821,7 +1028,8 @@ def validate_exchange(from_ticker: str, to_ticker: str, from_amount: float,
 | ① Income/Expense | 1 | 1 (CASH) | Yes | No |
 | ② Transfer | 2 | 2 (both CASH) | No | Yes (2 transactions) |
 | ③ Buy/Sell | 1 | 2 (CASH + ticker) | No (at transaction time) | No |
-| ④ Exchange | 1 | 2 (currency A + B) | No (at transaction time) | Yes (2 transactions) |
+| ~~④ Exchange~~ | ~~1~~ | ~~2 (currency A + B)~~ | ~~No~~ | **REMOVED** |
+| ④+② Cross-Account Exchange-Transfer | 2 | 4 (2 in each account) | No | Yes (4 transactions total) |
 
 ---
 

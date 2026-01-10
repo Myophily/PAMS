@@ -103,10 +103,12 @@ The backend enforces which transaction types are allowed on each account type to
 |--------------|---------------------------|-----------|
 | **Deposit** | `Deposit`, `Withdrawal`, `Transfer_In`, `Transfer_Out` | Cash-only accounts for daily spending and transfers. No investment activities. |
 | **Securities** | `Deposit`, `Withdrawal`, `Buy`, `Sell`, `Dividend`, `Transfer_In`, `Transfer_Out` | Full investment account. Can hold cash, buy/sell securities, and receive dividends. |
-| **ForeignCurrency** | `Deposit`, `Withdrawal`, `Exchange`, `Transfer_In`, `Transfer_Out` | Foreign currency holdings with currency exchange capabilities. |
+| **ForeignCurrency** | `Deposit`, `Withdrawal`, `Exchange` | Foreign currency holdings with currency exchange capabilities. **Transfer removed** - use Exchange with `to_account_id` for cross-account transfers (automatically converts currency). |
 | **MoneyMarket** | `Deposit`, `Withdrawal`, `Interest`, `Transfer_In`, `Transfer_Out` | Money market funds that earn interest. Similar to deposit accounts but with interest tracking. |
 
-**Enforcement:** Attempting to create a transaction with an invalid type for an account (e.g., `Buy` on a Deposit account) will result in HTTP 400 error with a descriptive message.
+**Enforcement:** Attempting to create a transaction with an invalid type for an account (e.g., `Buy` on a Deposit account, or `Transfer_Out` on a ForeignCurrency account) will result in HTTP 400 error with a descriptive message.
+
+**Cross-Account Exchange-Transfer:** Foreign Currency accounts use the Exchange endpoint with an optional `to_account_id` parameter for transfers. This automatically creates 4 transactions (Exchange + Transfer) to convert currency and transfer between accounts. Direct transfers between two Foreign Currency accounts are NOT supported.
 
 #### Data Consistency
 - `Holding` table is a **computed state** - it should always be derivable from `Transaction` history

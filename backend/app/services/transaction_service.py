@@ -589,7 +589,7 @@ class TransactionService:
 
     # ========== PATTERN ④ EXCHANGE ==========
 
-    def create_exchange(
+    def _create_exchange_pair(
         self,
         account_id: int,
         from_ticker: str,
@@ -601,15 +601,15 @@ class TransactionService:
         db: Session
     ) -> Tuple[Transaction, Transaction]:
         """
-        Create currency exchange transactions (Pattern ④).
+        Create a pair of linked exchange transactions for same account (Pattern ④).
 
-        Two linked transactions for same account, different currencies.
-        Total assets unchanged at transaction time.
+        Internal helper method that creates two linked Exchange transactions
+        within the same account for different currencies.
 
         Args:
             account_id: Account ID
-            from_ticker: Currency being sold (e.g., "KRW")
-            to_ticker: Currency being bought (e.g., "USD")
+            from_ticker: Currency being sold
+            to_ticker: Currency being bought
             from_amount: Amount of source currency
             to_amount: Amount of target currency
             transaction_date: Date of transaction
@@ -619,26 +619,8 @@ class TransactionService:
         Returns:
             Tuple of (sell_transaction, buy_transaction)
 
-        Raises:
-            ValueError: If validation fails
-
-        Examples:
-            >>> tx_sell, tx_buy = service.create_exchange(
-            ...     account_id=3,
-            ...     from_ticker="KRW",
-            ...     to_ticker="USD",
-            ...     from_amount=Decimal("1300000"),
-            ...     to_amount=Decimal("1000"),
-            ...     transaction_date=date.today(),
-            ...     description="Buy USD",
-            ...     db=db
-            ... )
-            >>> tx_sell.type
-            'Exchange'
-            >>> tx_buy.type
-            'Exchange'
-            >>> tx_sell.linked_tx_id == tx_buy.id
-            True
+        Note:
+            This method does NOT commit. Caller must commit.
         """
         # Validate
         validate_transaction_date(transaction_date)
@@ -701,11 +683,151 @@ class TransactionService:
         from_holding.quantity += tx_sell.amount  # Decrease
         to_holding.quantity += tx_buy.amount      # Increase
 
-        if is_past_transaction(transaction_date):
-            self._trigger_recalculation(transaction_date, db)
-
-        db.commit()
         return tx_sell, tx_buy
+
+    def create_exchange(
+        self,
+        account_id: int,
+        from_ticker: str,
+        to_ticker: str,
+        from_amount: Decimal,
+        to_amount: Decimal,
+        transaction_date: datetime,
+        description: Optional[str],
+        to_account_id: int,
+        db: Session = None
+    ) -> Tuple[Transaction, Transaction, Transaction, Transaction]:
+        """
+        Create cross-account exchange transactions (Pattern ④+②).
+
+        Exchanges always require a target account - same-account exchanges are not supported.
+        Creates 4 transactions: Exchange in source account + Transfer between accounts.
+
+        Args:
+            account_id: Source account ID
+            from_ticker: Currency being sold (e.g., "USD" or "KRW")
+            to_ticker: Currency being bought (e.g., "KRW" or "USD")
+            from_amount: Amount of source currency
+            to_amount: Amount of target currency
+            transaction_date: Date of transaction
+            description: Optional user notes
+            to_account_id: Target account for cross-account transfer (REQUIRED)
+            db: Database session
+
+        Returns:
+            Tuple of (tx1, tx2, tx3, tx4) - Always 4 transactions
+
+        Raises:
+            ValueError: If validation fails (same account, Foreign→Foreign, etc.)
+
+        Example:
+            # Cross-account exchange-transfer (Foreign -> Deposit)
+            >>> tx1, tx2, tx3, tx4 = service.create_exchange(
+            ...     account_id=3,
+            ...     from_ticker="USD",
+            ...     to_ticker="KRW",
+            ...     from_amount=Decimal("100"),
+            ...     to_amount=Decimal("130000"),
+            ...     transaction_date=date.today(),
+            ...     description="Transfer USD to Deposit account",
+            ...     to_account_id=2,
+            ...     db=db
+            ... )
+        """
+        # Validate that to_account_id is different from account_id
+        if to_account_id == account_id:
+            raise ValueError(
+                "Cross-account exchange required. Cannot exchange within same account. "
+                "Exchange must transfer between different accounts."
+            )
+
+        # Cross-account exchange-transfer (4 transactions)
+        source_account = db.query(Account).get(account_id)
+        target_account = db.query(Account).get(to_account_id)
+
+        if not source_account:
+            raise ValueError(f"Source account {account_id} not found")
+        if not target_account:
+            raise ValueError(f"Target account {to_account_id} not found")
+
+        # Disallow Foreign → Foreign
+        if (source_account.type == 'ForeignCurrency' and
+            target_account.type == 'ForeignCurrency'):
+            raise ValueError(
+                "Transfer between Foreign Currency accounts not supported. "
+                "Please use separate Exchange and Transfer operations."
+            )
+
+        # Determine transaction order based on account types
+        if source_account.type == 'ForeignCurrency':
+            # Foreign → Non-Foreign: Exchange first, then Transfer
+            if to_ticker != 'KRW':
+                raise ValueError(
+                    "Must convert to KRW before transferring to non-Foreign Currency account"
+                )
+
+            # Step 1: Exchange foreign currency to KRW in source account
+            tx1, tx2 = self._create_exchange_pair(
+                account_id=account_id,
+                from_ticker=from_ticker,
+                to_ticker='KRW',
+                from_amount=from_amount,
+                to_amount=to_amount,
+                transaction_date=transaction_date,
+                description=f"Exchange for transfer: {description or ''}",
+                db=db
+            )
+
+            # Step 2: Transfer KRW from source to target
+            tx3, tx4 = self.create_transfer(
+                from_account_id=account_id,
+                to_account_id=to_account_id,
+                amount=to_amount,  # KRW amount from exchange
+                transaction_date=transaction_date,
+                description=description,
+                db=db
+            )
+
+            if is_past_transaction(transaction_date):
+                self._trigger_recalculation(transaction_date, db)
+
+            db.commit()
+            return tx1, tx2, tx3, tx4
+
+        else:
+            # Non-Foreign → Foreign: Transfer first, then Exchange
+            if from_ticker != 'KRW':
+                raise ValueError(
+                    "Must transfer KRW to Foreign Currency account before exchange"
+                )
+
+            # Step 1: Transfer KRW from source to target
+            tx1, tx2 = self.create_transfer(
+                from_account_id=account_id,
+                to_account_id=to_account_id,
+                amount=from_amount,  # KRW amount
+                transaction_date=transaction_date,
+                description=description,
+                db=db
+            )
+
+            # Step 2: Exchange KRW to foreign currency in target
+            tx3, tx4 = self._create_exchange_pair(
+                account_id=to_account_id,
+                from_ticker='KRW',
+                to_ticker=to_ticker,
+                from_amount=from_amount,
+                to_amount=to_amount,
+                transaction_date=transaction_date,
+                description=f"Exchange after transfer: {description or ''}",
+                db=db
+            )
+
+            if is_past_transaction(transaction_date):
+                self._trigger_recalculation(transaction_date, db)
+
+            db.commit()
+            return tx1, tx2, tx3, tx4
 
     def create_interest(
         self,

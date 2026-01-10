@@ -361,6 +361,10 @@ class MarketDataService:
             >>> rate
             Decimal('1300.0000')
         """
+        # Same currency pair always has rate of 1.0
+        if from_currency == to_currency:
+            return to_decimal(1.0, precision=6)
+
         try:
             # Construct forex pair symbol for yfinance
             pair_symbol = f"{from_currency}{to_currency}=X"

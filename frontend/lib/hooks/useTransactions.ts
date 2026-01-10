@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { TransactionDetail, CreateTransactionInput, CreateTransferInput } from '../types';
+import type { TransactionDetail, CreateTransactionInput, CreateTransferInput, CreateExchangeInput } from '../types';
 import { extractErrorMessage } from '../utils/error';
 
 interface TransactionFilters {
@@ -227,7 +227,7 @@ export function useCreateSell() {
 export function useCreateExchange() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { account_id: number; from_ticker: string; to_ticker: string; from_amount: number; to_amount: number; date: string; description?: string }) => {
+    mutationFn: async (data: CreateExchangeInput) => {
       const res = await fetch('/api/transactions/exchange', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -243,6 +243,10 @@ export function useCreateExchange() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['accounts', variables.account_id] });
+      // If cross-account transfer, invalidate target account too
+      if (variables.to_account_id) {
+        queryClient.invalidateQueries({ queryKey: ['accounts', variables.to_account_id] });
+      }
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['snapshots'] });
     },

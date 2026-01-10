@@ -28,7 +28,7 @@ export const ACCOUNT_TYPE_CONFIG: Record<string, AccountTypeConfig> = {
     displayName: 'Deposit Account',
     description: 'Daily spending and cash management',
     allowedTabs: ['transactions'],
-    primaryActions: ['deposit', 'transfer'],
+    primaryActions: ['deposit', 'transfer', 'exchange'],
   },
   Securities: {
     displayName: 'Securities Account',
@@ -40,7 +40,7 @@ export const ACCOUNT_TYPE_CONFIG: Record<string, AccountTypeConfig> = {
     displayName: 'Foreign Currency Account',
     description: 'Multi-currency holdings',
     allowedTabs: ['holdings', 'transactions'],
-    primaryActions: ['exchange', 'transfer'],
+    primaryActions: ['exchange'],  // Transfer removed - use Exchange with target account
   },
   MoneyMarket: {
     displayName: 'Money Market Fund',

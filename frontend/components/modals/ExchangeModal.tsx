@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -32,6 +32,9 @@ export function ExchangeModal({
   const { data: accountsData } = useAccounts();
   const createExchange = useCreateExchange();
 
+  // Get accounts list early
+  const accounts = accountsData?.accounts || [];
+
   const {
     register,
     handleSubmit,
@@ -48,17 +51,56 @@ export function ExchangeModal({
       from_amount: 0,
       to_amount: 0,
       date: getCurrentDateTimeLocal(),
+      to_account_id: 0,
     },
   });
 
   const fromTicker = watch('from_ticker');
   const toTicker = watch('to_ticker');
   const fromAmount = watch('from_amount');
-  const toAmount = watch('to_amount');
   const date = watch('date');
+  const accountId = watch('account_id');
+  const toAccountId = watch('to_account_id');
+
+  // Determine if cross-account transfer
+  const isCrossAccount = toAccountId && toAccountId > 0 && toAccountId !== accountId;
+
+  // Get source and target accounts
+  const sourceAccount = accounts.find((acc) => acc.id === accountId);
+  const targetAccount = accounts.find((acc) => acc.id === toAccountId);
 
   // Fetch exchange rate
   const { data: rateData } = useExchangeRate(fromTicker, toTicker, date);
+
+  // Auto-set currency constraints for cross-account transfers
+  useEffect(() => {
+    if (isCrossAccount && sourceAccount && targetAccount) {
+      if (
+        sourceAccount.type === 'ForeignCurrency' &&
+        targetAccount.type !== 'ForeignCurrency'
+      ) {
+        // Foreign → Non-Foreign: Must convert to KRW
+        setValue('to_ticker', 'KRW');
+      } else if (
+        sourceAccount.type !== 'ForeignCurrency' &&
+        targetAccount.type === 'ForeignCurrency'
+      ) {
+        // Non-Foreign → Foreign: Must start with KRW
+        setValue('from_ticker', 'KRW');
+      }
+    }
+  }, [isCrossAccount, sourceAccount, targetAccount, setValue]);
+
+  // Prevent Foreign → Foreign transfers
+  useEffect(() => {
+    if (
+      sourceAccount?.type === 'ForeignCurrency' &&
+      targetAccount?.type === 'ForeignCurrency'
+    ) {
+      toast.error('Cannot transfer between two Foreign Currency accounts');
+      setValue('to_account_id', 0);
+    }
+  }, [sourceAccount, targetAccount, setValue]);
 
   // Auto-calculate amounts when rate or amount changes
   useEffect(() => {
@@ -80,14 +122,33 @@ export function ExchangeModal({
         to_amount: data.to_amount,
         date: data.date,
         description: data.description,
+        to_account_id: data.to_account_id,
       });
-      toast.success('Exchange completed successfully!');
+      const message = isCrossAccount
+        ? 'Exchange and transfer completed successfully!'
+        : 'Exchange completed successfully!';
+      toast.success(message);
       reset();
       onClose();
     } catch (error) {
-      const message = error instanceof Error
-        ? error.message
-        : extractErrorMessage(error, 'Failed to create exchange');
+      let message: string;
+      if (error instanceof Error) {
+        message = error.message;
+      } else {
+        message = extractErrorMessage(error, 'Failed to create exchange');
+      }
+
+      // Parse backend validation errors for better UX
+      if (message.includes('Cross-account exchange required')) {
+        message = 'Please select a different target account. Same-account exchanges are not supported.';
+      } else if (message.includes('Foreign Currency accounts not supported')) {
+        message = 'Cannot exchange between two Foreign Currency accounts. Please select a Deposit or Securities account as target.';
+      } else if (message.includes('Must convert to KRW')) {
+        message = 'When transferring from Foreign Currency account, you must convert to KRW first.';
+      } else if (message.includes('Must transfer KRW')) {
+        message = 'When transferring to Foreign Currency account, you must transfer KRW first.';
+      }
+
       toast.error(message);
     }
   };
@@ -97,8 +158,32 @@ export function ExchangeModal({
     onClose();
   };
 
-  const accounts = accountsData?.accounts || [];
-  const foreignAccounts = accounts.filter((acc) => acc.type === 'ForeignCurrency');
+  // Allow both Foreign Currency and Deposit accounts as source
+  const eligibleSourceAccounts = accounts.filter((acc) =>
+    acc.type === 'ForeignCurrency' || acc.type === 'Deposit'
+  );
+
+  // Filter available target accounts (exclude source, disallow Foreign->Foreign)
+  const availableTargetAccounts = accounts.filter((acc) => {
+    if (acc.id === accountId) return false; // Can't select same account
+
+    // Disallow Foreign → Foreign
+    if (sourceAccount?.type === 'ForeignCurrency' && acc.type === 'ForeignCurrency') {
+      return false;
+    }
+
+    // Disallow Deposit → Deposit (no exchange needed)
+    if (sourceAccount?.type === 'Deposit' && acc.type === 'Deposit') {
+      return false;
+    }
+
+    // For Deposit source, only allow Foreign Currency targets
+    if (sourceAccount?.type === 'Deposit' && acc.type !== 'ForeignCurrency') {
+      return false;
+    }
+
+    return true;
+  });
 
   const currencies = [
     { value: 'KRW', label: 'KRW (₩)' },
@@ -112,23 +197,58 @@ export function ExchangeModal({
     <Modal isOpen={isOpen} onClose={handleClose} title="Currency Exchange">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Select
-          label="Account"
+          label="Source Account"
           {...register('account_id', { valueAsNumber: true })}
           error={errors.account_id?.message}
         >
-          <option value={0}>Select a foreign currency account</option>
-          {foreignAccounts.map((account) => (
+          <option value={0}>Select an account</option>
+          {eligibleSourceAccounts.map((account) => (
             <option key={account.id} value={account.id}>
-              {account.name} (USD)
+              {account.name} ({account.type})
             </option>
           ))}
         </Select>
+
+        <Select
+          label="Target Account (Required)"
+          {...register('to_account_id', { valueAsNumber: true })}
+          error={errors.to_account_id?.message}
+        >
+          <option value={0}>Select a target account</option>
+          {availableTargetAccounts.map((account) => (
+            <option key={account.id} value={account.id}>
+              {account.name} ({account.type})
+            </option>
+          ))}
+        </Select>
+
+        {toAccountId && toAccountId !== accountId && (
+          <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-900">
+            <span className="font-medium text-blue-900">
+              {sourceAccount?.type === 'ForeignCurrency' && targetAccount?.type !== 'ForeignCurrency'
+                ? 'Foreign → Deposit Exchange:'
+                : sourceAccount?.type === 'Deposit' && targetAccount?.type === 'ForeignCurrency'
+                ? 'Deposit → Foreign Exchange:'
+                : 'Cross-Account Exchange:'}
+            </span>{' '}
+            <span className="text-gray-900">
+              {sourceAccount?.type === 'ForeignCurrency' && targetAccount?.type !== 'ForeignCurrency'
+                ? 'Foreign currency will be exchanged to KRW, then transferred.'
+                : sourceAccount?.type === 'Deposit' && targetAccount?.type === 'ForeignCurrency'
+                ? 'KRW will be transferred first, then exchanged to foreign currency.'
+                : 'This will create 4 transactions (Exchange + Transfer).'}
+            </span>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <Select
             label="From Currency"
             {...register('from_ticker')}
             error={errors.from_ticker?.message}
+            disabled={
+              sourceAccount?.type === 'Deposit' && targetAccount?.type === 'ForeignCurrency'
+            }
           >
             {currencies.map((curr) => (
               <option key={curr.value} value={curr.value}>
@@ -141,6 +261,9 @@ export function ExchangeModal({
             label="To Currency"
             {...register('to_ticker')}
             error={errors.to_ticker?.message}
+            disabled={
+              sourceAccount?.type === 'ForeignCurrency' && targetAccount?.type !== 'ForeignCurrency'
+            }
           >
             {currencies
               .filter((curr) => curr.value !== fromTicker)

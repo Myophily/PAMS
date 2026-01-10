@@ -136,6 +136,7 @@ tx1.linked_tx_id = tx2.id
 - **Pattern ②:** 2 linked transactions → 2 holdings → total assets **UNCHANGED**
 - **Pattern ③:** 1 transaction → 2 holdings (CASH + ticker) → total assets **UNCHANGED** at transaction time
 - **Pattern ④:** 2 linked transactions → 2 holdings (currencies) → total assets **UNCHANGED** at transaction time
+- **Pattern ④+②:** 4 linked transactions → 4 holdings (2 accounts) → total assets **UNCHANGED** (cross-account exchange-transfer)
 
 ### Account Type Transaction Enforcement
 
@@ -143,10 +144,13 @@ tx1.linked_tx_id = tx2.id
 
 - **Deposit accounts:** Only `Deposit`, `Withdrawal`, `Transfer_In`, `Transfer_Out` (cash operations only)
 - **Securities accounts:** All transaction types including `Buy`, `Sell`, `Dividend` (full investment capabilities)
-- **ForeignCurrency accounts:** Cash operations + `Exchange` (currency conversion)
+- **ForeignCurrency accounts:** `Deposit`, `Withdrawal`, `Exchange` only
+  - **Transfer removed** - use Exchange with `to_account_id` for cross-account transfers
+  - Cross-account transfers automatically convert currency and create 4 transactions
+  - **Direct transfers between Foreign Currency accounts NOT SUPPORTED**
 - **MoneyMarket accounts:** Cash operations + `Interest` (interest-earning accounts)
 
-**Validation:** Attempting to create an invalid transaction type for an account (e.g., `Buy` on a Deposit account) will result in HTTP 400 error. See [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md#transaction-type-restrictions-by-account-type) for full matrix.
+**Validation:** Attempting to create an invalid transaction type for an account (e.g., `Buy` on a Deposit account, or `Transfer_Out` on a ForeignCurrency account) will result in HTTP 400 error. See [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md#transaction-type-restrictions-by-account-type) for full matrix.
 
 ### Type Safety
 

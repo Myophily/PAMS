@@ -8,7 +8,7 @@ types based on its purpose.
 Account Type Rules:
 - Deposit: Cash-only operations (Deposit, Withdrawal, Transfers)
 - Securities: Full investment capabilities (Buy, Sell, Dividend, Deposit, Withdrawal, Transfers)
-- ForeignCurrency: Multi-currency operations (Exchange, Deposit, Withdrawal, Transfers)
+- ForeignCurrency: Multi-currency operations (Exchange with optional cross-account transfer, Deposit, Withdrawal)
 - MoneyMarket: Interest-earning accounts (Interest, Deposit, Withdrawal, Transfers)
 """
 
@@ -36,9 +36,7 @@ ALLOWED_TRANSACTIONS: Dict[str, Set[str]] = {
     'ForeignCurrency': {
         'Deposit',
         'Withdrawal',
-        'Transfer_In',
-        'Transfer_Out',
-        'Exchange'
+        'Exchange'  # Transfer removed - use Exchange with to_account_id for cross-account transfers
     },
     'MoneyMarket': {
         'Deposit',

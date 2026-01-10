@@ -32,7 +32,7 @@ export function useExchangeRate(from: string, to: string, date?: string) {
       const data = await res.json();
       return data.data || data;
     },
-    enabled: !!from && !!to,
+    enabled: !!from && !!to && from !== to, // Don't fetch for same currency pairs
     staleTime: 300000, // 5 minutes
   });
 }

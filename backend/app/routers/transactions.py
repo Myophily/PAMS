@@ -248,9 +248,9 @@ def create_sell(request: SellCreate, db: Session = Depends(get_db)):
 
 @router.post("/exchange", status_code=201)
 def create_exchange(request: ExchangeCreate, db: Session = Depends(get_db)):
-    """Create exchange transactions (Pattern ④)."""
+    """Create cross-account exchange transactions (Pattern ④+②)."""
     try:
-        tx_sell, tx_buy = transaction_service.create_exchange(
+        tx1, tx2, tx3, tx4 = transaction_service.create_exchange(
             account_id=request.account_id,
             from_ticker=request.from_ticker,
             to_ticker=request.to_ticker,
@@ -258,13 +258,18 @@ def create_exchange(request: ExchangeCreate, db: Session = Depends(get_db)):
             to_amount=request.to_amount,
             transaction_date=request.date,
             description=request.description,
+            to_account_id=request.to_account_id,
             db=db
         )
+
+        # Always returns 4 transactions (cross-account exchange-transfer)
         return {
             "status": "success",
             "data": {
-                "transaction_sell_id": tx_sell.id,
-                "transaction_buy_id": tx_buy.id
+                "exchange_sell_id": tx1.id,
+                "exchange_buy_id": tx2.id,
+                "transfer_out_id": tx3.id,
+                "transfer_in_id": tx4.id
             }
         }
     except ValueError as e:
