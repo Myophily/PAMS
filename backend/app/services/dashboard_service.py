@@ -11,7 +11,7 @@ from app.services.snapshot_service import SnapshotService
 from app.utils.decimal_helpers import to_decimal
 from app.utils.currency_inference import infer_currency_from_holdings
 from decimal import Decimal
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Dict, List
 
 
@@ -49,9 +49,9 @@ class DashboardService:
             }
         }
         """
-        # Get current date snapshot (or regenerate if stale)
-        today = date.today()
-        current_snapshot = self.snapshot_service.get_snapshot(today, db)
+        # Get current datetime snapshot (or regenerate if stale)
+        now = datetime.now().replace(minute=0, second=0, microsecond=0)
+        current_snapshot = self.snapshot_service.get_snapshot(now, db)
 
         # CRITICAL FIX: Always regenerate today's snapshot to use latest market data
         # This ensures dashboard always shows current market prices
@@ -61,18 +61,18 @@ class DashboardService:
             db.flush()
 
         # Generate fresh snapshot for today
-        current_snapshot = self.snapshot_service.generate_snapshot(today, db)
+        current_snapshot = self.snapshot_service.generate_snapshot(now, db)
         db.commit()
 
-        # Get exchange rate
-        usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", today, db)
+        # Get exchange rate (exchange rates are daily, not hourly)
+        usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", now.date(), db)
         if not usd_krw_rate:
             usd_krw_rate = to_decimal(1300, precision=4)  # Fallback
 
-        # Calculate changes
-        day_amount, day_percent = self.snapshot_service.calculate_period_change(today, 1, db)
-        month_amount, month_percent = self.snapshot_service.calculate_period_change(today, 30, db)
-        year_amount, year_percent = self.snapshot_service.calculate_period_change(today, 365, db)
+        # Calculate changes (using hours: 1 day=24h, 30 days=720h, 365 days=8760h)
+        day_amount, day_percent = self.snapshot_service.calculate_period_change(now, 24, db)
+        month_amount, month_percent = self.snapshot_service.calculate_period_change(now, 720, db)
+        year_amount, year_percent = self.snapshot_service.calculate_period_change(now, 8760, db)
 
         # Get allocation by type
         allocation_result = self._calculate_allocation_by_type(db, current_snapshot.total_assets_krw)
@@ -87,7 +87,7 @@ class DashboardService:
             },
             "current_exchange_rate": {
                 "usd_to_krw": usd_krw_rate,
-                "updated_at": today.isoformat()
+                "updated_at": now.date().isoformat()
             },
             "changes": {
                 "day": {
@@ -121,7 +121,7 @@ class DashboardService:
             },
             "current_exchange_rate": {
                 "usd_to_krw": usd_krw_rate,
-                "updated_at": today.isoformat()
+                "updated_at": now.date().isoformat()
             },
             "changes": {
                 "day": {
@@ -193,11 +193,13 @@ class DashboardService:
             start_date = end_date - timedelta(days=365)
         else:  # "ALL"
             # Get earliest snapshot date
-            earliest = db.query(AssetSnapshot).order_by(AssetSnapshot.date).first()
-            start_date = earliest.date if earliest else end_date - timedelta(days=365)
+            earliest = db.query(AssetSnapshot).order_by(AssetSnapshot.snapshot_datetime).first()
+            start_date = earliest.snapshot_datetime.date() if earliest else end_date - timedelta(days=365)
 
-        # Get snapshots for date range
-        snapshots = self.snapshot_service.get_snapshots_range(start_date, end_date, db)
+        # Get snapshots for date range (convert date to datetime)
+        start_datetime = datetime.combine(start_date, datetime.min.time())
+        end_datetime = datetime.combine(end_date, datetime.max.time())
+        snapshots = self.snapshot_service.get_snapshots_range(start_datetime, end_datetime, db)
 
         # Build chart data
         chart_data = []
@@ -212,7 +214,7 @@ class DashboardService:
             gain_loss = total_assets - principal
 
             chart_data.append({
-                "date": snapshot.date.isoformat(),
+                "date": snapshot.snapshot_datetime.date().isoformat(),
                 "total_assets": total_assets,
                 "principal": principal,
                 "gain_loss": gain_loss
@@ -582,41 +584,44 @@ class DashboardService:
         period: str,
         currency: str,
         db: Session,
-        start_date: date = None,
-        end_date: date = None
+        start_datetime: datetime = None,
+        end_datetime: datetime = None
     ) -> Dict:
         """
-        Generate OHLC candlestick data from AssetSnapshot table.
+        Generate OHLC candlestick data from AssetSnapshot table (now with hourly support).
 
         Args:
-            period: Aggregation period ("daily", "monthly", "annual")
+            period: Aggregation period ("hourly", "daily", "monthly", "annual")
             currency: Currency for values ("KRW" or "USD")
             db: Database session
-            start_date: Optional start date (defaults based on period)
-            end_date: Optional end date (defaults to today)
+            start_datetime: Optional start datetime (defaults based on period)
+            end_datetime: Optional end datetime (defaults to now)
 
         Returns:
             Dict with candles array containing OHLC data
 
         Aggregation logic:
+            - Hourly: Each snapshot = one candle (O=H=L=C since one value per hour)
             - Daily: Each snapshot = one candle (O=H=L=C since one value per day)
             - Monthly: Group by month, calculate O (1st), H (max), L (min), C (last)
             - Annual: Group by year, calculate O (1st), H (max), L (min), C (last)
         """
-        # Determine date range
-        if not end_date:
-            end_date = date.today()
+        # Determine datetime range
+        if not end_datetime:
+            end_datetime = datetime.now()
 
-        if not start_date:
-            if period == "daily":
-                start_date = end_date - timedelta(days=90)  # Default: 90 days
+        if not start_datetime:
+            if period == "hourly":
+                start_datetime = end_datetime - timedelta(hours=168)  # Default: 7 days (168 hours)
+            elif period == "daily":
+                start_datetime = end_datetime - timedelta(days=90)  # Default: 90 days
             elif period == "monthly":
-                start_date = end_date - timedelta(days=365)  # Default: 1 year
+                start_datetime = end_datetime - timedelta(days=365)  # Default: 1 year
             else:  # annual
-                start_date = end_date - timedelta(days=365 * 5)  # Default: 5 years
+                start_datetime = end_datetime - timedelta(days=365 * 5)  # Default: 5 years
 
         # Get snapshots from DB
-        snapshots = self.snapshot_service.get_snapshots_range(start_date, end_date, db)
+        snapshots = self.snapshot_service.get_snapshots_range(start_datetime, end_datetime, db)
 
         if not snapshots:
             return {
@@ -630,7 +635,9 @@ class DashboardService:
         value_field = "total_assets_krw" if currency == "KRW" else "total_assets_usd"
 
         # Aggregate based on period
-        if period == "daily":
+        if period == "hourly":
+            candles = self._aggregate_hourly(snapshots, value_field)
+        elif period == "daily":
             candles = self._aggregate_daily(snapshots, value_field)
         elif period == "monthly":
             candles = self._aggregate_monthly(snapshots, value_field)
@@ -644,12 +651,12 @@ class DashboardService:
             "data_points": len(candles)
         }
 
-    def _aggregate_daily(self, snapshots: List[AssetSnapshot], value_field: str) -> List[Dict]:
+    def _aggregate_hourly(self, snapshots: List[AssetSnapshot], value_field: str) -> List[Dict]:
         """
-        Daily aggregation: Each snapshot becomes one candle where O=H=L=C.
+        Hourly aggregation: Each snapshot becomes one candle where O=H=L=C.
 
-        Since we only have one value per day, all OHLC values are the same.
-        The variation is shown between consecutive days.
+        Since we only have one value per hour, all OHLC values are the same.
+        The variation is shown between consecutive hours.
 
         Args:
             snapshots: List of AssetSnapshot records
@@ -662,12 +669,62 @@ class DashboardService:
         for snapshot in snapshots:
             value = getattr(snapshot, value_field)
             candles.append({
-                "time": snapshot.date.isoformat(),
+                "time": snapshot.snapshot_datetime.isoformat(),
                 "open": value,
                 "high": value,
                 "low": value,
                 "close": value
             })
+        return candles
+
+    def _aggregate_daily(self, snapshots: List[AssetSnapshot], value_field: str) -> List[Dict]:
+        """
+        Daily aggregation: Group hourly snapshots by day, calculate OHLC.
+
+        - Open: First hourly value in the day
+        - High: Maximum hourly value during the day
+        - Low: Minimum hourly value during the day
+        - Close: Last hourly value in the day
+
+        Args:
+            snapshots: List of AssetSnapshot records (hourly granularity)
+            value_field: Field to use for values ("total_assets_krw" or "total_assets_usd")
+
+        Returns:
+            List of dicts with time, open, high, low, close
+        """
+        from collections import defaultdict
+
+        # Group by date
+        daily_data = defaultdict(list)
+        for snapshot in snapshots:
+            date_key = snapshot.snapshot_datetime.date().isoformat()
+            value = getattr(snapshot, value_field)
+            daily_data[date_key].append({
+                "datetime": snapshot.snapshot_datetime,
+                "value": value
+            })
+
+        # Calculate OHLC for each day
+        candles = []
+        for date_key in sorted(daily_data.keys()):
+            values = daily_data[date_key]
+            # Sort by datetime
+            values.sort(key=lambda x: x["datetime"])
+
+            open_val = values[0]["value"]  # First hour
+            close_val = values[-1]["value"]  # Last hour
+            high_val = max(v["value"] for v in values)
+            low_val = min(v["value"] for v in values)
+
+            candles.append({
+                "time": date_key,
+                "open": open_val,
+                "high": high_val,
+                "low": low_val,
+                "close": close_val
+            })
+
         return candles
 
     def _aggregate_monthly(self, snapshots: List[AssetSnapshot], value_field: str) -> List[Dict]:
@@ -691,10 +748,10 @@ class DashboardService:
         # Group by year-month
         monthly_data = defaultdict(list)
         for snapshot in snapshots:
-            month_key = snapshot.date.strftime("%Y-%m")
+            month_key = snapshot.snapshot_datetime.strftime("%Y-%m")
             value = getattr(snapshot, value_field)
             monthly_data[month_key].append({
-                "date": snapshot.date,
+                "date": snapshot.snapshot_datetime.date(),
                 "value": value
             })
 
@@ -742,10 +799,10 @@ class DashboardService:
         # Group by year
         yearly_data = defaultdict(list)
         for snapshot in snapshots:
-            year_key = snapshot.date.strftime("%Y")
+            year_key = snapshot.snapshot_datetime.strftime("%Y")
             value = getattr(snapshot, value_field)
             yearly_data[year_key].append({
-                "date": snapshot.date,
+                "date": snapshot.snapshot_datetime.date(),
                 "value": value
             })
 

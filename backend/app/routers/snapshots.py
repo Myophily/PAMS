@@ -1,8 +1,8 @@
 """
-Snapshot router for accessing daily asset snapshots.
+Snapshot router for accessing hourly asset snapshots.
 
 Asset snapshots are used for:
-- Dashboard charts showing portfolio value over time
+- Dashboard charts showing portfolio value over time (with hourly granularity)
 - Performance tracking
 - Historical analysis
 """
@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.snapshot_service import SnapshotService
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 from typing import Optional
 
 router = APIRouter(prefix="/api/snapshots", tags=["snapshots"])
@@ -20,29 +20,29 @@ snapshot_service = SnapshotService()
 
 @router.get("/")
 def get_snapshots(
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    start_datetime: Optional[datetime] = None,
+    end_datetime: Optional[datetime] = None,
     db: Session = Depends(get_db)
 ):
     """
-    Get snapshots for a date range.
+    Get hourly snapshots for a datetime range.
 
-    If no dates provided, defaults to last 365 days.
+    If no datetimes provided, defaults to last 30 days.
 
     Args:
-        start_date: Start date (inclusive)
-        end_date: End date (inclusive)
+        start_datetime: Start datetime (inclusive)
+        end_datetime: End datetime (inclusive)
         db: Database session
 
     Returns:
-        List of asset snapshots ordered by date
+        List of asset snapshots ordered by datetime
     """
-    if not start_date:
-        start_date = date.today() - timedelta(days=365)
-    if not end_date:
-        end_date = date.today()
+    if not start_datetime:
+        start_datetime = datetime.now() - timedelta(days=30)
+    if not end_datetime:
+        end_datetime = datetime.now()
 
-    snapshots = snapshot_service.get_snapshots_range(start_date, end_date, db)
+    snapshots = snapshot_service.get_snapshots_range(start_datetime, end_datetime, db)
     return snapshots
 
 
@@ -65,33 +65,33 @@ def get_latest_snapshot(db: Session = Depends(get_db)):
 
 @router.post("/backfill", status_code=200)
 def backfill_snapshots(
-    start_date: date = Query(..., description="Start date for backfill"),
-    end_date: date = Query(default=None, description="End date (defaults to today)"),
+    start_datetime: datetime = Query(..., description="Start datetime for backfill"),
+    end_datetime: datetime = Query(default=None, description="End datetime (defaults to now)"),
     db: Session = Depends(get_db)
 ):
     """
-    Backfill historical snapshots for a date range.
+    Backfill historical hourly snapshots for a datetime range.
 
-    This generates snapshots for any dates that don't already have one.
+    This generates snapshots for any hours that don't already have one.
     Useful for:
     - Initial setup after importing historical transactions
-    - Fixing gaps in snapshot data
+    - Fixing gaps in snapshot data after server downtime
     - Regenerating snapshots after data corrections
 
     Args:
-        start_date: Start date
-        end_date: End date (defaults to today)
+        start_datetime: Start datetime
+        end_datetime: End datetime (defaults to now)
         db: Database session
 
     Returns:
         Success status with count of snapshots created
     """
-    if not end_date:
-        end_date = date.today()
+    if not end_datetime:
+        end_datetime = datetime.now()
 
-    count = snapshot_service.backfill_snapshots(start_date, end_date, db)
+    count = snapshot_service.backfill_hourly_snapshots(start_datetime, end_datetime, db)
     return {
         "status": "success",
         "snapshots_created": count,
-        "date_range": f"{start_date} to {end_date}"
+        "datetime_range": f"{start_datetime} to {end_datetime}"
     }

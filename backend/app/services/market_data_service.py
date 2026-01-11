@@ -9,7 +9,7 @@ from app.models.market_data import MarketData
 from app.utils.decimal_helpers import to_decimal
 from app.utils.date_helpers import get_previous_business_day, is_weekend
 from decimal import Decimal
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 import yfinance as yf
 import pandas as pd
@@ -127,6 +127,83 @@ class MarketDataService:
             return rate
 
         return None
+
+    def get_stock_price_hourly(
+        self,
+        ticker: str,
+        target_datetime: datetime,
+        db: Session
+    ) -> Optional[Decimal]:
+        """
+        Get stock price for specific datetime (hourly granularity).
+
+        Uses yfinance interval='1h' to fetch intraday prices.
+        Available for last 730 days.
+
+        Args:
+            ticker: Stock ticker symbol
+            target_datetime: Datetime to get price for (hour precision)
+            db: Database session
+
+        Returns:
+            Hourly closing price or None if unavailable
+
+        Examples:
+            >>> from datetime import datetime
+            >>> price = service.get_stock_price_hourly("AAPL", datetime(2024, 1, 15, 14, 0), db)
+            >>> price
+            Decimal('185.50')
+        """
+        from datetime import datetime as dt
+
+        # Check cache first (use date + hour as key)
+        target_date = target_datetime.date()
+        target_hour = target_datetime.hour
+
+        cached = db.query(MarketData).filter(
+            MarketData.ticker == ticker,
+            MarketData.date == target_date,
+            MarketData.hour == target_hour
+        ).first()
+
+        if cached and cached.closing_price:
+            return cached.closing_price
+
+        # Fetch hourly data from yfinance
+        price = self._fetch_hourly_price_from_api(ticker, target_datetime)
+
+        if price:
+            self._cache_hourly_price(ticker, target_datetime, price, "api", db)
+            return price
+
+        # Fallback: try to get daily price if hourly unavailable
+        print(f"[MarketData] Hourly price unavailable for {ticker} at {target_datetime}, falling back to daily")
+        return self.get_stock_price(ticker, target_date, db)
+
+    def get_exchange_rate_hourly(
+        self,
+        from_currency: str,
+        to_currency: str,
+        target_datetime: datetime,
+        db: Session
+    ) -> Optional[Decimal]:
+        """
+        Get exchange rate for specific datetime (hourly granularity).
+
+        Note: Exchange rates are typically updated daily, so this will
+        return the daily rate for the given date.
+
+        Args:
+            from_currency: Source currency
+            to_currency: Target currency
+            target_datetime: Datetime to get rate for
+            db: Database session
+
+        Returns:
+            Exchange rate or None
+        """
+        # Exchange rates don't change hourly in yfinance, use daily rate
+        return self.get_exchange_rate(from_currency, to_currency, target_datetime.date(), db)
 
     def manually_enter_price(
         self,
@@ -417,6 +494,129 @@ class MarketDataService:
         except Exception as e:
             print(f"Error fetching rate for {from_currency}/{to_currency}: {e}")
             return None
+
+    def _fetch_hourly_price_from_api(
+        self,
+        ticker: str,
+        target_datetime: datetime
+    ) -> Optional[Decimal]:
+        """
+        Fetch hourly intraday price from Yahoo Finance.
+
+        Uses interval='1h' parameter for hourly data.
+        Available for last 730 days.
+
+        Args:
+            ticker: Stock ticker
+            target_datetime: Datetime to get price for
+
+        Returns:
+            Hourly stock price or None
+
+        Examples:
+            >>> from datetime import datetime
+            >>> price = service._fetch_hourly_price_from_api("AAPL", datetime(2024, 1, 15, 14, 0))
+            >>> price
+            Decimal('185.50')
+        """
+        from datetime import datetime as dt
+
+        try:
+            # Normalize ticker format (Korean stocks need .KS suffix)
+            normalized_ticker = self._normalize_ticker(ticker)
+
+            # Fetch data from yfinance with hourly interval
+            stock = yf.Ticker(normalized_ticker)
+
+            # Get historical data with 1-hour interval (available for ~730 days)
+            # Request 7-day window to ensure we get the target hour
+            end_dt = target_datetime + timedelta(days=1)
+            start_dt = target_datetime - timedelta(days=7)
+
+            hist = stock.history(
+                start=start_dt,
+                end=end_dt,
+                interval='1h'  # KEY: Hourly intraday data
+            )
+
+            if hist.empty:
+                return None
+
+            # Find closest hour to target_datetime
+            # Convert to timezone-naive for comparison
+            target_timestamp = pd.Timestamp(target_datetime).tz_localize(None)
+            hist_index_naive = hist.index.tz_localize(None)
+
+            # Round target to hour for matching
+            target_hour = target_timestamp.replace(minute=0, second=0, microsecond=0)
+
+            # Find timestamps <= target_hour
+            closest_dates = hist_index_naive[hist_index_naive <= target_hour]
+
+            if len(closest_dates) == 0:
+                return None
+
+            # Use the most recent hour <= target
+            closest_idx = len(closest_dates) - 1
+            price = hist.iloc[closest_idx]['Close']
+
+            return to_decimal(price, precision=4)
+
+        except Exception as e:
+            print(f"Error fetching hourly price for {ticker} at {target_datetime}: {e}")
+            return None
+
+    def _cache_hourly_price(
+        self,
+        ticker: str,
+        target_datetime: datetime,
+        price: Decimal,
+        source: str,
+        db: Session
+    ) -> MarketData:
+        """
+        Cache hourly price in database.
+
+        Args:
+            ticker: Stock ticker
+            target_datetime: Datetime for this price
+            price: Price to cache
+            source: Source of data ("api", "manual", etc.)
+            db: Database session
+
+        Returns:
+            MarketData record
+        """
+        from datetime import datetime as dt
+
+        target_date = target_datetime.date()
+        target_hour = target_datetime.hour
+
+        # Check if already exists
+        market_data = db.query(MarketData).filter(
+            MarketData.ticker == ticker,
+            MarketData.date == target_date,
+            MarketData.hour == target_hour
+        ).first()
+
+        if market_data:
+            # Update existing
+            market_data.closing_price = to_decimal(price, precision=4)
+            market_data.source = source
+        else:
+            # Create new
+            market_data = MarketData(
+                ticker=ticker,
+                date=target_date,
+                hour=target_hour,
+                closing_price=to_decimal(price, precision=4),
+                exchange_rate=None,
+                source=source
+            )
+            db.add(market_data)
+
+        db.flush()
+        return market_data
 
     def get_latest_price(self, ticker: str, db: Session) -> Optional[Decimal]:
         """

@@ -32,34 +32,37 @@ class RecalculationService:
 
     def recalculate_from_date(self, start_date: Union[date, datetime], db: Session) -> None:
         """
-        Recalculate all holdings and snapshots from a specific date.
+        Recalculate all holdings and hourly snapshots from a specific date/datetime.
 
         This is called when a past transaction is inserted, edited, or deleted.
 
         Args:
-            start_date: Date to start recalculation from
+            start_date: Date or datetime to start recalculation from
             db: Database session
 
         Examples:
+            >>> from datetime import datetime
             >>> service = RecalculationService()
-            >>> # User inserted a transaction dated 2024-01-01
-            >>> service.recalculate_from_date(date(2024, 1, 1), db)
-            # All holdings and snapshots from 2024-01-01 to present are recalculated
+            >>> # User inserted a transaction dated 2024-01-01 14:00
+            >>> service.recalculate_from_date(datetime(2024, 1, 1, 14, 0), db)
+            # All holdings and hourly snapshots from 2024-01-01 14:00 to present are recalculated
         """
-        # Normalize to date object for comparisons
-        if isinstance(start_date, datetime):
-            start_date = start_date.date()
+        # Convert date to datetime at 00:00 if needed
+        if isinstance(start_date, date) and not isinstance(start_date, datetime):
+            start_datetime = datetime.combine(start_date, datetime.min.time())
+        else:
+            start_datetime = start_date
 
-        print(f"[Recalculation] Starting recalculation from {start_date}")
+        print(f"[Recalculation] Starting recalculation from {start_datetime}")
 
-        # Get all transactions from start_date to present, ordered by date
+        # Get all transactions from start_datetime to present, ordered by datetime
         transactions = db.query(Transaction).filter(
-            Transaction.date >= start_date,
+            Transaction.date >= start_datetime,
             Transaction.deleted_at.is_(None)  # Exclude soft-deleted
         ).order_by(Transaction.date, Transaction.id).all()
 
         if not transactions:
-            print(f"[Recalculation] No transactions found from {start_date}")
+            print(f"[Recalculation] No transactions found from {start_datetime}")
             return
 
         # Get unique accounts affected
@@ -67,11 +70,13 @@ class RecalculationService:
         print(f"[Recalculation] Affected accounts: {affected_accounts}")
 
         # For each account, rebuild holdings
+        # Note: Holdings are account-level, not time-based, so we still use date for comparison
+        start_date_only = start_datetime.date() if isinstance(start_datetime, datetime) else start_datetime
         for account_id in affected_accounts:
-            self._rebuild_holdings_for_account(account_id, start_date, db)
+            self._rebuild_holdings_for_account(account_id, start_date_only, db)
 
-        # Regenerate snapshots from start_date to present
-        self._regenerate_snapshots_from_date(start_date, db)
+        # Regenerate hourly snapshots from start_datetime to present
+        self._regenerate_snapshots_from_datetime(start_datetime, db)
 
         db.commit()
         print(f"[Recalculation] Completed")
@@ -339,43 +344,56 @@ class RecalculationService:
 
             currency.quantity += tx.amount
 
-    def _regenerate_snapshots_from_date(
+    def _regenerate_snapshots_from_datetime(
         self,
-        start_date: date,
+        start_datetime: datetime,
         db: Session
     ) -> None:
         """
-        Regenerate asset snapshots from start_date to today.
+        Regenerate hourly asset snapshots from start_datetime to now.
 
-        For each date:
-        1. Fetch market data for all holdings
-        2. Call SnapshotService.generate_snapshot()
-        3. This updates existing snapshots or creates new ones
+        For each hour:
+        1. Delete existing snapshot for that hour
+        2. Fetch hourly market data for all holdings
+        3. Call SnapshotService.generate_snapshot()
 
         Args:
-            start_date: Date to start regenerating from
+            start_datetime: Datetime to start regenerating from
             db: Database session
         """
         from app.services.snapshot_service import SnapshotService
-        from app.services.market_data_service import MarketDataService
+        from datetime import timedelta
 
         snapshot_service = SnapshotService()
-        market_service = MarketDataService()
 
-        # Get date range from start_date to today
-        today = date.today()
-        dates = get_date_range(start_date, today)
+        # Round to hour boundary
+        current_dt = start_datetime.replace(minute=0, second=0, microsecond=0)
+        now = datetime.now().replace(minute=0, second=0, microsecond=0)
 
-        print(f"[Recalculation] Regenerating {len(dates)} snapshots from {start_date} to {today}")
+        # Calculate total hours to regenerate
+        total_hours = int((now - current_dt).total_seconds() / 3600) + 1
+        print(f"[Recalculation] Regenerating {total_hours} hourly snapshots from {current_dt} to {now}")
 
-        for snapshot_date in dates:
-            # Fetch USD/KRW rate for this date
-            usd_krw_rate = market_service.get_exchange_rate("USD", "KRW", snapshot_date, db)
+        regenerated = 0
+        while current_dt <= now:
+            # Delete existing snapshot for this hour
+            db.query(AssetSnapshot).filter(
+                AssetSnapshot.snapshot_datetime == current_dt
+            ).delete()
 
-            # Generate snapshot (this will fetch all needed market data internally)
-            snapshot_service.generate_snapshot(snapshot_date, db, usd_krw_rate)
+            # Generate fresh hourly snapshot
+            snapshot_service.generate_snapshot(current_dt, db)
+            regenerated += 1
 
-        print(f"[Recalculation] Completed snapshot regeneration")
+            # Batch commit every 24 hours for performance
+            if regenerated % 24 == 0:
+                db.commit()
+                print(f"[Recalculation] Regenerated {regenerated}/{total_hours} snapshots...")
+
+            current_dt += timedelta(hours=1)
+
+        db.commit()
+        print(f"[Recalculation] Regenerated {regenerated} hourly snapshots")
 
     def recalculate_all_holdings(self, db: Session) -> None:
         """

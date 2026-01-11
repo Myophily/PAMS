@@ -129,7 +129,7 @@ export interface CandlestickChartData {
   data_points: number;
 }
 
-export type CandlestickPeriod = 'daily' | 'monthly' | 'annual';
+export type CandlestickPeriod = 'hourly' | 'daily' | 'monthly' | 'annual';
 
 // Form input types
 export interface InitialHoldingItem {

@@ -7,7 +7,7 @@ class AssetSnapshot(Base):
     __tablename__ = 'asset_snapshot'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    date = Column(Date, nullable=False, unique=True)
+    snapshot_datetime = Column(DateTime, nullable=False)
     total_assets_krw = Column(Numeric(18, 2), nullable=False)
     total_assets_usd = Column(Numeric(18, 2), nullable=False)
     principal = Column(Numeric(18, 2), nullable=False)  # Total deposits - withdrawals
@@ -15,8 +15,8 @@ class AssetSnapshot(Base):
 
     # Constraints
     __table_args__ = (
-        UniqueConstraint('date', name='uq_snapshot_date'),
+        UniqueConstraint('snapshot_datetime', name='uq_snapshot_datetime'),
     )
 
     def __repr__(self):
-        return f"<AssetSnapshot(date={self.date}, total_assets_krw={self.total_assets_krw})>"
+        return f"<AssetSnapshot(snapshot_datetime={self.snapshot_datetime}, total_assets_krw={self.total_assets_krw})>"

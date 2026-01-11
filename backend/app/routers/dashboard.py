@@ -61,18 +61,18 @@ def get_dashboard_chart(
 def get_candlestick_chart(
     period: str = "daily",
     currency: str = "KRW",
-    start_date: str = None,
-    end_date: str = None,
+    start_datetime: str = None,
+    end_datetime: str = None,
     db: Session = Depends(get_db)
 ):
     """
-    Get OHLC candlestick data for asset growth chart.
+    Get OHLC candlestick data for asset growth chart (now with hourly support).
 
     Args:
-        period: Aggregation period ("daily", "monthly", "annual")
+        period: Aggregation period ("hourly", "daily", "monthly", "annual")
         currency: Currency for values ("KRW" or "USD")
-        start_date: Optional start date in ISO format (YYYY-MM-DD)
-        end_date: Optional end date in ISO format (YYYY-MM-DD)
+        start_datetime: Optional start datetime in ISO format (YYYY-MM-DDTHH:MM:SS)
+        end_datetime: Optional end datetime in ISO format (YYYY-MM-DDTHH:MM:SS)
 
     Returns:
         Dict with candles array containing OHLC data
@@ -80,25 +80,25 @@ def get_candlestick_chart(
     from datetime import datetime
     from fastapi import HTTPException
 
-    # Parse dates if provided
+    # Parse datetimes if provided
     start = None
     end = None
-    if start_date:
+    if start_datetime:
         try:
-            start = datetime.fromisoformat(start_date).date()
+            start = datetime.fromisoformat(start_datetime)
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD")
-    if end_date:
+            raise HTTPException(status_code=400, detail="Invalid start_datetime format. Use YYYY-MM-DDTHH:MM:SS")
+    if end_datetime:
         try:
-            end = datetime.fromisoformat(end_date).date()
+            end = datetime.fromisoformat(end_datetime)
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD")
+            raise HTTPException(status_code=400, detail="Invalid end_datetime format. Use YYYY-MM-DDTHH:MM:SS")
 
     # Validate period
-    if period not in ["daily", "monthly", "annual"]:
+    if period not in ["hourly", "daily", "monthly", "annual"]:
         raise HTTPException(
             status_code=400,
-            detail="Invalid period. Must be: daily, monthly, or annual"
+            detail="Invalid period. Must be: hourly, daily, monthly, or annual"
         )
 
     # Validate currency

@@ -286,3 +286,81 @@ def migrate_recurring_transfer_nullable_to_account(engine):
         print("✓ Indexes recreated successfully")
 
     print("=" * 30 + "\n")
+
+
+def migrate_snapshot_date_to_datetime(engine):
+    """
+    Migrate AssetSnapshot.date to snapshot_datetime field.
+
+    This migration converts the existing date-only snapshots to datetime format
+    at 00:00:00 (midnight) for hourly snapshot support.
+
+    Strategy:
+    - Drop old table with 'date' field
+    - Create new table with 'snapshot_datetime' field
+    - Migrate existing data (convert date to datetime at 00:00)
+    - Create index for query performance
+
+    This migration is idempotent and safe to run multiple times.
+    """
+    print("\n=== Snapshot Date to DateTime Migration ===")
+
+    with engine.begin() as conn:
+        # Check if migration already done
+        result = conn.execute(text("""
+            SELECT COUNT(*) FROM pragma_table_info('asset_snapshot')
+            WHERE name = 'snapshot_datetime'
+        """))
+
+        if result.fetchone()[0] > 0:
+            print("✓ Migration already completed (snapshot_datetime field exists)")
+            print("=" * 30 + "\n")
+            return
+
+        # Get count of existing snapshots
+        result = conn.execute(text("SELECT COUNT(*) FROM asset_snapshot"))
+        snapshot_count = result.fetchone()[0]
+
+        print(f"Migrating {snapshot_count} snapshots...")
+
+        # Create new table with snapshot_datetime field
+        conn.execute(text("""
+            CREATE TABLE asset_snapshot_new (
+                id INTEGER PRIMARY KEY,
+                snapshot_datetime DATETIME NOT NULL UNIQUE,
+                total_assets_krw NUMERIC(18, 2) NOT NULL,
+                total_assets_usd NUMERIC(18, 2) NOT NULL,
+                principal NUMERIC(18, 2) NOT NULL,
+                created_at DATETIME NOT NULL
+            )
+        """))
+
+        # Migrate data (convert date to datetime at 00:00)
+        conn.execute(text("""
+            INSERT INTO asset_snapshot_new
+            SELECT id,
+                   datetime(date || ' 00:00:00') as snapshot_datetime,
+                   total_assets_krw,
+                   total_assets_usd,
+                   principal,
+                   created_at
+            FROM asset_snapshot
+        """))
+
+        # Drop old table
+        conn.execute(text("DROP TABLE asset_snapshot"))
+
+        # Rename new table
+        conn.execute(text("ALTER TABLE asset_snapshot_new RENAME TO asset_snapshot"))
+
+        # Create index for performance
+        conn.execute(text("""
+            CREATE INDEX idx_snapshot_datetime
+            ON asset_snapshot(snapshot_datetime)
+        """))
+
+        print(f"✓ Successfully migrated {snapshot_count} snapshots to datetime format")
+        print("✓ All dates converted to 00:00:00 (midnight)")
+        print("✓ Index created on snapshot_datetime for query performance")
+
+    print("=" * 30 + "\n")
