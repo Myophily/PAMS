@@ -34,6 +34,9 @@ export function Navigation() {
           <Link href="/accounts" className={linkClass('/accounts')}>
             Accounts
           </Link>
+          <Link href="/recurring-transfers" className={linkClass('/recurring-transfers')}>
+            Recurring Transfers
+          </Link>
         </div>
       </div>
     </nav>

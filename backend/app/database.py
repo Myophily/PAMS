@@ -40,7 +40,7 @@ def init_db():
     Creates all tables and configures SQLite pragmas.
     """
     # Import all models to ensure they're registered with Base
-    from app.models import account, transaction, holding, market_data, asset_snapshot
+    from app.models import account, transaction, holding, market_data, asset_snapshot, recurring_transfer
 
     # Create all tables
     Base.metadata.create_all(bind=engine)

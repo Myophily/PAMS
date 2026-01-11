@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import accounts, transactions, dashboard, market_data, snapshots
+from app.routers import accounts, transactions, dashboard, market_data, snapshots, recurring_transfers
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.executors.pool import ThreadPoolExecutor
 import os
 from dotenv import load_dotenv
 
@@ -10,6 +13,25 @@ app = FastAPI(
     title="Personal Asset Manager API",
     version="1.0.0",
     description="Local-first financial dashboard API"
+)
+
+# Initialize APScheduler for recurring transfers
+jobstores = {
+    'default': SQLAlchemyJobStore(url='sqlite:///asset_data.db')
+}
+executors = {
+    'default': ThreadPoolExecutor(1)  # Single thread to avoid race conditions
+}
+job_defaults = {
+    'coalesce': True,  # Combine missed runs into single execution
+    'max_instances': 1,  # Prevent concurrent execution of same job
+    'misfire_grace_time': 3600  # 1 hour grace period for missed executions
+}
+
+scheduler = BackgroundScheduler(
+    jobstores=jobstores,
+    executors=executors,
+    job_defaults=job_defaults
 )
 
 # CORS Configuration
@@ -28,12 +50,14 @@ app.include_router(transactions.router)
 app.include_router(dashboard.router)
 app.include_router(market_data.router)
 app.include_router(snapshots.router)
+app.include_router(recurring_transfers.router)
 
 
 @app.on_event("startup")
 def on_startup():
-    """Initialize database and run migrations on startup."""
-    from app.database import init_db, migrate_account_types, migrate_date_to_datetime, engine
+    """Initialize database, run migrations, and start scheduler on startup."""
+    from app.database import init_db, migrate_account_types, migrate_date_to_datetime, engine, SessionLocal
+    from app.services.recurring_transfer_service import RecurringTransferService
 
     # Initialize database schema
     init_db()
@@ -43,6 +67,27 @@ def on_startup():
 
     # Run date to datetime migration
     migrate_date_to_datetime(engine)
+
+    # Start APScheduler
+    scheduler.start()
+    print("[Scheduler] APScheduler started")
+
+    # Load and schedule recurring transfers
+    db = SessionLocal()
+    try:
+        recurring_service = RecurringTransferService()
+        recurring_service.load_and_schedule_all(db, scheduler)
+    except Exception as e:
+        print(f"[Scheduler] Error loading recurring transfers: {e}")
+    finally:
+        db.close()
+
+
+@app.on_event("shutdown")
+def on_shutdown():
+    """Gracefully shutdown scheduler on app shutdown."""
+    scheduler.shutdown(wait=True)
+    print("[Scheduler] APScheduler shutdown")
 
 
 @app.get("/api/health")

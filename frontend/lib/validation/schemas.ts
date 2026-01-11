@@ -178,3 +178,17 @@ export const createBuySellSchema = z.object({
 });
 
 export type CreateBuySellFormData = z.infer<typeof createBuySellSchema>;
+
+// Recurring transfer schema
+export const createRecurringTransferSchema = z.object({
+  from_account_id: z.number().positive('Please select a source account'),
+  to_account_id: z.number().positive('Please select a target account'),
+  amount: z.number().positive('Amount must be greater than 0'),
+  day_of_month: z.number().int().min(1, 'Day must be between 1 and 31').max(31, 'Day must be between 1 and 31'),
+  description: z.string().optional(),
+}).refine(data => data.from_account_id !== data.to_account_id, {
+  message: 'Source and target accounts must be different',
+  path: ['to_account_id'],
+});
+
+export type CreateRecurringTransferFormData = z.infer<typeof createRecurringTransferSchema>;

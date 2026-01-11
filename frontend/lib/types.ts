@@ -185,3 +185,34 @@ export interface HealthStatus {
   accounts_count: number;
   error?: string;
 }
+
+// Recurring transfer types
+export interface RecurringTransfer {
+  id: number;
+  from_account_id: number;
+  from_account_name: string;
+  to_account_id: number;
+  to_account_name: string;
+  amount: DecimalString;
+  day_of_month: number;
+  description?: string;
+  is_active: boolean;
+  last_executed_date?: string;
+  created_at: string;
+  next_execution_date?: string;
+}
+
+export interface CreateRecurringTransferInput {
+  from_account_id: number;
+  to_account_id: number;
+  amount: number;
+  day_of_month: number;
+  description?: string;
+}
+
+export interface UpdateRecurringTransferInput {
+  amount?: number;
+  day_of_month?: number;
+  description?: string;
+  is_active?: boolean;
+}
