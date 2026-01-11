@@ -112,15 +112,31 @@ class SnapshotService:
 
                     value = holding.quantity * current_price
 
-                    # Convert to KRW based on account currency
-                    if inferred_currency == "USD":
-                        value = value * usd_krw_rate
-                    elif inferred_currency == "EUR":
-                        # Fetch EUR/KRW rate
-                        eur_krw_rate = market_service.get_exchange_rate("EUR", "KRW", snapshot_date, db)
-                        if eur_krw_rate is None:
-                            eur_krw_rate = to_decimal(1400, precision=4)
-                        value = value * eur_krw_rate
+                    # CRITICAL FIX: Convert to KRW based on stock's price_currency, NOT account currency
+                    # Each stock has its own price currency (e.g., AAPL=USD, 005930=KRW)
+                    if holding.price_currency:
+                        if holding.price_currency == "USD":
+                            value = value * usd_krw_rate
+                        elif holding.price_currency == "EUR":
+                            # Fetch EUR/KRW rate
+                            eur_krw_rate = market_service.get_exchange_rate("EUR", "KRW", snapshot_date, db)
+                            if eur_krw_rate is None:
+                                eur_krw_rate = to_decimal(1400, precision=4)
+                            value = value * eur_krw_rate
+                        # KRW stocks don't need conversion
+                    else:
+                        # Fallback: infer price currency from ticker if price_currency is not set
+                        from app.utils.currency_inference import infer_price_currency_from_ticker
+                        stock_price_currency = infer_price_currency_from_ticker(holding.ticker)
+
+                        if stock_price_currency == "USD":
+                            value = value * usd_krw_rate
+                        elif stock_price_currency == "EUR":
+                            eur_krw_rate = market_service.get_exchange_rate("EUR", "KRW", snapshot_date, db)
+                            if eur_krw_rate is None:
+                                eur_krw_rate = to_decimal(1400, precision=4)
+                            value = value * eur_krw_rate
+                        # KRW stocks don't need conversion
 
                 total_krw += value
 

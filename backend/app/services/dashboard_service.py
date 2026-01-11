@@ -49,14 +49,20 @@ class DashboardService:
             }
         }
         """
-        # Get current date snapshot (or generate if not exists)
+        # Get current date snapshot (or regenerate if stale)
         today = date.today()
         current_snapshot = self.snapshot_service.get_snapshot(today, db)
 
-        if not current_snapshot:
-            # Generate snapshot for today
-            current_snapshot = self.snapshot_service.generate_snapshot(today, db)
-            db.commit()
+        # CRITICAL FIX: Always regenerate today's snapshot to use latest market data
+        # This ensures dashboard always shows current market prices
+        if current_snapshot:
+            # Delete existing snapshot and regenerate it with fresh data
+            db.delete(current_snapshot)
+            db.flush()
+
+        # Generate fresh snapshot for today
+        current_snapshot = self.snapshot_service.generate_snapshot(today, db)
+        db.commit()
 
         # Get exchange rate
         usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", today, db)
@@ -219,9 +225,44 @@ class DashboardService:
                     else:
                         foreign_currency_value += holding.quantity
                 else:
-                    # Stock
-                    # TODO: Get current price and convert to KRW
-                    stocks_value += holding.quantity * holding.avg_price
+                    # Stock - get current market price
+                    current_price = self.market_data_service.get_latest_price(holding.ticker, db)
+
+                    if current_price is None:
+                        # Fallback to avg_price if market data unavailable
+                        current_price = holding.avg_price
+
+                    stock_value = holding.quantity * current_price
+
+                    # Convert to KRW based on stock's price_currency
+                    if holding.price_currency:
+                        if holding.price_currency == "USD":
+                            usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", date.today(), db)
+                            if not usd_krw_rate:
+                                usd_krw_rate = to_decimal(1300, precision=4)
+                            stock_value = stock_value * usd_krw_rate
+                        elif holding.price_currency == "EUR":
+                            eur_krw_rate = self.market_data_service.get_exchange_rate("EUR", "KRW", date.today(), db)
+                            if not eur_krw_rate:
+                                eur_krw_rate = to_decimal(1400, precision=4)
+                            stock_value = stock_value * eur_krw_rate
+                    else:
+                        # Fallback: infer price currency from ticker
+                        from app.utils.currency_inference import infer_price_currency_from_ticker
+                        stock_price_currency = infer_price_currency_from_ticker(holding.ticker)
+
+                        if stock_price_currency == "USD":
+                            usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", date.today(), db)
+                            if not usd_krw_rate:
+                                usd_krw_rate = to_decimal(1300, precision=4)
+                            stock_value = stock_value * usd_krw_rate
+                        elif stock_price_currency == "EUR":
+                            eur_krw_rate = self.market_data_service.get_exchange_rate("EUR", "KRW", date.today(), db)
+                            if not eur_krw_rate:
+                                eur_krw_rate = to_decimal(1400, precision=4)
+                            stock_value = stock_value * eur_krw_rate
+
+                    stocks_value += stock_value
 
         # Calculate percentages
         allocation = []
@@ -317,16 +358,36 @@ class DashboardService:
                 if not current_price:
                     current_price = holding.avg_price
 
-                # Calculate value in account currency
-                value_in_account_currency = holding.quantity * current_price
+                # Calculate value in price currency
+                value_in_price_currency = holding.quantity * current_price
 
-                # Convert to KRW if needed
-                if inferred_currency == "USD":
-                    value_krw = value_in_account_currency * usd_krw_rate
-                elif inferred_currency == "KRW":
-                    value_krw = value_in_account_currency
+                # CRITICAL FIX: Convert to KRW based on stock's price_currency, NOT account currency
+                if holding.price_currency:
+                    if holding.price_currency == "USD":
+                        value_krw = value_in_price_currency * usd_krw_rate
+                    elif holding.price_currency == "EUR":
+                        eur_krw_rate = self.market_data_service.get_exchange_rate("EUR", "KRW", today, db)
+                        if not eur_krw_rate:
+                            eur_krw_rate = to_decimal(1400, precision=4)
+                        value_krw = value_in_price_currency * eur_krw_rate
+                    else:
+                        # KRW and others - no conversion needed
+                        value_krw = value_in_price_currency
                 else:
-                    value_krw = value_in_account_currency  # TODO: Handle EUR, etc.
+                    # Fallback: infer price currency from ticker
+                    from app.utils.currency_inference import infer_price_currency_from_ticker
+                    stock_price_currency = infer_price_currency_from_ticker(holding.ticker)
+
+                    if stock_price_currency == "USD":
+                        value_krw = value_in_price_currency * usd_krw_rate
+                    elif stock_price_currency == "EUR":
+                        eur_krw_rate = self.market_data_service.get_exchange_rate("EUR", "KRW", today, db)
+                        if not eur_krw_rate:
+                            eur_krw_rate = to_decimal(1400, precision=4)
+                        value_krw = value_in_price_currency * eur_krw_rate
+                    else:
+                        # KRW and others - no conversion needed
+                        value_krw = value_in_price_currency
 
                 # Aggregate by ticker
                 ticker_data[holding.ticker]['quantity'] += holding.quantity
