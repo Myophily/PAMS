@@ -191,3 +191,98 @@ def migrate_date_to_datetime(engine):
         print("✓ Indexes recreated successfully")
 
     print("=" * 30 + "\n")
+
+
+def migrate_recurring_transfer_nullable_to_account(engine):
+    """
+    Migrate recurring_transfer table to make to_account_id nullable.
+
+    This enables external recurring transfers (withdrawals) where to_account_id is NULL.
+    - NULL = External withdrawal (Pattern ①)
+    - NOT NULL = Internal transfer (Pattern ②)
+
+    Strategy:
+    - Drop old check_different_accounts constraint
+    - Make to_account_id nullable
+    - Validation moved to application layer to handle NULL properly
+
+    SQLite doesn't support ALTER COLUMN, so we use table recreation approach.
+    """
+    print("\n=== Recurring Transfer External Support Migration ===")
+
+    with engine.begin() as conn:
+        # Check if recurring_transfer table exists
+        result = conn.execute(text("""
+            SELECT name FROM sqlite_master
+            WHERE type='table' AND name='recurring_transfer'
+        """))
+
+        if not result.fetchone():
+            print("✓ Table recurring_transfer doesn't exist yet (fresh database)")
+            print("=" * 30 + "\n")
+            return
+
+        # Check if migration is needed by inspecting table schema
+        # SQLite stores NOT NULL constraint in the sql column of sqlite_master
+        result = conn.execute(text("""
+            SELECT sql FROM sqlite_master
+            WHERE type='table' AND name='recurring_transfer'
+        """))
+
+        row = result.fetchone()
+        table_sql = row[0] if row else ""
+
+        # Check if to_account_id is already nullable (doesn't have NOT NULL)
+        # Look for "to_account_id INTEGER," without "NOT NULL"
+        if "to_account_id INTEGER," in table_sql or "to_account_id INTEGER)" in table_sql:
+            print("✓ Migration already completed (to_account_id is nullable)")
+            print("=" * 30 + "\n")
+            return
+
+        # Get count of existing recurring transfers
+        result = conn.execute(text('SELECT COUNT(*) FROM recurring_transfer'))
+        row = result.fetchone()
+        transfer_count = row[0] if row else 0
+
+        print(f"Migrating {transfer_count} recurring transfers...")
+
+        # Create new table with nullable to_account_id
+        conn.execute(text("""
+            CREATE TABLE recurring_transfer_new (
+                id INTEGER PRIMARY KEY,
+                from_account_id INTEGER NOT NULL,
+                to_account_id INTEGER,
+                amount NUMERIC(18, 2) NOT NULL,
+                day_of_month INTEGER NOT NULL,
+                description TEXT,
+                is_active BOOLEAN NOT NULL DEFAULT 1,
+                last_executed_date DATETIME,
+                created_at DATETIME NOT NULL,
+                deleted_at DATETIME,
+                FOREIGN KEY(from_account_id) REFERENCES account(id) ON DELETE CASCADE,
+                FOREIGN KEY(to_account_id) REFERENCES account(id) ON DELETE CASCADE,
+                CHECK(day_of_month >= 1 AND day_of_month <= 31),
+                CHECK(amount > 0)
+            )
+        """))
+
+        # Copy all existing data (all will have to_account_id NOT NULL since they're internal transfers)
+        conn.execute(text("""
+            INSERT INTO recurring_transfer_new
+            SELECT * FROM recurring_transfer
+        """))
+
+        # Drop old table and rename new one
+        conn.execute(text('DROP TABLE recurring_transfer'))
+        conn.execute(text('ALTER TABLE recurring_transfer_new RENAME TO recurring_transfer'))
+
+        # Recreate indexes
+        conn.execute(text('CREATE INDEX idx_recurring_transfer_from_account ON recurring_transfer(from_account_id)'))
+        conn.execute(text('CREATE INDEX idx_recurring_transfer_to_account ON recurring_transfer(to_account_id)'))
+        conn.execute(text('CREATE INDEX idx_recurring_transfer_active ON recurring_transfer(is_active)'))
+
+        print(f"✓ Successfully migrated {transfer_count} recurring transfers")
+        print("✓ to_account_id is now nullable (NULL = external transfer)")
+        print("✓ Indexes recreated successfully")
+
+    print("=" * 30 + "\n")

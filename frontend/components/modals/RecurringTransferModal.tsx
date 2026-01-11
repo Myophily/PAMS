@@ -48,14 +48,23 @@ export function RecurringTransferModal({
   });
 
   const fromAccountId = watch('from_account_id');
+  const toAccountId = watch('to_account_id');  // Watch to detect External selection
   const accounts = accountsData?.accounts || [];
 
   // Get selected from account for balance display
   const fromAccount = accounts.find((acc) => acc.id === fromAccountId);
 
+  // Check if external transfer is selected
+  const isExternalTransfer = toAccountId === -1;
+
   const onSubmit = async (data: CreateRecurringTransferFormData) => {
     try {
-      await createRecurring.mutateAsync(data);
+      // Convert -1 to null for backend
+      const payload = {
+        ...data,
+        to_account_id: data.to_account_id === -1 ? null : data.to_account_id,
+      };
+      await createRecurring.mutateAsync(payload);
       toast.success('Recurring transfer created successfully!');
       reset();
       onClose();
@@ -91,7 +100,8 @@ export function RecurringTransferModal({
           {...register('to_account_id', { valueAsNumber: true })}
           error={errors.to_account_id?.message}
         >
-          <option value={0}>Select account...</option>
+          <option value={0}>Select destination...</option>
+          <option value={-1}>External (e.g., Rent, Loan, Utility)</option>
           {accounts
             .filter((acc) => acc.id !== fromAccountId)
             .map((acc) => (
@@ -125,10 +135,19 @@ export function RecurringTransferModal({
         />
 
         <Input
-          label="Description (Optional)"
+          label={isExternalTransfer ? "Description (Required)" : "Description (Optional)"}
           {...register('description')}
           error={errors.description?.message}
-          placeholder="e.g., Monthly savings transfer"
+          placeholder={
+            isExternalTransfer
+              ? "e.g., Rent payment, Loan payment"
+              : "e.g., Monthly savings transfer"
+          }
+          helperText={
+            isExternalTransfer
+              ? "Description is required for external transfers to identify the recipient"
+              : undefined
+          }
         />
 
         <div className="flex gap-2 justify-end pt-4">

@@ -23,7 +23,7 @@ class RecurringTransferService:
     def create_recurring_transfer(
         self,
         from_account_id: int,
-        to_account_id: int,
+        to_account_id: Optional[int],  # None = external transfer
         amount: Decimal,
         day_of_month: int,
         description: Optional[str],
@@ -34,10 +34,10 @@ class RecurringTransferService:
 
         Args:
             from_account_id: Source account ID
-            to_account_id: Target account ID
+            to_account_id: Target account ID (None = external transfer)
             amount: Transfer amount (must be positive)
             day_of_month: Day of month to execute (1-31)
-            description: Optional user notes
+            description: Optional user notes (required for external transfers)
             db: Database session
 
         Returns:
@@ -46,24 +46,42 @@ class RecurringTransferService:
         Raises:
             ValueError: If validation fails
         """
-        # Validate accounts exist
+        # Validate from account exists
         from_account = db.query(Account).get(from_account_id)
-        to_account = db.query(Account).get(to_account_id)
-
         if not from_account:
             raise ValueError(f"From account {from_account_id} not found")
-        if not to_account:
-            raise ValueError(f"To account {to_account_id} not found")
 
-        # Validate account types (must support Transfer_Out/Transfer_In)
-        from app.services.transaction_validation import validate_transaction_type
-        validate_transaction_type(from_account.type, "Transfer_Out")
-        validate_transaction_type(to_account.type, "Transfer_In")
+        # Branch validation based on transfer type
+        if to_account_id is None:
+            # External transfer - validate Withdrawal is allowed
+            from app.services.transaction_validation import validate_transaction_type
+            validate_transaction_type(from_account.type, "Withdrawal")
+
+            # Description is REQUIRED for external transfers
+            if not description or description.strip() == "":
+                raise ValueError("Description is required for external transfers")
+
+            destination_name = "External"
+        else:
+            # Internal transfer - validate both accounts
+            to_account = db.query(Account).get(to_account_id)
+            if not to_account:
+                raise ValueError(f"To account {to_account_id} not found")
+
+            if from_account_id == to_account_id:
+                raise ValueError("Cannot transfer to the same account")
+
+            # Validate account types
+            from app.services.transaction_validation import validate_transaction_type
+            validate_transaction_type(from_account.type, "Transfer_Out")
+            validate_transaction_type(to_account.type, "Transfer_In")
+
+            destination_name = to_account.name
 
         # Create recurring transfer
         recurring = RecurringTransfer(
             from_account_id=from_account_id,
-            to_account_id=to_account_id,
+            to_account_id=to_account_id,  # May be None
             amount=amount,
             day_of_month=day_of_month,
             description=description,
@@ -74,7 +92,7 @@ class RecurringTransferService:
         db.commit()
         db.refresh(recurring)
 
-        print(f"[RecurringTransfer] Created: {recurring.id} ({from_account.name} → {to_account.name}, {amount} KRW, day {day_of_month})")
+        print(f"[RecurringTransfer] Created: {recurring.id} ({from_account.name} → {destination_name}, {amount} KRW, day {day_of_month})")
         return recurring
 
     def execute_recurring_transfer(
@@ -112,22 +130,34 @@ class RecurringTransferService:
                 print(f"[RecurringTransfer] Already executed this month: {recurring_id}")
                 return False
 
-        # Execute transfer using existing TransactionService
+        # Branch: External vs Internal transfer
         try:
-            tx_out, tx_in = self.transaction_service.create_transfer(
-                from_account_id=recurring.from_account_id,
-                to_account_id=recurring.to_account_id,
-                amount=recurring.amount,
-                transaction_date=execution_date,
-                description=f"[Recurring] {recurring.description or 'Monthly transfer'}",
-                db=db
-            )
+            if recurring.to_account_id is None:
+                # PATTERN ① - External withdrawal
+                tx = self.transaction_service.create_withdrawal(
+                    account_id=recurring.from_account_id,
+                    amount=recurring.amount,
+                    transaction_date=execution_date,
+                    description=f"[Recurring] {recurring.description or 'External payment'}",
+                    db=db
+                )
+                print(f"[RecurringTransfer] Executed external withdrawal: {recurring.id} → Tx {tx.id}")
+            else:
+                # PATTERN ② - Internal transfer
+                tx_out, tx_in = self.transaction_service.create_transfer(
+                    from_account_id=recurring.from_account_id,
+                    to_account_id=recurring.to_account_id,
+                    amount=recurring.amount,
+                    transaction_date=execution_date,
+                    description=f"[Recurring] {recurring.description or 'Monthly transfer'}",
+                    db=db
+                )
+                print(f"[RecurringTransfer] Executed internal transfer: {recurring.id} → Tx {tx_out.id}, {tx_in.id}")
 
             # Update last_executed_date
             recurring.last_executed_date = execution_date
             db.commit()
 
-            print(f"[RecurringTransfer] Executed: {recurring.id} → Tx {tx_out.id}, {tx_in.id}")
             return True
 
         except Exception as e:

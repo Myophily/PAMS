@@ -7,7 +7,7 @@ from typing import Optional
 class RecurringTransferCreate(BaseModel):
     """Schema for creating a new recurring transfer."""
     from_account_id: int = Field(..., gt=0, description="Source account ID")
-    to_account_id: int = Field(..., gt=0, description="Target account ID")
+    to_account_id: Optional[int] = Field(None, gt=0, description="Target account ID (None = External)")
     amount: Decimal = Field(..., gt=0, decimal_places=2, description="Transfer amount")
     day_of_month: int = Field(..., ge=1, le=31, description="Day of month (1-31)")
     description: Optional[str] = Field(None, max_length=500)
@@ -15,9 +15,19 @@ class RecurringTransferCreate(BaseModel):
     @field_validator('to_account_id')
     @classmethod
     def validate_different_accounts(cls, v, info):
+        # Only validate if both accounts are internal (not None)
         from_id = info.data.get('from_account_id')
-        if from_id and v == from_id:
+        if v is not None and from_id and v == from_id:
             raise ValueError("from_account_id and to_account_id must be different")
+        return v
+
+    @field_validator('description')
+    @classmethod
+    def validate_description_for_external(cls, v, info):
+        # If to_account_id is None (external), description is REQUIRED
+        to_id = info.data.get('to_account_id')
+        if to_id is None and (not v or v.strip() == ""):
+            raise ValueError("Description is required for external transfers")
         return v
 
     class Config:
@@ -54,8 +64,8 @@ class RecurringTransferResponse(BaseModel):
     id: int
     from_account_id: int
     from_account_name: str
-    to_account_id: int
-    to_account_name: str
+    to_account_id: Optional[int] = Field(None, description="Target account ID (None = External)")
+    to_account_name: str = Field(..., description="Target account name ('External' for external transfers)")
     amount: Decimal
     day_of_month: int
     description: Optional[str]

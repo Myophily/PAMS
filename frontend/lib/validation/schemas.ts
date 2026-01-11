@@ -182,13 +182,30 @@ export type CreateBuySellFormData = z.infer<typeof createBuySellSchema>;
 // Recurring transfer schema
 export const createRecurringTransferSchema = z.object({
   from_account_id: z.number().positive('Please select a source account'),
-  to_account_id: z.number().positive('Please select a target account'),
+  to_account_id: z.number().int(),  // Allow -1 for External
   amount: z.number().positive('Amount must be greater than 0'),
   day_of_month: z.number().int().min(1, 'Day must be between 1 and 31').max(31, 'Day must be between 1 and 31'),
   description: z.string().optional(),
-}).refine(data => data.from_account_id !== data.to_account_id, {
+})
+.refine(data => {
+  // If both are internal (positive), they must be different
+  if (data.from_account_id > 0 && data.to_account_id > 0) {
+    return data.from_account_id !== data.to_account_id;
+  }
+  return true;
+}, {
   message: 'Source and target accounts must be different',
   path: ['to_account_id'],
+})
+.refine(data => {
+  // If to_account_id is -1 (External), description is REQUIRED
+  if (data.to_account_id === -1 && (!data.description || data.description.trim() === '')) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Description is required for external transfers (e.g., "Rent payment", "Loan payment")',
+  path: ['description'],
 });
 
 export type CreateRecurringTransferFormData = z.infer<typeof createRecurringTransferSchema>;

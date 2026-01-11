@@ -28,7 +28,7 @@ class RecurringTransfer(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     from_account_id = Column(Integer, ForeignKey('account.id', ondelete='CASCADE'), nullable=False)
-    to_account_id = Column(Integer, ForeignKey('account.id', ondelete='CASCADE'), nullable=False)
+    to_account_id = Column(Integer, ForeignKey('account.id', ondelete='CASCADE'), nullable=True)  # NULL = external transfer
     amount = Column(Numeric(18, 2), nullable=False)
     day_of_month = Column(Integer, nullable=False)
     description = Column(Text, nullable=True)
@@ -44,7 +44,7 @@ class RecurringTransfer(Base):
     # Constraints
     __table_args__ = (
         CheckConstraint('day_of_month >= 1 AND day_of_month <= 31', name='check_day_of_month'),
-        CheckConstraint('from_account_id != to_account_id', name='check_different_accounts'),
+        # Note: Different accounts constraint moved to application layer to handle NULL properly
         CheckConstraint('amount > 0', name='check_positive_amount'),
         Index('idx_recurring_transfer_from_account', 'from_account_id'),
         Index('idx_recurring_transfer_to_account', 'to_account_id'),

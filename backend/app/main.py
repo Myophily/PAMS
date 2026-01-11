@@ -56,7 +56,10 @@ app.include_router(recurring_transfers.router)
 @app.on_event("startup")
 def on_startup():
     """Initialize database, run migrations, and start scheduler on startup."""
-    from app.database import init_db, migrate_account_types, migrate_date_to_datetime, engine, SessionLocal
+    from app.database import (
+        init_db, migrate_account_types, migrate_date_to_datetime,
+        migrate_recurring_transfer_nullable_to_account, engine, SessionLocal
+    )
     from app.services.recurring_transfer_service import RecurringTransferService
 
     # Initialize database schema
@@ -67,6 +70,9 @@ def on_startup():
 
     # Run date to datetime migration
     migrate_date_to_datetime(engine)
+
+    # Run recurring transfer external support migration
+    migrate_recurring_transfer_nullable_to_account(engine)
 
     # Start APScheduler
     scheduler.start()

@@ -191,8 +191,8 @@ export interface RecurringTransfer {
   id: number;
   from_account_id: number;
   from_account_name: string;
-  to_account_id: number;
-  to_account_name: string;
+  to_account_id: number | null;  // null = external transfer
+  to_account_name: string;  // "External" for external transfers
   amount: DecimalString;
   day_of_month: number;
   description?: string;
@@ -204,7 +204,7 @@ export interface RecurringTransfer {
 
 export interface CreateRecurringTransferInput {
   from_account_id: number;
-  to_account_id: number;
+  to_account_id: number | null;  // null = external transfer
   amount: number;
   day_of_month: number;
   description?: string;
