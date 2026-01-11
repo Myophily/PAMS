@@ -74,7 +74,6 @@ export function AssetAllocationChart({ data, riskSummary }: AssetAllocationChart
             formatter={(value: number | undefined) => value ? `₩${value.toLocaleString()}` : ''}
             contentStyle={{ backgroundColor: 'white', border: '1px solid #ccc', borderRadius: '4px' }}
           />
-          <Legend />
         </PieChart>
       </ResponsiveContainer>
       {riskSummary && (
@@ -82,11 +81,11 @@ export function AssetAllocationChart({ data, riskSummary }: AssetAllocationChart
           <div className="flex justify-center gap-8 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-red-500"></div>
-              <span className="font-medium">Risk Assets: {riskPercent.toFixed(1)}%</span>
+              <span className="font-medium text-gray-700">Risk Assets: {riskPercent.toFixed(1)}%</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span className="font-medium">Safe Assets: {safePercent.toFixed(1)}%</span>
+              <span className="font-medium text-gray-700">Safe Assets: {safePercent.toFixed(1)}%</span>
             </div>
           </div>
         </div>
