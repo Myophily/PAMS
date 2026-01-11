@@ -9,23 +9,29 @@ def test_top_assets_includes_cash_separately(db_session, checking_account, broke
     """
     Verify that Cash (KRW) and Cash (USD) are displayed separately in Top Assets.
     """
+    from app.utils.currency_inference import normalize_ticker
+
     # Setup
     dashboard_service = DashboardService()
-    
+
     # 1. Add KRW Cash to checking account (1,000,000 KRW)
+    # CASH normalized to KRW for Deposit accounts
+    krw_ticker = normalize_ticker("CASH", checking_account.type)
     krw_cash = Holding(
         account_id=checking_account.id,
-        ticker="CASH",
+        ticker=krw_ticker,
         quantity=to_decimal(1000000, precision=2),
         avg_price=to_decimal(1, precision=4)
     )
     db_session.add(krw_cash)
 
     # 2. Add USD Cash to brokerage account (100 USD)
+    # CASH normalized to USD for Securities accounts
     # USD/KRW rate is mocked at 1300 in mock_market_data fixture
+    usd_ticker = normalize_ticker("CASH", brokerage_account.type)
     usd_cash = Holding(
         account_id=brokerage_account.id,
-        ticker="CASH",
+        ticker=usd_ticker,
         quantity=to_decimal(100, precision=2),
         avg_price=to_decimal(1, precision=4)
     )

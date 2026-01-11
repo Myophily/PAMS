@@ -75,7 +75,41 @@ class DashboardService:
         year_amount, year_percent = self.snapshot_service.calculate_period_change(today, 365, db)
 
         # Get allocation by type
-        allocation_by_type = self._calculate_allocation_by_type(db, current_snapshot.total_assets_krw)
+        allocation_result = self._calculate_allocation_by_type(db, current_snapshot.total_assets_krw)
+
+        # Calculate top assets
+        top_assets = self._calculate_top_assets(db, current_snapshot.total_assets_krw)
+
+        return {
+            "total_assets": {
+                "krw": current_snapshot.total_assets_krw,
+                "usd": current_snapshot.total_assets_usd
+            },
+            "current_exchange_rate": {
+                "usd_to_krw": usd_krw_rate,
+                "updated_at": today.isoformat()
+            },
+            "changes": {
+                "day": {
+                    "amount_krw": day_amount,
+                    "amount_usd": (day_amount / usd_krw_rate).quantize(Decimal("0.01")),
+                    "percent": day_percent
+                },
+                "month": {
+                    "amount_krw": month_amount,
+                    "amount_usd": (month_amount / usd_krw_rate).quantize(Decimal("0.01")),
+                    "percent": month_percent
+                },
+                "year": {
+                    "amount_krw": year_amount,
+                    "amount_usd": (year_amount / usd_krw_rate).quantize(Decimal("0.01")),
+                    "percent": year_percent
+                }
+            },
+            "allocation": allocation_result["allocation"],
+            "risk_summary": allocation_result["risk_summary"],
+            "top_assets": top_assets
+        }
 
         # Calculate top assets
         top_assets = self._calculate_top_assets(db, current_snapshot.total_assets_krw)
@@ -194,99 +228,198 @@ class DashboardService:
         self,
         db: Session,
         total_assets_krw: Decimal
-    ) -> List[Dict]:
+    ) -> Dict:
         """
-        Calculate asset allocation by type (Cash, Stocks, Foreign Currency).
-
-        Args:
-            db: Database session
-            total_assets_krw: Total assets in KRW
+        Calculate asset allocation by type (Stock, Crypto, Cash, Bond, Gold).
 
         Returns:
-            List of allocation items
+            Dict with allocation and risk summary
+
+        Example:
+            {
+                "allocation": [
+                    {"type": "Stock", "value_krw": 6000000, "percent": 60.0},
+                    {"type": "Cash", "value_krw": 3000000, "percent": 30.0}
+                ],
+                "risk_summary": {
+                    "risk_assets_percent": 70.0,
+                    "safe_assets_percent": 30.0
+                }
+            }
         """
-        # Get all accounts
+        from app.utils.asset_type_inference import classify_asset_type
+        from app.utils.currency_inference import infer_price_currency_from_ticker
+
         accounts = db.query(Account).all()
 
+        stock_value = Decimal("0")
+        crypto_value = Decimal("0")
         cash_value = Decimal("0")
-        stocks_value = Decimal("0")
-        foreign_currency_value = Decimal("0")
+        bond_value = Decimal("0")
+        gold_value = Decimal("0")
 
-        from app.utils.currency_inference import is_currency_ticker
+        today_date = date.today()
 
         for account in accounts:
             holdings = self.holding_service.get_all_holdings_for_account(account.id, db, include_zero=False)
 
             for holding in holdings:
-                if is_currency_ticker(holding.ticker):
-                    # All currencies (KRW, USD, EUR, etc.)
+                asset_type = classify_asset_type(holding.ticker)
+
+                if asset_type == "Cash":
                     if holding.ticker == "KRW":
                         cash_value += holding.quantity
                     else:
-                        foreign_currency_value += holding.quantity
-                else:
-                    # Stock - get current market price
+                        krw_rate = self.market_data_service.get_exchange_rate(holding.ticker, "KRW", today_date, db)
+                        if not krw_rate:
+                            krw_rate = self._get_fallback_exchange_rate(holding.ticker)
+                        if krw_rate:
+                            cash_value += holding.quantity * krw_rate
+                elif asset_type == "Crypto":
                     current_price = self.market_data_service.get_latest_price(holding.ticker, db)
-
                     if current_price is None:
-                        # Fallback to avg_price if market data unavailable
                         current_price = holding.avg_price
+                    value = holding.quantity * current_price
 
+                    price_currency = holding.price_currency or infer_price_currency_from_ticker(holding.ticker)
+                    if price_currency and price_currency != "KRW":
+                        krw_rate = self.market_data_service.get_exchange_rate(price_currency, "KRW", today_date, db)
+                        if not krw_rate:
+                            krw_rate = self._get_fallback_exchange_rate(price_currency)
+                        if krw_rate:
+                            value = value * krw_rate
+                    crypto_value += value
+                elif asset_type == "Gold":
+                    current_price = self.market_data_service.get_latest_price(holding.ticker, db)
+                    if current_price is None:
+                        current_price = holding.avg_price
+                    value = holding.quantity * current_price
+
+                    price_currency = holding.price_currency or infer_price_currency_from_ticker(holding.ticker)
+                    if price_currency and price_currency != "KRW":
+                        krw_rate = self.market_data_service.get_exchange_rate(price_currency, "KRW", today_date, db)
+                        if not krw_rate:
+                            krw_rate = self._get_fallback_exchange_rate(price_currency)
+                        if krw_rate:
+                            value = value * krw_rate
+                    gold_value += value
+                elif asset_type == "Bond":
+                    current_price = self.market_data_service.get_latest_price(holding.ticker, db)
+                    if current_price is None:
+                        current_price = holding.avg_price
+                    value = holding.quantity * current_price
+
+                    price_currency = holding.price_currency or infer_price_currency_from_ticker(holding.ticker)
+                    if price_currency and price_currency != "KRW":
+                        krw_rate = self.market_data_service.get_exchange_rate(price_currency, "KRW", today_date, db)
+                        if not krw_rate:
+                            krw_rate = self._get_fallback_exchange_rate(price_currency)
+                        if krw_rate:
+                            value = value * krw_rate
+                    bond_value += value
+                else:
+                    current_price = self.market_data_service.get_latest_price(holding.ticker, db)
+                    if current_price is None:
+                        current_price = holding.avg_price
                     stock_value = holding.quantity * current_price
 
-                    # Convert to KRW based on stock's price_currency
                     if holding.price_currency:
                         if holding.price_currency == "USD":
-                            usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", date.today(), db)
+                            usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", today_date, db)
                             if not usd_krw_rate:
                                 usd_krw_rate = to_decimal(1300, precision=4)
                             stock_value = stock_value * usd_krw_rate
                         elif holding.price_currency == "EUR":
-                            eur_krw_rate = self.market_data_service.get_exchange_rate("EUR", "KRW", date.today(), db)
+                            eur_krw_rate = self.market_data_service.get_exchange_rate("EUR", "KRW", today_date, db)
                             if not eur_krw_rate:
                                 eur_krw_rate = to_decimal(1400, precision=4)
                             stock_value = stock_value * eur_krw_rate
                     else:
-                        # Fallback: infer price currency from ticker
-                        from app.utils.currency_inference import infer_price_currency_from_ticker
                         stock_price_currency = infer_price_currency_from_ticker(holding.ticker)
-
                         if stock_price_currency == "USD":
-                            usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", date.today(), db)
+                            usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", today_date, db)
                             if not usd_krw_rate:
                                 usd_krw_rate = to_decimal(1300, precision=4)
                             stock_value = stock_value * usd_krw_rate
                         elif stock_price_currency == "EUR":
-                            eur_krw_rate = self.market_data_service.get_exchange_rate("EUR", "KRW", date.today(), db)
+                            eur_krw_rate = self.market_data_service.get_exchange_rate("EUR", "KRW", today_date, db)
                             if not eur_krw_rate:
                                 eur_krw_rate = to_decimal(1400, precision=4)
                             stock_value = stock_value * eur_krw_rate
 
-                    stocks_value += stock_value
-
-        # Calculate percentages
         allocation = []
 
         if total_assets_krw > 0:
-            allocation.append({
-                "type": "Cash",
-                "value_krw": cash_value,
-                "percent": (cash_value / total_assets_krw * 100).quantize(Decimal("0.01"))
-            })
+            if stock_value > 0:
+                allocation.append({
+                    "type": "Stock",
+                    "value_krw": stock_value,
+                    "percent": (stock_value / total_assets_krw * 100).quantize(Decimal("0.01"))
+                })
+            if crypto_value > 0:
+                allocation.append({
+                    "type": "Crypto",
+                    "value_krw": crypto_value,
+                    "percent": (crypto_value / total_assets_krw * 100).quantize(Decimal("0.01"))
+                })
+            if cash_value > 0:
+                allocation.append({
+                    "type": "Cash",
+                    "value_krw": cash_value,
+                    "percent": (cash_value / total_assets_krw * 100).quantize(Decimal("0.01"))
+                })
+            if bond_value > 0:
+                allocation.append({
+                    "type": "Bond",
+                    "value_krw": bond_value,
+                    "percent": (bond_value / total_assets_krw * 100).quantize(Decimal("0.01"))
+                })
+            if gold_value > 0:
+                allocation.append({
+                    "type": "Gold",
+                    "value_krw": gold_value,
+                    "percent": (gold_value / total_assets_krw * 100).quantize(Decimal("0.01"))
+                })
 
-            allocation.append({
-                "type": "Stocks",
-                "value_krw": stocks_value,
-                "percent": (stocks_value / total_assets_krw * 100).quantize(Decimal("0.01"))
-            })
+        risk_assets_value = stock_value + crypto_value
+        safe_assets_value = cash_value + bond_value + gold_value
 
-            allocation.append({
-                "type": "Foreign Currency",
-                "value_krw": foreign_currency_value,
-                "percent": (foreign_currency_value / total_assets_krw * 100).quantize(Decimal("0.01"))
-            })
+        risk_percent = (risk_assets_value / total_assets_krw * 100).quantize(Decimal("0.01")) if total_assets_krw > 0 else Decimal("0")
+        safe_percent = (safe_assets_value / total_assets_krw * 100).quantize(Decimal("0.01")) if total_assets_krw > 0 else Decimal("0")
 
-        return allocation
+        return {
+            "allocation": allocation,
+            "risk_summary": {
+                "risk_assets_percent": risk_percent,
+                "safe_assets_percent": safe_percent
+            }
+        }
+
+    def _get_fallback_exchange_rate(self, from_currency: str) -> Decimal:
+        """
+        Get fallback exchange rate to KRW when market data is unavailable.
+
+        Args:
+            from_currency: Source currency code (e.g., "USD", "EUR")
+
+        Returns:
+            Decimal: Exchange rate to KRW, or None if currency not found
+
+        Fallback rates (as of typical values):
+            USD: 1300, EUR: 1400, JPY: 9, GBP: 1650,
+            CHF: 1450, CNY: 180, HKD: 167, SGD: 970
+        """
+        fallback_rates = {
+            "USD": to_decimal(1300, precision=4),
+            "EUR": to_decimal(1400, precision=4),
+            "JPY": to_decimal(9, precision=4),
+            "GBP": to_decimal(1650, precision=4),
+            "CHF": to_decimal(1450, precision=4),
+            "CNY": to_decimal(180, precision=4),
+            "HKD": to_decimal(167, precision=4),
+            "SGD": to_decimal(970, precision=4),
+        }
+        return fallback_rates.get(from_currency)
 
     def _calculate_top_assets(
         self,

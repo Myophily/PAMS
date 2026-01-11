@@ -94,9 +94,10 @@ export interface DashboardSummary {
     month: { amount_krw: DecimalString; amount_usd: DecimalString; percent: DecimalString };
     year: { amount_krw: DecimalString; amount_usd: DecimalString; percent: DecimalString };
   };
-  allocation: {
-    by_type: Array<{ type: string; value_krw: DecimalString; percent: DecimalString }>;
-    by_risk: Array<{ type: string; value_krw: DecimalString; percent: DecimalString }>;
+  allocation: Array<{ type: string; value_krw: DecimalString; percent: DecimalString }>;
+  risk_summary: {
+    risk_assets_percent: DecimalString;
+    safe_assets_percent: DecimalString;
   };
   top_assets: Array<{
     ticker: string;

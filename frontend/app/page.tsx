@@ -67,7 +67,7 @@ export default function HomePage() {
 
       {/* Charts section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AssetAllocationChart data={summary.allocation.by_type} />
+        <AssetAllocationChart data={summary.allocation} riskSummary={summary.risk_summary} />
         <TopAssetsBarChart assets={summary.top_assets} />
       </div>
 

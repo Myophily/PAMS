@@ -4,13 +4,29 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recha
 import { parseDecimal } from '@/lib/utils/decimal';
 import type { DecimalString } from '@/lib/types';
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+const ASSET_COLORS: Record<string, string> = {
+  Stock: '#F97316',
+  Crypto: '#EF4444',
+  Cash: '#3B82F6',
+  Bond: '#86EFAC',
+  Gold: '#22C55E',
+};
 
 interface AssetAllocationChartProps {
   data: Array<{ type: string; value_krw: DecimalString; percent: DecimalString }>;
+  riskSummary?: {
+    risk_assets_percent: DecimalString;
+    safe_assets_percent: DecimalString;
+  };
 }
 
-export function AssetAllocationChart({ data }: AssetAllocationChartProps) {
+interface ChartDataEntry {
+  type: string;
+  value_krw: number;
+  percent: number;
+}
+
+export function AssetAllocationChart({ data, riskSummary }: AssetAllocationChartProps) {
   if (!data || data.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
@@ -22,12 +38,14 @@ export function AssetAllocationChart({ data }: AssetAllocationChartProps) {
     );
   }
 
-  // Transform DecimalString to number for chart library
   const chartData = data.map((item) => ({
     type: item.type,
     value_krw: parseDecimal(item.value_krw),
     percent: parseDecimal(item.percent),
   }));
+
+  const riskPercent = riskSummary ? parseDecimal(riskSummary.risk_assets_percent) : 0;
+  const safePercent = riskSummary ? parseDecimal(riskSummary.safe_assets_percent) : 0;
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -39,13 +57,17 @@ export function AssetAllocationChart({ data }: AssetAllocationChartProps) {
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={(entry: any) => `${entry.type} ${entry.percent.toFixed(1)}%`}
+            label={(props) => {
+              const payload = props.payload as ChartDataEntry | undefined;
+              if (!payload) return '';
+              return `${payload.type} ${payload.percent.toFixed(1)}%`;
+            }}
             outerRadius={80}
             fill="#8884d8"
             dataKey="value_krw"
           >
-            {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            {chartData.map((entry) => (
+              <Cell key={`cell-${entry.type}`} fill={ASSET_COLORS[entry.type] || '#8884d8'} />
             ))}
           </Pie>
           <Tooltip
@@ -55,6 +77,20 @@ export function AssetAllocationChart({ data }: AssetAllocationChartProps) {
           <Legend />
         </PieChart>
       </ResponsiveContainer>
+      {riskSummary && (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex justify-center gap-8 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <span className="font-medium">Risk Assets: {riskPercent.toFixed(1)}%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+              <span className="font-medium">Safe Assets: {safePercent.toFixed(1)}%</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
