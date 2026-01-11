@@ -24,8 +24,7 @@ export function useTransactions(filters: TransactionFilters = {}) {
     queryFn: async () => {
       const res = await fetch(`/api/transactions?${params}`);
       if (!res.ok) throw new Error('Failed to fetch transactions');
-      const data = await res.json();
-      return data.data || data;
+      return await res.json();
     },
   });
 }

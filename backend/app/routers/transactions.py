@@ -12,7 +12,8 @@ from app.schemas.transaction_schema import (
     SellCreate,
     TransferCreate,
     ExchangeCreate,
-    TransactionResponse
+    TransactionResponse,
+    TransactionListResponse
 )
 from datetime import date
 from typing import List, Optional
@@ -291,7 +292,7 @@ def create_exchange(request: ExchangeCreate, db: Session = Depends(get_db)):
 
 # ========== QUERY ENDPOINTS ==========
 
-@router.get("/", response_model=List[TransactionResponse])
+@router.get("/")
 def list_transactions(
     account_id: Optional[int] = None,
     type: Optional[str] = None,
@@ -333,7 +334,49 @@ def list_transactions(
         limit=limit,
         offset=offset
     )
-    return transactions
+
+    # Calculate total for pagination
+    from app.models.transaction import Transaction
+    total_query = db.query(Transaction).filter(Transaction.deleted_at.is_(None))
+    if account_id:
+        total_query = total_query.filter(Transaction.account_id == account_id)
+    if type_filter:
+        total_query = total_query.filter(Transaction.type == type_filter)
+    if ticker_filter:
+        total_query = total_query.filter(Transaction.ticker == ticker_filter)
+    if start_date_parsed:
+        total_query = total_query.filter(Transaction.date >= start_date_parsed)
+    if end_date_parsed:
+        total_query = total_query.filter(Transaction.date <= end_date_parsed)
+
+    total = total_query.count()
+
+    # Convert ORM models to dicts for JSON serialization
+    transactions_data = [
+        {
+            "id": tx.id,
+            "account_id": tx.account_id,
+            "type": tx.type,
+            "ticker": tx.ticker,
+            "quantity": str(tx.quantity) if tx.quantity else None,
+            "price": str(tx.price) if tx.price else None,
+            "price_currency": tx.price_currency,
+            "amount": str(tx.amount),
+            "date": tx.date.isoformat(),
+            "linked_tx_id": tx.linked_tx_id,
+            "description": tx.description,
+            "created_at": tx.created_at.isoformat(),
+            "deleted_at": tx.deleted_at.isoformat() if tx.deleted_at else None
+        }
+        for tx in transactions
+    ]
+
+    return {
+        "transactions": transactions_data,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)
