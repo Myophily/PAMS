@@ -217,3 +217,24 @@ export interface UpdateRecurringTransferInput {
   description?: string;
   is_active?: boolean;
 }
+
+// Ledger types
+export interface LedgerRow {
+  id: number;                     // Primary transaction ID
+  date: string;
+  description: string;
+  debit: DecimalString;           // Positive amounts going out
+  credit: DecimalString;          // Positive amounts coming in
+  balance: DecimalString;         // Running balance after this row
+  ticker?: string;                // For multi-currency
+  linkedTxId?: number;
+  counterpartyAccount?: string;   // "From Account X" or "To Account Y"
+  accountName?: string;           // For consolidated ledger view
+}
+
+export interface LedgerFilters {
+  account_id?: number | number[];
+  start_date?: string;
+  end_date?: string;
+  ticker?: string;
+}

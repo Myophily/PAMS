@@ -8,6 +8,7 @@ import { TabNavigation } from './_components/TabNavigation';
 import { HoldingsTable } from './_components/HoldingsTable';
 import { TransactionTimeline } from './_components/TransactionTimeline';
 import { AccountAnalysisCharts } from './_components/AccountAnalysisCharts';
+import { AccountLedger } from './_components/AccountLedger';
 import { DeleteAccountModal } from '@/components/modals/DeleteAccountModal';
 import { getAccountTypeConfig, isTabAllowed, type AccountTab } from '@/lib/config/accountTypeConfig';
 
@@ -66,6 +67,7 @@ export default function AccountDetailPage() {
   const ALL_POSSIBLE_TABS = [
     { key: 'holdings' as AccountTab, label: 'Holdings' },
     { key: 'transactions' as AccountTab, label: 'Transactions' },
+    { key: 'ledger' as AccountTab, label: 'Ledger' },
     { key: 'analysis' as AccountTab, label: 'Analysis' },
   ];
 
@@ -109,6 +111,14 @@ export default function AccountDetailPage() {
 
           {activeTab === 'transactions' && (
             <TransactionTimeline accountId={accountId} />
+          )}
+
+          {activeTab === 'ledger' && isTabAllowed(account.type, 'ledger') && (
+            <AccountLedger
+              accountId={accountId}
+              currency={currency}
+              initialBalance="0.00"
+            />
           )}
 
           {activeTab === 'analysis' && isTabAllowed(account.type, 'analysis') && (

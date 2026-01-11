@@ -5,7 +5,7 @@
  * This defines which tabs, actions, and features are available for each account type.
  */
 
-export type AccountTab = 'holdings' | 'transactions' | 'analysis';
+export type AccountTab = 'holdings' | 'transactions' | 'analysis' | 'ledger';
 
 export interface AccountTypeConfig {
   displayName: string;
@@ -27,7 +27,7 @@ export const ACCOUNT_TYPE_CONFIG: Record<string, AccountTypeConfig> = {
   Deposit: {
     displayName: 'Deposit Account',
     description: 'Daily spending and cash management',
-    allowedTabs: ['transactions'],
+    allowedTabs: ['transactions', 'ledger'],
     primaryActions: ['deposit', 'transfer', 'exchange'],
   },
   Securities: {
@@ -45,13 +45,13 @@ export const ACCOUNT_TYPE_CONFIG: Record<string, AccountTypeConfig> = {
   MoneyMarket: {
     displayName: 'Money Market Fund',
     description: 'Interest-earning cash account',
-    allowedTabs: ['transactions', 'analysis'],
+    allowedTabs: ['transactions', 'ledger', 'analysis'],
     primaryActions: ['interest', 'transfer'],
   },
   Savings: {
     displayName: 'Savings Account',
     description: 'Interest-bearing savings account',
-    allowedTabs: ['transactions', 'analysis'],
+    allowedTabs: ['transactions', 'ledger', 'analysis'],
     primaryActions: ['deposit', 'interest', 'transfer'],
   },
 };
