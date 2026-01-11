@@ -114,6 +114,23 @@ export interface AssetChartData {
   gain_loss: DecimalString;  // Decimal as string from backend
 }
 
+export interface CandlestickData {
+  time: string;  // ISO date format
+  open: DecimalString;
+  high: DecimalString;
+  low: DecimalString;
+  close: DecimalString;
+}
+
+export interface CandlestickChartData {
+  candles: CandlestickData[];
+  period: 'daily' | 'monthly' | 'annual';
+  currency: string;
+  data_points: number;
+}
+
+export type CandlestickPeriod = 'daily' | 'monthly' | 'annual';
+
 // Form input types
 export interface InitialHoldingItem {
   ticker: string;      // "KRW", "USD", "AAPL", "TSLA", "GOLD" (currency or asset ticker)

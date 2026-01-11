@@ -576,3 +576,198 @@ class DashboardService:
         # Sort by value descending and take top N
         top_assets.sort(key=lambda x: x['value_krw'], reverse=True)
         return top_assets[:limit]
+
+    def get_candlestick_data(
+        self,
+        period: str,
+        currency: str,
+        db: Session,
+        start_date: date = None,
+        end_date: date = None
+    ) -> Dict:
+        """
+        Generate OHLC candlestick data from AssetSnapshot table.
+
+        Args:
+            period: Aggregation period ("daily", "monthly", "annual")
+            currency: Currency for values ("KRW" or "USD")
+            db: Database session
+            start_date: Optional start date (defaults based on period)
+            end_date: Optional end date (defaults to today)
+
+        Returns:
+            Dict with candles array containing OHLC data
+
+        Aggregation logic:
+            - Daily: Each snapshot = one candle (O=H=L=C since one value per day)
+            - Monthly: Group by month, calculate O (1st), H (max), L (min), C (last)
+            - Annual: Group by year, calculate O (1st), H (max), L (min), C (last)
+        """
+        # Determine date range
+        if not end_date:
+            end_date = date.today()
+
+        if not start_date:
+            if period == "daily":
+                start_date = end_date - timedelta(days=90)  # Default: 90 days
+            elif period == "monthly":
+                start_date = end_date - timedelta(days=365)  # Default: 1 year
+            else:  # annual
+                start_date = end_date - timedelta(days=365 * 5)  # Default: 5 years
+
+        # Get snapshots from DB
+        snapshots = self.snapshot_service.get_snapshots_range(start_date, end_date, db)
+
+        if not snapshots:
+            return {
+                "candles": [],
+                "period": period,
+                "currency": currency,
+                "data_points": 0
+            }
+
+        # Select value field based on currency
+        value_field = "total_assets_krw" if currency == "KRW" else "total_assets_usd"
+
+        # Aggregate based on period
+        if period == "daily":
+            candles = self._aggregate_daily(snapshots, value_field)
+        elif period == "monthly":
+            candles = self._aggregate_monthly(snapshots, value_field)
+        else:  # annual
+            candles = self._aggregate_annual(snapshots, value_field)
+
+        return {
+            "candles": candles,
+            "period": period,
+            "currency": currency,
+            "data_points": len(candles)
+        }
+
+    def _aggregate_daily(self, snapshots: List[AssetSnapshot], value_field: str) -> List[Dict]:
+        """
+        Daily aggregation: Each snapshot becomes one candle where O=H=L=C.
+
+        Since we only have one value per day, all OHLC values are the same.
+        The variation is shown between consecutive days.
+
+        Args:
+            snapshots: List of AssetSnapshot records
+            value_field: Field to use for values ("total_assets_krw" or "total_assets_usd")
+
+        Returns:
+            List of dicts with time, open, high, low, close
+        """
+        candles = []
+        for snapshot in snapshots:
+            value = getattr(snapshot, value_field)
+            candles.append({
+                "time": snapshot.date.isoformat(),
+                "open": value,
+                "high": value,
+                "low": value,
+                "close": value
+            })
+        return candles
+
+    def _aggregate_monthly(self, snapshots: List[AssetSnapshot], value_field: str) -> List[Dict]:
+        """
+        Monthly aggregation: Group by month, calculate OHLC.
+
+        - Open: First day's value in the month
+        - High: Maximum value during the month
+        - Low: Minimum value during the month
+        - Close: Last day's value in the month
+
+        Args:
+            snapshots: List of AssetSnapshot records
+            value_field: Field to use for values ("total_assets_krw" or "total_assets_usd")
+
+        Returns:
+            List of dicts with time, open, high, low, close
+        """
+        from collections import defaultdict
+
+        # Group by year-month
+        monthly_data = defaultdict(list)
+        for snapshot in snapshots:
+            month_key = snapshot.date.strftime("%Y-%m")
+            value = getattr(snapshot, value_field)
+            monthly_data[month_key].append({
+                "date": snapshot.date,
+                "value": value
+            })
+
+        # Calculate OHLC for each month
+        candles = []
+        for month_key in sorted(monthly_data.keys()):
+            values = monthly_data[month_key]
+            # Sort by date
+            values.sort(key=lambda x: x["date"])
+
+            open_val = values[0]["value"]  # First day
+            close_val = values[-1]["value"]  # Last day
+            high_val = max(v["value"] for v in values)
+            low_val = min(v["value"] for v in values)
+
+            # Use last day of the month as time
+            candles.append({
+                "time": values[-1]["date"].isoformat(),
+                "open": open_val,
+                "high": high_val,
+                "low": low_val,
+                "close": close_val
+            })
+
+        return candles
+
+    def _aggregate_annual(self, snapshots: List[AssetSnapshot], value_field: str) -> List[Dict]:
+        """
+        Annual aggregation: Group by year, calculate OHLC.
+
+        - Open: First day's value in the year
+        - High: Maximum value during the year
+        - Low: Minimum value during the year
+        - Close: Last day's value in the year
+
+        Args:
+            snapshots: List of AssetSnapshot records
+            value_field: Field to use for values ("total_assets_krw" or "total_assets_usd")
+
+        Returns:
+            List of dicts with time, open, high, low, close
+        """
+        from collections import defaultdict
+
+        # Group by year
+        yearly_data = defaultdict(list)
+        for snapshot in snapshots:
+            year_key = snapshot.date.strftime("%Y")
+            value = getattr(snapshot, value_field)
+            yearly_data[year_key].append({
+                "date": snapshot.date,
+                "value": value
+            })
+
+        # Calculate OHLC for each year
+        candles = []
+        for year_key in sorted(yearly_data.keys()):
+            values = yearly_data[year_key]
+            # Sort by date
+            values.sort(key=lambda x: x["date"])
+
+            open_val = values[0]["value"]  # First day
+            close_val = values[-1]["value"]  # Last day
+            high_val = max(v["value"] for v in values)
+            low_val = min(v["value"] for v in values)
+
+            # Use last day of the year as time
+            candles.append({
+                "time": values[-1]["date"].isoformat(),
+                "open": open_val,
+                "high": high_val,
+                "low": low_val,
+                "close": close_val
+            })
+
+        return candles

@@ -1,6 +1,7 @@
 "use client";
 
-import { useDashboardSummary, useAssetChart } from "@/lib/hooks/useDashboard";
+import { useState } from 'react';
+import { useDashboardSummary, useCandlestickChart } from "@/lib/hooks/useDashboard";
 import { useCurrency } from "@/lib/context/currency-context";
 import { Spinner } from "@/components/ui/Spinner";
 import { TotalAssetCard } from "./_components/TotalAssetCard";
@@ -8,12 +9,15 @@ import { ExchangeRateDisplay } from "./_components/ExchangeRateDisplay";
 import { AssetChangeStats } from "./_components/AssetChangeStats";
 import { AssetAllocationChart } from "@/components/charts/AssetAllocationChart";
 import { TopAssetsBarChart } from "@/components/charts/TopAssetsBarChart";
-import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
+import { AssetCandlestickChart } from "@/components/charts/AssetCandlestickChart";
+import type { CandlestickPeriod } from "@/lib/types";
 
 export default function HomePage() {
   const { currency } = useCurrency();
+  const [chartPeriod, setChartPeriod] = useState<CandlestickPeriod>('daily');
+
   const { data: summary, isLoading, error } = useDashboardSummary();
-  const { data: chartData } = useAssetChart("1M", currency);
+  const { data: candlestickData } = useCandlestickChart(chartPeriod, currency);
 
   if (isLoading) {
     return (
@@ -71,8 +75,12 @@ export default function HomePage() {
         <TopAssetsBarChart assets={summary.top_assets} />
       </div>
 
-      {/* Full width volatility chart */}
-      <AssetVolatilityChart data={chartData?.chart_data || []} />
+      {/* Full width candlestick chart */}
+      <AssetCandlestickChart
+        data={candlestickData?.candles || []}
+        period={chartPeriod}
+        onPeriodChange={setChartPeriod}
+      />
     </div>
   );
 }

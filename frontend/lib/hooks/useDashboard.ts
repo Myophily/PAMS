@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { DashboardSummary, AssetChartData } from '../types';
+import type { DashboardSummary, AssetChartData, CandlestickChartData, CandlestickPeriod } from '../types';
 
 // Get dashboard summary
 export function useDashboardSummary() {
@@ -25,5 +25,24 @@ export function useAssetChart(period: string = '1M', currency: string = 'KRW') {
       const data = await res.json();
       return data.data || data;
     },
+  });
+}
+
+// Get candlestick chart data
+export function useCandlestickChart(
+  period: CandlestickPeriod = 'daily',
+  currency: string = 'KRW'
+) {
+  return useQuery<CandlestickChartData>({
+    queryKey: ['dashboard', 'candlestick-chart', period, currency],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/dashboard/candlestick-chart?period=${period}&currency=${currency}`
+      );
+      if (!res.ok) throw new Error('Failed to fetch candlestick chart data');
+      const data = await res.json();
+      return data.data || data;
+    },
+    staleTime: 60000, // 1 minute
   });
 }
