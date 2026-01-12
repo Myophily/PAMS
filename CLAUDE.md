@@ -69,9 +69,30 @@ When you need detailed information on specific topics, refer to these files:
 - `Transaction` → **Immutable log** (source of truth)
 - `Holding` → **Computed state** (derived from transactions)
 - `MarketData` → Cached prices and exchange rates
-- `AssetSnapshot` → Daily total asset values
+- `AssetSnapshot` → Hourly total asset values
 
 **For detailed specs:** [API_SPEC.md](API_SPEC.md), [DATABASE.md](DATABASE.md), [FRONTEND_COMPONENTS.md](FRONTEND_COMPONENTS.md)
+
+### Background Services
+
+**APScheduler** runs inside the FastAPI backend for automated tasks:
+
+**Jobs:**
+- **Hourly snapshots:** Generates `AssetSnapshot` every hour at :00 minutes (12:00, 13:00, 14:00, etc.)
+- **Recurring transfers:** Executes scheduled transfers (daily/weekly/monthly patterns)
+- **Gap detection:** Automatically backfills missing snapshots on server startup
+
+**Implementation:**
+- Job storage: SQLite database (same as application data)
+- Executor: Single-threaded to prevent race conditions
+- Lifecycle: Starts on backend startup, shuts down gracefully on stop
+- Configuration: See `app/main.py` for scheduler setup
+
+**Key behaviors:**
+- Recurring transfers are loaded from database on startup
+- Jobs are scheduled dynamically when transfers are created/updated/deleted
+- Missed executions are handled with 1-hour grace period
+- Prevents concurrent execution of same job
 
 ---
 
@@ -194,6 +215,32 @@ tx1.linked_tx_id = tx2.id
 - Backend: [API_SPEC.md](API_SPEC.md)
 - Frontend: [FRONTEND_COMPONENTS.md](FRONTEND_COMPONENTS.md#react-query-hooks)
 
+### Understanding the API Proxy
+
+**Critical:** The frontend uses Next.js rewrites to proxy API requests.
+
+**Configuration** ([next.config.ts](frontend/next.config.ts)):
+```typescript
+async rewrites() {
+  return [{
+    source: '/api/:path*',
+    destination: 'http://localhost:8000/api/:path*',
+  }];
+}
+```
+
+**What this means:**
+- Frontend code calls: `fetch('/api/accounts')`
+- Next.js automatically rewrites to: `http://localhost:8000/api/accounts`
+- No CORS issues in development (requests appear same-origin to browser)
+- Backend still has CORS configured for direct access
+
+**Why this matters:**
+- Never hardcode `http://localhost:8000` in frontend code
+- Always use relative paths: `/api/...`
+- The proxy only works when Next.js dev server is running
+- For production: Update `destination` URL to point to deployed backend
+
 ### Time-Travel Recalculation
 
 **CRITICAL:** When inserting a past transaction, you MUST trigger recalculation:
@@ -209,14 +256,19 @@ if transaction.date < date.today():
 
 ## Development Workflow
 
-### Quick Start
+### Starting the Application
 
 **Terminal 1 (Backend):**
 ```bash
 cd backend
 source venv/bin/activate  # Windows: venv\Scripts\activate
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8000
 ```
+
+**Runs on:**
+- API server: `http://localhost:8000`
+- Interactive docs: `http://localhost:8000/docs` (FastAPI Swagger UI)
+- Health check: `http://localhost:8000/api/health`
 
 **Terminal 2 (Frontend):**
 ```bash
@@ -224,9 +276,152 @@ cd frontend
 npm run dev
 ```
 
-**Browser:** `http://localhost:3000`
+**Runs on:**
+- Frontend: `http://localhost:3000`
+- API requests automatically proxy to backend via Next.js rewrites
+
+**Browser:** Open `http://localhost:3000`
+
+**Important:** Both servers must run simultaneously for the application to work.
 
 **Detailed setup:** [SETUP.md](SETUP.md)
+
+### When to Restart Servers
+
+**Backend restart required for:**
+- Changes to `app/main.py` or startup configuration
+- Installing new Python packages (`pip install ...`)
+- Database schema changes (though migrations auto-run on startup)
+- Changes to `.env` file
+- Changes to APScheduler configuration
+
+**Backend auto-reloads for:**
+- Changes to any Python file (thanks to `--reload` flag)
+- Changes to router/service/model files
+
+**Frontend restart required for:**
+- Changes to `next.config.ts`
+- Changes to `tailwind.config.ts` or PostCSS config
+- Installing new npm packages (`npm install ...`)
+- Changes to `.env.local` file
+
+**Frontend auto-reloads for:**
+- Component changes (hot module replacement)
+- Page changes (fast refresh)
+- Style changes (CSS hot reload)
+- Most code changes (hot reload enabled)
+
+### Environment Variables
+
+**Backend** (`.env` in `backend/` directory):
+```env
+CORS_ORIGINS=http://localhost:3000
+# Add API keys for external services here (e.g., market data providers)
+```
+
+**Frontend** (`.env.local` in `frontend/` directory):
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3000/api
+```
+
+**Note:** Environment files are in `.gitignore` for security. Never commit secrets.
+
+### Running Tests
+
+**Backend Tests:**
+```bash
+cd backend
+source venv/bin/activate  # Ensure venv is active
+
+# Run all tests
+pytest
+
+# Run specific test file
+pytest tests/test_transactions.py
+
+# Run tests matching pattern
+pytest tests/ -k "test_transfer"
+
+# Run with coverage report (terminal output)
+pytest --cov=app --cov-report=term-missing
+
+# Run with HTML coverage report (detailed)
+pytest --cov=app --cov-report=html
+# Then open: htmlcov/index.html in browser
+
+# Run single test function
+pytest tests/test_transactions.py::test_create_deposit -v
+```
+
+**Test Configuration:**
+- Config file: `backend/pytest.ini`
+- Test files: `backend/tests/` directory
+- Coverage reports: `backend/htmlcov/` (generated after running with `--cov-report=html`)
+- Test database: Uses in-memory SQLite (configured in `tests/conftest.py`)
+
+**Frontend Checks:**
+```bash
+cd frontend
+
+# Run ESLint
+npm run lint
+
+# Type-check and build (catches TypeScript errors)
+npm run build
+```
+
+**Test Focus Areas:**
+- **Unit tests:** `tests/utils/` - Calculation logic, decimal helpers
+- **Service tests:** `tests/services/` - Transaction patterns, business logic
+- **API tests:** `tests/routers/` - Endpoint behavior, validation
+- **Integration tests:** Full transaction flows with database
+
+### Database Management
+
+**Database Location:** `backend/asset_data.db` (SQLite file)
+
+**Inspect Database:**
+```bash
+# Health check API
+curl http://localhost:8000/api/health
+
+# Interactive API docs (best way to explore data)
+open http://localhost:8000/docs
+
+# SQLite Browser (external tool)
+# Download: https://sqlitebrowser.org/
+# Open: backend/asset_data.db
+```
+
+**Reset Database (Clean Slate):**
+```bash
+cd backend
+python scripts/reset_database.py  # Creates backup before reset
+```
+
+**Database Migrations:**
+
+Migrations run **automatically** on server startup (see `app/main.py` `on_startup()` function):
+- `migrate_account_types()` - Account type enum updates
+- `migrate_date_to_datetime()` - Date field upgrades to datetime
+- `migrate_recurring_transfer_nullable_to_account()` - Recurring transfer schema
+- `migrate_snapshot_date_to_datetime()` - Snapshot timestamp migration
+- Snapshot gap detection and backfill
+
+**Manual Migration Scripts:**
+```bash
+cd backend/scripts
+python run_migration_003.py  # Run specific migration if needed
+python migrate_cash_to_currencies.py  # One-time data migration
+```
+
+**Backup Database:**
+```bash
+# Simple backup
+cp backend/asset_data.db backend/asset_data_backup_$(date +%Y%m%d).db
+
+# The reset script also creates automatic backups
+```
 
 ---
 
@@ -261,6 +456,44 @@ npm run dev
 
 ---
 
+## Testing Strategy
+
+**Backend Testing:**
+```bash
+cd backend
+pytest                              # Run all tests
+pytest tests/test_transactions.py   # Single file
+pytest tests/ -k "test_transfer"    # Pattern matching
+pytest --cov=app                    # With coverage
+pytest --cov=app --cov-report=html  # HTML coverage report
+```
+
+**Focus areas:**
+- **Unit Tests:** Calculation logic (avg price, P/L, asset valuation) - `tests/utils/`
+- **Service Tests:** Transaction patterns, business logic - `tests/services/`
+- **Integration Tests:** Transaction flows (deposit, transfer, buy/sell, exchange) - `tests/services/`
+- **API Tests:** Endpoint behavior, validation, error handling - `tests/routers/`
+
+**Test Database:**
+- Uses separate in-memory SQLite database
+- Configured in `tests/conftest.py`
+- Database is created fresh for each test session
+- Does not affect production `asset_data.db`
+
+**Coverage:**
+- Run `pytest --cov=app --cov-report=term-missing` to see uncovered lines
+- HTML report: `pytest --cov=app --cov-report=html` → open `htmlcov/index.html`
+- Current coverage tracked in test runs
+
+**Frontend Testing:**
+- ESLint: `npm run lint`
+- TypeScript type checking: `npm run build`
+- Future: Jest/React Testing Library for component tests
+
+**Test examples:** [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md#testing-transaction-patterns)
+
+---
+
 ## Common Debugging Scenarios
 
 | Issue | First Steps | Reference |
@@ -269,6 +502,8 @@ npm run dev
 | **Past transaction didn't recalculate** | Verify `recalculate_from_date()` called → Check `AssetSnapshot` table | [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md) |
 | **API 500 error** | Check FastAPI console → Verify DB connection → Check foreign keys | [API_SPEC.md](API_SPEC.md) |
 | **Frontend stale data** | Check React Query cache → Verify `queryKey` → Call `invalidateQueries` | [FRONTEND_COMPONENTS.md](FRONTEND_COMPONENTS.md) |
+| **Backend won't start** | Check port 8000 not in use → Verify venv activated → Check `.env` file exists | [SETUP.md](SETUP.md) |
+| **Frontend can't reach API** | Verify backend running on :8000 → Check `next.config.ts` rewrites → Check browser network tab | [next.config.ts](frontend/next.config.ts) |
 
 **Troubleshooting guide:** [SETUP.md](SETUP.md#troubleshooting)
 
@@ -287,17 +522,6 @@ npm run dev
 - Components: `components/AccountCard.tsx` (PascalCase)
 - Hooks: `lib/hooks/useAccounts.ts` (camelCase, starts with 'use')
 - Types: `lib/types.ts` (centralized)
-
----
-
-## Testing Strategy
-
-**Focus areas:**
-- **Unit Tests:** Calculation logic (avg price, P/L, asset valuation)
-- **Integration Tests:** Transaction flows (deposit, transfer, buy/sell, exchange)
-- **E2E Tests:** Complete user workflows (create account → add transaction → view dashboard)
-
-**Test examples:** [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md#testing-transaction-patterns)
 
 ---
 
