@@ -10,17 +10,19 @@ The backend enforces which transaction types are allowed on each account type to
 
 ### Allowed Transactions Matrix
 
-| Transaction Type | Deposit | Securities | ForeignCurrency | MoneyMarket | Pattern |
-|------------------|---------|------------|-----------------|-------------|---------|
-| `Deposit` | ✅ | ✅ | ✅ | ✅ | Pattern ① |
-| `Withdrawal` | ✅ | ✅ | ✅ | ✅ | Pattern ① |
-| `Transfer_In` | ✅ | ✅ | ✅ | ✅ | Pattern ② |
-| `Transfer_Out` | ✅ | ✅ | ✅ | ✅ | Pattern ② |
-| `Buy` | ❌ | ✅ | ❌ | ❌ | Pattern ③ |
-| `Sell` | ❌ | ✅ | ❌ | ❌ | Pattern ③ |
-| `Dividend` | ❌ | ✅ | ❌ | ❌ | Pattern ① |
-| `Exchange` | ❌ | ❌ | ✅ | ❌ | Pattern ④ |
-| `Interest` | ❌ | ❌ | ❌ | ✅ | Pattern ① |
+| Transaction Type | Deposit | Securities | ForeignCurrency | MoneyMarket | Savings | Pattern |
+|------------------|---------|------------|-----------------|-------------|---------|---------|
+| `Deposit` | ✅ | ✅ | ✅ | ✅ | ✅ | Pattern ① |
+| `Withdrawal` | ✅ | ✅ | ✅ | ✅ | ✅ | Pattern ① |
+| `Transfer_In` | ✅ | ✅ | ✅* | ✅ | ✅ | Pattern ② |
+| `Transfer_Out` | ✅ | ✅ | ✅* | ✅ | ✅ | Pattern ② |
+| `Buy` | ❌ | ✅ | ❌ | ❌ | ❌ | Pattern ③ |
+| `Sell` | ❌ | ✅ | ❌ | ❌ | ❌ | Pattern ③ |
+| `Dividend` | ❌ | ✅ | ❌ | ❌ | ❌ | Pattern ① |
+| `Exchange` | ❌ | ❌ | ✅ | ❌ | ❌ | Pattern ④ |
+| `Interest` | ❌ | ❌ | ❌ | ✅ | ✅ | Pattern ① |
+
+**Note:** * ForeignCurrency accounts use Exchange with `to_account_id` for cross-account transfers (4-transaction pattern). Simple Transfer_In/Out allowed for same-currency transfers only.
 
 ### Rationale
 
@@ -43,6 +45,11 @@ The backend enforces which transaction types are allowed on each account type to
 - Purpose: Money market funds earning interest
 - Allowed: Cash operations + Interest income
 - Rationale: Similar to deposit accounts but tracks interest earnings
+
+**Savings Accounts:**
+- Purpose: Savings accounts earning interest (any currency)
+- Allowed: Cash operations + Interest income
+- Rationale: Like MoneyMarket but supports multiple currencies
 
 ### Validation Error Example
 
@@ -98,7 +105,7 @@ transaction = Transaction(
     quantity=None,
     price=None,
     amount=1000000.00,  # Positive for income, negative for expense
-    date=date(2024, 1, 15),
+    date=datetime(2024, 1, 15, 10, 30),
     linked_tx_id=None,  # No linked transaction
     description="Monthly salary"
 )
@@ -145,7 +152,7 @@ Transaction(
     account_id=1,
     type="Deposit",
     amount=1000000.00,  # Positive amount
-    date=date.today(),
+    date=datetime.now(),
     description="Monthly salary"
 )
 ```
@@ -164,7 +171,7 @@ Transaction(
     account_id=1,
     type="Withdrawal",
     amount=-50000.00,  # Negative amount
-    date=date.today(),
+    date=datetime.now(),
     description="Grocery shopping"
 )
 ```
@@ -184,7 +191,7 @@ Transaction(
     type="Dividend",
     ticker="AAPL",  # Stock that paid dividend
     amount=50.00,  # Dividend amount received
-    date=date.today(),
+    date=datetime.now(),
     description="Apple quarterly dividend"
 )
 ```
@@ -221,7 +228,7 @@ def validate_deposit_withdrawal(transaction: Transaction, db: Session):
             raise ValueError("Insufficient cash balance")
 
     # Check date is not in future
-    if transaction.date > date.today():
+    if transaction.date > datetime.now():
         raise ValueError("Transaction date cannot be in the future")
 ```
 
@@ -250,7 +257,7 @@ tx_out = Transaction(
     account_id=source_account.id,
     type="Transfer_Out",
     amount=-500000.00,  # Negative (money leaving)
-    date=date(2024, 1, 15),
+    date=datetime(2024, 1, 15, 10, 30),
     description=f"Transfer to {target_account.name}"
 )
 db.add(tx_out)
@@ -261,7 +268,7 @@ tx_in = Transaction(
     account_id=target_account.id,
     type="Transfer_In",
     amount=500000.00,  # Positive (money arriving)
-    date=date(2024, 1, 15),
+    date=datetime(2024, 1, 15, 10, 30),
     description=f"Transfer from {source_account.name}"
 )
 db.add(tx_in)
@@ -409,8 +416,9 @@ transaction = Transaction(
     ticker="AAPL",
     quantity=10,
     price=150.00,
+    price_currency="USD",  # Currency of the price
     amount=-1500.00,  # Negative for buy (cash outflow)
-    date=date(2024, 1, 15),
+    date=datetime(2024, 1, 15, 10, 30),
     linked_tx_id=None,
     description="Buy Apple stock"
 )
@@ -481,6 +489,7 @@ Transaction(
     ticker="AAPL",
     quantity=10,
     price=150.00,
+    price_currency="USD",
     amount=-1500.00,  # Cash outflow
     date='2024-01-15'
 )
@@ -529,6 +538,7 @@ Transaction(
     ticker="AAPL",
     quantity=5,
     price=180.00,
+    price_currency="USD",
     amount=900.00,  # Cash inflow (5 × $180)
     date='2024-01-20'
 )
@@ -639,11 +649,127 @@ def validate_buy_sell(transaction: Transaction, db: Session):
 
 ---
 
-## ~~Pattern ④ Exchange~~ (REMOVED - 2024-01-20)
+## Pattern ① (Variant): Interest Transaction
 
-**Note:** Same-account exchange within a single Foreign Currency Account is NO LONGER SUPPORTED.
+**Reality:** Interest earned on savings or money market accounts increases cash balance.
 
-All exchange operations now REQUIRE a target account and create 4 transactions. See Pattern ④+② Cross-Account Exchange-Transfer below for the current implementation.
+**Examples:**
+- Monthly interest on savings account
+- Daily interest on money market fund
+- Certificate of deposit interest payment
+
+**Characteristic:** Single account involved, single holding (CASH) affected, total assets increase.
+
+---
+
+### Implementation
+
+**Database Operations:**
+
+1. **Create Transaction Record:**
+```python
+transaction = Transaction(
+    account_id=account.id,
+    type="Interest",
+    ticker="KRW",  # Currency earning interest
+    quantity=None,
+    price=None,
+    price_currency=None,
+    amount=50000.00,  # Positive inflow
+    date=datetime.now(),
+    linked_tx_id=None,
+    description="Monthly interest payment"
+)
+db.add(transaction)
+```
+
+2. **Update CASH Holding:**
+```python
+cash_holding = get_or_create_cash_holding(account.id, db)
+cash_holding.quantity += transaction.amount  # Increases by interest amount
+```
+
+3. **Update AssetSnapshot (if past date):**
+```python
+if transaction.date < datetime.now():
+    recalculate_from_date(transaction.date, db)
+```
+
+---
+
+### Interest Transaction Example
+
+**Scenario:** Receive 50,000 KRW monthly interest on Money Market account
+
+**Before:**
+```
+Account: Toss Money Market (ID=4)
+  - CASH: 10,000,000 KRW
+
+Total Assets: 10,000,000 KRW
+```
+
+**Transaction:**
+```python
+Transaction(
+    id=301,
+    account_id=4,
+    type="Interest",
+    ticker="KRW",
+    amount=50000.00,
+    date='2024-01-31'
+)
+```
+
+**After:**
+```
+Account: Toss Money Market (ID=4)
+  - CASH: 10,050,000 KRW
+
+Total Assets: 10,050,000 KRW  ← INCREASED by interest
+```
+
+---
+
+### Validation Rules
+
+```python
+def validate_interest_transaction(transaction, account, db):
+    """Validate Interest transaction."""
+
+    # Only allowed on MoneyMarket and Savings accounts
+    if account.type not in ['MoneyMarket', 'Savings']:
+        raise ValueError(f"Interest transactions only allowed on MoneyMarket and Savings accounts")
+
+    # Amount must be positive
+    if transaction.amount <= 0:
+        raise ValueError("Interest amount must be positive")
+
+    # Ticker must be a currency (not a stock)
+    if transaction.ticker not in ['KRW', 'USD', 'EUR', 'JPY']:
+        raise ValueError("Interest ticker must be a currency code")
+```
+
+---
+
+### Business Rules
+
+1. **Account type restriction:** Only MoneyMarket and Savings accounts can have Interest transactions
+2. **Total assets change:** Unlike Pattern ③ (Buy/Sell), Interest increases total asset value
+3. **Similar to Deposit:** Functionally similar to Deposit, but semantically different (earned vs. deposited)
+4. **Frequency:** Can be daily, monthly, or quarterly depending on account terms
+5. **Compounding:** Each interest transaction is independent; compounding calculated by creating new Interest transactions based on previous balance
+
+---
+
+## Pattern ④ Exchange (EVOLVED - Now Cross-Account Only)
+
+**Note:** Pattern ④ has evolved from single-account same-currency exchange to cross-account exchange-transfer only.
+
+**Previous behavior (deprecated):** Same-account exchange within a single Foreign Currency Account
+**Current behavior:** All exchange operations now require a target account and create 4 transactions using Pattern ④+② (see Cross-Account Exchange-Transfer section below).
+
+**Why the change:** Cross-account exchanges with automatic currency conversion better reflect real-world financial operations and provide clearer transaction tracking.
 
 **Characteristic:** Single account, two currency holdings affected, total asset value unchanged at transaction time (same account, different currencies).
 
@@ -661,7 +787,7 @@ tx_sell = Transaction(
     type="Exchange",
     ticker="KRW",  # Currency being sold
     amount=-1300000.00,  # Negative (currency leaving)
-    date=date(2024, 1, 15),
+    date=datetime(2024, 1, 15, 10, 30),
     description="Exchange KRW to USD"
 )
 db.add(tx_sell)
@@ -673,7 +799,7 @@ tx_buy = Transaction(
     type="Exchange",
     ticker="USD",  # Currency being bought
     amount=1000.00,  # Positive (currency arriving)
-    date=date(2024, 1, 15),
+    date=datetime(2024, 1, 15, 10, 30),
     description="Exchange KRW to USD"
 )
 db.add(tx_buy)
@@ -803,7 +929,7 @@ def validate_exchange(from_ticker: str, to_ticker: str, from_amount: float,
     exchange_rate = from_amount / to_amount
 
     # Fetch market rate for comparison (warning only)
-    market_rate = get_exchange_rate(to_ticker, from_ticker, date.today(), db)
+    market_rate = get_exchange_rate(to_ticker, from_ticker, datetime.now(), db)
     if market_rate:
         deviation = abs(exchange_rate - market_rate) / market_rate
         if deviation > 0.05:  # >5% deviation
@@ -1039,7 +1165,7 @@ def validate_cross_account_exchange(
 
 ```python
 from sqlalchemy.orm import Session
-from datetime import date
+from datetime import datetime
 from models import Transaction, Holding, Account, MarketData
 from decimal import Decimal
 
@@ -1132,7 +1258,7 @@ class TransactionService:
         stock_holding.quantity = total_qty
 
         # Trigger recalculation if past transaction
-        if transaction_date < date.today():
+        if transaction_date < datetime.now():
             self.recalculate_from_date(transaction_date, db)
 
         db.commit()
@@ -1156,7 +1282,7 @@ class TransactionService:
 ```python
 import pytest
 from decimal import Decimal
-from datetime import date
+from datetime import datetime
 
 def test_deposit_transaction(db_session):
     """Test Pattern ① - Deposit."""
@@ -1168,7 +1294,7 @@ def test_deposit_transaction(db_session):
     tx = service.create_deposit(
         account_id=account.id,
         amount=Decimal("1000.00"),
-        transaction_date=date.today(),
+        transaction_date=datetime.now(),
         description="Test deposit",
         db=db_session
     )
@@ -1199,7 +1325,7 @@ def test_transfer_transaction(db_session):
         from_account_id=account1.id,
         to_account_id=account2.id,
         amount=Decimal("500.00"),
-        transaction_date=date.today(),
+        transaction_date=datetime.now(),
         description="Test transfer",
         db=db_session
     )
@@ -1232,7 +1358,7 @@ def test_buy_transaction(db_session):
         ticker="AAPL",
         quantity=Decimal("10"),
         price=Decimal("150.00"),
-        transaction_date=date.today(),
+        transaction_date=datetime.now(),
         description="Buy Apple",
         db=db_session
     )
@@ -1260,7 +1386,7 @@ def test_exchange_transaction(db_session):
         to_ticker="USD",
         from_amount=Decimal("1300000.00"),
         to_amount=Decimal("1000.00"),
-        transaction_date=date.today(),
+        transaction_date=datetime.now(),
         description="Buy USD",
         db=db_session
     )
@@ -1307,11 +1433,11 @@ def test_exchange_transaction(db_session):
 3. **Not recalculating on past transactions:**
    ```python
    # ❌ WRONG - Forgetting time-travel recalculation
-   if transaction.date < date.today():
+   if transaction.date < datetime.now():
        pass  # Do nothing
 
    # ✅ CORRECT
-   if transaction.date < date.today():
+   if transaction.date < datetime.now():
        recalculate_from_date(transaction.date, db)
    ```
 

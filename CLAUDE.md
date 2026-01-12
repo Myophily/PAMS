@@ -46,6 +46,8 @@ When you need detailed information on specific topics, refer to these files:
 - **Dashboard (`/`)** → Total asset overview, allocation charts, volatility graph
 - **Account List (`/accounts`)** → Card-based account management with action buttons
 - **Account Details (`/accounts/[id]`)** → 3-tab view (Holdings, Transactions, Analysis)
+- **Ledger (`/ledger`)** → All transactions across accounts with filtering
+- **Recurring Transfers (`/recurring-transfers`)** → Manage scheduled transfers (salary, rent)
 - **Modals** → Account creation, transaction entry, transfers, exchanges
 
 **For detailed component specs:** [FRONTEND_COMPONENTS.md](FRONTEND_COMPONENTS.md)
@@ -79,7 +81,11 @@ When you need detailed information on specific topics, refer to these files:
 
 **Jobs:**
 - **Hourly snapshots:** Generates `AssetSnapshot` every hour at :00 minutes (12:00, 13:00, 14:00, etc.)
-- **Recurring transfers:** Executes scheduled transfers (daily/weekly/monthly patterns)
+- **Recurring transfers:** Executes scheduled transfers based on `RecurringTransfer` configuration
+  - Checks `day_of_month` against current date
+  - Creates Transaction records automatically when day matches
+  - Updates `last_executed_date` after successful execution
+  - Skips execution if already run today (prevents duplicates)
 - **Gap detection:** Automatically backfills missing snapshots on server startup
 
 **Implementation:**
@@ -165,11 +171,13 @@ tx1.linked_tx_id = tx2.id
 
 - **Deposit accounts:** Only `Deposit`, `Withdrawal`, `Transfer_In`, `Transfer_Out` (cash operations only)
 - **Securities accounts:** All transaction types including `Buy`, `Sell`, `Dividend` (full investment capabilities)
-- **ForeignCurrency accounts:** `Deposit`, `Withdrawal`, `Exchange` only
-  - **Transfer removed** - use Exchange with `to_account_id` for cross-account transfers
-  - Cross-account transfers automatically convert currency and create 4 transactions
-  - **Direct transfers between Foreign Currency accounts NOT SUPPORTED**
+- **ForeignCurrency accounts:** `Deposit`, `Withdrawal`, `Exchange`
+  - Simple transfers (Transfer_In/Out): Allowed for same-currency only
+  - Cross-account transfers: Use Exchange with `to_account_id` parameter
+  - Creates 4-transaction pattern (exchange + transfer) automatically
+  - **Direct Transfer between Foreign Currency accounts NOT recommended** - use Exchange for automatic conversion
 - **MoneyMarket accounts:** Cash operations + `Interest` (interest-earning accounts)
+- **Savings accounts:** Same as Deposit + `Interest` transaction type (any currency)
 
 **Validation:** Attempting to create an invalid transaction type for an account (e.g., `Buy` on a Deposit account, or `Transfer_Out` on a ForeignCurrency account) will result in HTTP 400 error. See [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md#transaction-type-restrictions-by-account-type) for full matrix.
 

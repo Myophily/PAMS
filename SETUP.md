@@ -193,7 +193,7 @@ npm list --depth=0
 
 #### Step 2.2: Configure Next.js Rewrites
 
-**File: `frontend/next.config.js`**
+**File: `frontend/next.config.ts`**
 ```javascript
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -324,7 +324,7 @@ PAM/
 │   │   └── types.ts             # TypeScript types
 │   ├── public/                  # Static assets
 │   ├── .env.local               # Frontend env vars (gitignored)
-│   ├── next.config.js           # Next.js configuration
+│   ├── next.config.ts           # Next.js configuration
 │   ├── package.json             # Node dependencies
 │   ├── tailwind.config.js       # Tailwind CSS config
 │   └── tsconfig.json            # TypeScript config
@@ -519,7 +519,7 @@ npm install
 **Problem:** `API calls return 404 or CORS errors`
 **Solution:**
 1. Verify backend is running on port 8000
-2. Check `next.config.js` has correct rewrites
+2. Check `next.config.ts` has correct rewrites
 3. Restart Next.js dev server after config changes
 
 **Problem:** `Module not found: Can't resolve '@/components/...'`

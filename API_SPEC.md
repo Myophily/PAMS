@@ -17,13 +17,26 @@ Complete API endpoint specifications for the PAM backend.
 
 ## Common Response Formats
 
-### Success Response
+**Note:** Most endpoints return data directly (unwrapped). Transfer and Exchange operations return wrapped responses with `{status, data}` format.
+
+### Success Response (Wrapped)
 ```json
 {
   "status": "success",
   "data": { /* endpoint-specific data */ }
 }
 ```
+
+**Used by:** Transfer, Exchange, and some complex operations
+
+### Success Response (Direct)
+```json
+{
+  /* endpoint-specific data returned directly */
+}
+```
+
+**Used by:** Most GET endpoints, simple POST/PUT/PATCH operations
 
 ### Error Response
 ```json
@@ -48,8 +61,7 @@ Create a new account.
 ```json
 {
   "name": "Toss Checking",
-  "type": "Deposit",  // Deposit | Securities | ForeignCurrency | MoneyMarket
-  "currency": "KRW",   // KRW | USD | EUR | etc.
+  "type": "Deposit",  // Deposit | Securities | ForeignCurrency | MoneyMarket | Savings
   "initial_balance": 1000000.00,
   "initial_balance_date": "2024-01-01"  // Optional, defaults to today
 }
@@ -63,7 +75,6 @@ Create a new account.
     "id": 1,
     "name": "Toss Checking",
     "type": "Deposit",
-    "currency": "KRW",
     "created_at": "2024-01-15T10:30:00Z"
   }
 }
@@ -78,8 +89,8 @@ Create a new account.
 **Validation:**
 - `name` must be unique per user
 - `type` must be valid enum value
-- `currency` must be valid currency code
 - `initial_balance` must be >= 0
+- Currency is inferred from holdings (not required at account creation)
 
 ---
 
@@ -88,7 +99,6 @@ List all accounts.
 
 **Query Parameters:**
 - `type` (optional) - Filter by account type
-- `currency` (optional) - Filter by currency
 
 **Response:**
 ```json
@@ -100,7 +110,6 @@ List all accounts.
         "id": 1,
         "name": "Toss Checking",
         "type": "Deposit",
-        "currency": "KRW",
         "balance": 1500000.00,
         "balance_usd": 1153.85,  // Converted using current exchange rate
         "holdings_count": 1  // Number of different assets (including CASH)
@@ -132,7 +141,6 @@ Get detailed account information.
       "id": 1,
       "name": "Kiwoom Brokerage",
       "type": "Securities",
-      "currency": "KRW",
       "created_at": "2024-01-01T00:00:00Z"
     },
     "summary": {
@@ -198,14 +206,13 @@ Update account name or settings.
   "data": {
     "id": 1,
     "name": "New Account Name",
-    "type": "Deposit",
-    "currency": "KRW"
+    "type": "Deposit"
   }
 }
 ```
 
 **Validation:**
-- Cannot change `type` or `currency` after creation (would invalidate transaction history)
+- Cannot change `type` after creation (would invalidate transaction history)
 
 ---
 
@@ -236,12 +243,13 @@ The backend enforces which transaction types are allowed on each account type. T
 
 **Account Type Specifications:**
 
-| Account Type | Currency | Allowed Assets | Allowed Transactions |
-|--------------|----------|----------------|---------------------|
-| **Deposit** (입출금통장) | KRW only | CASH (KRW) | `Deposit`, `Withdrawal`, `Transfer_In`, `Transfer_Out` |
-| **Securities** (증권계좌) | Any (KRW, USD, etc.) | CASH (any) + Stocks, ETFs, Gold, etc. | `Deposit`, `Withdrawal`, `Buy`, `Sell`, `Dividend`, `Transfer_In`, `Transfer_Out` |
-| **ForeignCurrency** (외화통장) | USD only | CASH (USD) | `Deposit`, `Withdrawal`, `Exchange`, `Transfer_In`, `Transfer_Out` |
-| **MoneyMarket** (MMF) | KRW only | CASH (KRW) | `Deposit`, `Withdrawal`, `Interest`, `Transfer_In`, `Transfer_Out` |
+| Account Type | Allowed Assets | Allowed Transactions |
+|--------------|----------------|---------------------|
+| **Deposit** (입출금통장) | CASH (KRW) | `Deposit`, `Withdrawal`, `Transfer_In`, `Transfer_Out` |
+| **Securities** (증권계좌) | CASH (any) + Stocks, ETFs, Gold, etc. | `Deposit`, `Withdrawal`, `Buy`, `Sell`, `Dividend`, `Transfer_In`, `Transfer_Out` |
+| **ForeignCurrency** (외화통장) | CASH (USD) | `Deposit`, `Withdrawal`, `Exchange`, `Transfer_In`, `Transfer_Out` |
+| **MoneyMarket** (MMF) | CASH (KRW) | `Deposit`, `Withdrawal`, `Interest`, `Transfer_In`, `Transfer_Out` |
+| **Savings** (예적금) | CASH (any currency) | `Deposit`, `Withdrawal`, `Interest`, `Transfer_In`, `Transfer_Out` |
 
 **Purpose:**
 - **Deposit:** Household account book (가계부) for daily spending
@@ -290,6 +298,7 @@ Create a new transaction.
   "ticker": "005930.KS",
   "quantity": 10,
   "price": 70000.00,
+  "price_currency": "KRW",  // Required: Currency of the price (USD, KRW, JPY, etc.)
   "date": "2024-01-15",
   "description": "Samsung stock purchase"  // Optional
 }
@@ -331,6 +340,18 @@ Create a new transaction.
   "amount": 50.00,  // Dividend amount received
   "date": "2024-01-15",
   "description": "Apple quarterly dividend"  // Optional
+}
+```
+
+**Request Body (Interest):**
+```json
+{
+  "account_id": 4,
+  "type": "Interest",
+  "ticker": "KRW",  // Currency earning interest
+  "amount": 50000.00,  // Interest amount received
+  "date": "2024-01-15",
+  "description": "Monthly interest"  // Optional
 }
 ```
 
@@ -377,6 +398,12 @@ Create a new transaction.
 1. Create single `Transaction` record with type `Dividend`
 2. Update `Holding` for CASH (increase)
 3. Total assets increase by dividend amount
+
+**For Interest (Pattern ①):**
+1. Create single `Transaction` record with type `Interest`
+2. Update `Holding` for CASH in specified currency (increase)
+3. Total assets increase by interest amount
+4. Only allowed on MoneyMarket and Savings account types
 
 **Validation:**
 - `date` cannot be in the future
@@ -524,7 +551,255 @@ Soft delete a transaction.
 
 ---
 
-### 3. Dashboard
+#### `POST /api/transactions/{id}/recalculate`
+Manually trigger holdings and snapshots recalculation from the specified transaction date forward.
+
+**Path Parameters:**
+- `id` - Transaction ID to recalculate from
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "message": "Recalculation completed successfully",
+    "transaction_date": "2024-01-15",
+    "holdings_updated": 5,
+    "snapshots_regenerated": 10
+  }
+}
+```
+
+**Business Logic:**
+1. Find the transaction by ID
+2. Get the transaction date
+3. Recalculate all holdings from that date forward
+4. Regenerate all AssetSnapshot records from that date forward
+5. Return summary of changes made
+
+**Use Cases:**
+- Debugging data inconsistencies
+- Fixing calculation errors after data migration
+- Recovering from failed automatic recalculations
+- Manual intervention after bulk data imports
+
+**Validation:**
+- Transaction must exist and not be deleted
+- User should be warned this is a potentially expensive operation
+
+---
+
+### 3. Recurring Transfers
+
+Manage scheduled recurring transactions (salary, rent, subscriptions). Integrated with APScheduler for automatic execution.
+
+#### `POST /api/recurring-transfers`
+Create a new recurring transfer schedule.
+
+**Request Body:**
+```json
+{
+  "from_account_id": 1,
+  "to_account_id": 2,  // null for income/expense pattern
+  "amount": 3000000.00,
+  "day_of_month": 25,  // 1-31, day to execute
+  "description": "Monthly salary"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "id": 1,
+    "from_account_id": 1,
+    "to_account_id": 2,
+    "amount": 3000000.00,
+    "day_of_month": 25,
+    "description": "Monthly salary",
+    "is_active": true,
+    "last_executed_date": null,
+    "created_at": "2026-01-12T10:00:00"
+  }
+}
+```
+
+**Business Logic:**
+1. Create `RecurringTransfer` record
+2. Schedule job in APScheduler to run on specified day of month
+3. Job checks daily if today matches `day_of_month`
+4. When executed, creates Transaction(s) based on pattern:
+   - If `to_account_id` is NULL: Creates single Deposit/Withdrawal (Pattern ①)
+   - If `to_account_id` is set: Creates Transfer_Out/Transfer_In pair (Pattern ②)
+
+**Validation:**
+- `from_account_id` must exist
+- `to_account_id` must exist if provided (can be NULL)
+- `amount` must be positive
+- `day_of_month` must be 1-31
+- Cannot transfer from account to itself
+
+---
+
+#### `GET /api/recurring-transfers`
+List all recurring transfer schedules.
+
+**Query Parameters:**
+- `is_active` (optional, boolean) - Filter by active status
+- `from_account_id` (optional) - Filter by source account
+- `to_account_id` (optional) - Filter by destination account
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "recurring_transfers": [
+      {
+        "id": 1,
+        "from_account_id": 1,
+        "from_account_name": "Toss Checking",
+        "to_account_id": 2,
+        "to_account_name": "Kiwoom Securities",
+        "amount": 3000000.00,
+        "day_of_month": 25,
+        "description": "Monthly salary",
+        "is_active": true,
+        "last_executed_date": "2026-01-01T00:00:00",
+        "next_execution_date": "2026-02-25",
+        "created_at": "2025-12-01T10:00:00"
+      }
+    ],
+    "total": 5
+  }
+}
+```
+
+**Business Logic:**
+1. Query `RecurringTransfer` table with filters
+2. Join with `Account` table to get account names
+3. Calculate `next_execution_date` based on `day_of_month` and current date
+4. Exclude soft-deleted records (`deleted_at IS NULL`)
+
+---
+
+#### `GET /api/recurring-transfers/{id}`
+Get single recurring transfer details.
+
+**Path Parameters:**
+- `id` - Recurring transfer ID
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "id": 1,
+    "from_account_id": 1,
+    "from_account_name": "Toss Checking",
+    "to_account_id": 2,
+    "to_account_name": "Kiwoom Securities",
+    "amount": 3000000.00,
+    "day_of_month": 25,
+    "description": "Monthly salary",
+    "is_active": true,
+    "last_executed_date": "2026-01-01T00:00:00",
+    "next_execution_date": "2026-02-25",
+    "execution_history": [
+      {
+        "date": "2026-01-01T00:00:00",
+        "transaction_ids": [101, 102]
+      },
+      {
+        "date": "2025-12-25T00:00:00",
+        "transaction_ids": [89, 90]
+      }
+    ],
+    "created_at": "2025-12-01T10:00:00"
+  }
+}
+```
+
+**Business Logic:**
+1. Fetch `RecurringTransfer` by ID
+2. Join with accounts to get names
+3. Query related transactions to build execution history
+4. Calculate next execution date
+
+---
+
+#### `PATCH /api/recurring-transfers/{id}`
+Update recurring transfer configuration.
+
+**Path Parameters:**
+- `id` - Recurring transfer ID
+
+**Request Body (all fields optional):**
+```json
+{
+  "amount": 3500000.00,
+  "day_of_month": 28,
+  "description": "Updated description",
+  "is_active": false  // Pause/resume schedule
+}
+```
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "id": 1,
+    "from_account_id": 1,
+    "to_account_id": 2,
+    "amount": 3500000.00,
+    "day_of_month": 28,
+    "description": "Updated description",
+    "is_active": false,
+    "last_executed_date": "2026-01-01T00:00:00"
+  }
+}
+```
+
+**Business Logic:**
+1. Update `RecurringTransfer` record
+2. If `is_active` changed to `false`: Remove job from APScheduler
+3. If `is_active` changed to `true`: Add job back to APScheduler
+4. If `day_of_month` changed: Reschedule job in APScheduler
+
+**Validation:**
+- Cannot change `from_account_id` or `to_account_id` (must delete and recreate)
+- `day_of_month` must be 1-31 if provided
+- `amount` must be positive if provided
+
+---
+
+#### `DELETE /api/recurring-transfers/{id}`
+Delete recurring transfer schedule (soft delete).
+
+**Path Parameters:**
+- `id` - Recurring transfer ID
+
+**Response:**
+```json
+{
+  "status": "success",
+  "message": "Recurring transfer deleted successfully"
+}
+```
+
+**Business Logic:**
+1. Mark `RecurringTransfer` as deleted (set `deleted_at` timestamp)
+2. Remove job from APScheduler
+3. Past executions (transactions) remain intact
+
+**Validation:**
+- Cannot delete if already deleted
+
+---
+
+### 4. Dashboard
 
 #### `GET /api/dashboard/summary`
 Get total assets summary and statistics.
@@ -635,6 +910,64 @@ Get asset volatility time series data.
 1. Query `AssetSnapshot` table for the specified period
 2. Filter by date range based on period parameter
 3. Return daily snapshots (or aggregate by week/month for long periods)
+
+---
+
+#### `GET /api/dashboard/candlestick-chart`
+Get candlestick (OHLC) chart data for asset value visualization.
+
+**Query Parameters:**
+- `period` (required) - Aggregation period: "hourly" | "daily" | "monthly" | "annual"
+- `start_date` (optional) - Start of date range (ISO 8601 datetime)
+- `end_date` (optional) - End of date range (ISO 8601 datetime)
+- `currency` (optional, default: "KRW") - Currency for values: "KRW" | "USD"
+
+**Response:**
+```json
+{
+  "status": "success",
+  "data": {
+    "candlesticks": [
+      {
+        "timestamp": "2026-01-12T09:00:00",
+        "open": 10000000.00,
+        "high": 10500000.00,
+        "low": 9800000.00,
+        "close": 10200000.00
+      },
+      {
+        "timestamp": "2026-01-12T10:00:00",
+        "open": 10200000.00,
+        "high": 10400000.00,
+        "low": 10100000.00,
+        "close": 10300000.00
+      }
+    ],
+    "period": "hourly",
+    "currency": "KRW"
+  }
+}
+```
+
+**Business Logic:**
+1. Query `AssetSnapshot` table for the specified date range
+2. Group snapshots by period (hour/day/month/year)
+3. Calculate OHLC values for each period:
+   - **Open**: First snapshot value in the period
+   - **High**: Maximum snapshot value in the period
+   - **Low**: Minimum snapshot value in the period
+   - **Close**: Last snapshot value in the period
+4. Return candlestick data ordered by timestamp
+
+**Use Cases:**
+- Visualize asset volatility patterns
+- Compare performance across different time periods
+- Identify trends and patterns in portfolio value
+- Display interactive candlestick charts in frontend
+
+**Validation:**
+- If `start_date` and `end_date` not provided, defaults to last 30 days
+- Period must be valid enum value
 
 ---
 
@@ -809,6 +1142,7 @@ Cache all fetched data in `MarketData` table to avoid hitting limits.
 - Percentages: 2 decimal places
 
 ### Date Format
-- API requests/responses: ISO 8601 (`YYYY-MM-DD`)
-- Database storage: SQLite DATE type
+- API requests/responses: ISO 8601 date (`YYYY-MM-DD`) or datetime (`YYYY-MM-DD HH:MM`)
+- Transaction dates support minute-level precision for ordering multiple transactions on same day
+- Database storage: SQLite DATETIME type (KSTDateTime with minute precision)
 - Timezone: All dates are in local timezone (no timezone conversion needed for local app)

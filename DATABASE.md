@@ -21,7 +21,6 @@ Comprehensive database schema documentation with relationships and constraints.
 │ id (PK)     │───┐
 │ name        │   │
 │ type        │   │
-│ currency    │   │
 │ created_at  │   │
 └─────────────┘   │
                   │
@@ -86,12 +85,10 @@ Represents financial accounts (deposit/withdrawal, securities, foreign currency,
 | `id` | INTEGER | PRIMARY KEY, AUTOINCREMENT | Unique account identifier |
 | `name` | VARCHAR(100) | NOT NULL, UNIQUE | Account display name (e.g., "Toss Checking") |
 | `type` | VARCHAR(20) | NOT NULL, CHECK | Account type: `Deposit`, `Securities`, `ForeignCurrency`, `MoneyMarket`, `Savings` |
-| `currency` | VARCHAR(3) | NOT NULL | Base currency: `KRW`, `USD`, `EUR`, etc. |
 | `created_at` | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Account creation timestamp |
 
 **Indexes:**
 - `idx_account_type` on `type`
-- `idx_account_currency` on `currency`
 
 **SQLAlchemy Model:**
 ```python
@@ -105,7 +102,6 @@ class Account(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False, unique=True)
     type = Column(String(20), nullable=False)
-    currency = Column(String(3), nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     # Relationships
@@ -124,25 +120,23 @@ class Account(Base):
 **Business Rules:**
 - Account name must be unique
 - Type cannot be changed after creation (would invalidate transaction history)
-- Currency cannot be changed after creation
+- Currency is inferred from holdings (not stored as a fixed field)
 
 **Account Type Specifications:**
 
 Each account type has specific restrictions on which assets it can hold:
 
-| Account Type | Base Currency | Allowed Holdings | Purpose |
-|--------------|---------------|------------------|---------|
-| **Deposit** | `KRW` | `CASH` (KRW only) | Deposit/withdrawal account (입출금통장) for daily spending. Linked to household account book. |
-| **MoneyMarket** | `KRW` | `CASH` (KRW only) | Money Market Fund (MMF). Earns interest tracked via `Interest` transactions. |
-| **Savings** | `KRW`, `USD` | `CASH` (any currency) | Savings account (예적금) for earning interest. Tracks `Interest` transactions. |
-| **ForeignCurrency** | `USD` | `CASH` (USD only) | Foreign currency account (외화통장). Holds USD and supports currency exchange. |
-| **Securities** | `KRW` or `USD` | `CASH` (any currency) + Stocks, ETFs, Gold, Bonds, etc. | Full investment account (증권계좌). Can hold multiple currencies and all security types. |
+| Account Type | Allowed Holdings | Purpose |
+|--------------|------------------|---------|
+| **Deposit** | `CASH` (KRW only) | Deposit/withdrawal account (입출금통장) for daily spending. Linked to household account book. |
+| **MoneyMarket** | `CASH` (KRW only) | Money Market Fund (MMF). Earns interest tracked via `Interest` transactions. |
+| **Savings** | `CASH` (any currency) | Savings account (예적금) for earning interest. Tracks `Interest` transactions. |
+| **ForeignCurrency** | `CASH` (USD only) | Foreign currency account (외화통장). Holds USD and supports currency exchange. |
+| **Securities** | `CASH` (any currency) + Stocks, ETFs, Gold, Bonds, etc. | Full investment account (증권계좌). Can hold multiple currencies and all security types. |
 
 **Validation:**
-- `Deposit` and `MoneyMarket` accounts must have `currency='KRW'`
-- `ForeignCurrency` accounts must have `currency='USD'`
-- `Securities` and `Savings` accounts can have any base currency
 - Holdings must respect the allowed asset types for each account type
+- Account currency is inferred from the currencies present in holdings
 
 **Migration Note:**
 For existing databases with old account type values (`Checking`, `Brokerage`, `Foreign`, `MMF`), a migration script is available at `backend/migration_rename_account_types.py` to rename them to the new values (`Deposit`, `Securities`, `ForeignCurrency`, `MoneyMarket`).
@@ -162,6 +156,8 @@ Represents current balances of assets (stocks, cash, etc.) in an account. This i
 | `ticker` | VARCHAR(20) | NOT NULL | Stock symbol or special value `CASH` |
 | `quantity` | DECIMAL(18, 8) | NOT NULL, DEFAULT 0 | Current quantity held |
 | `avg_price` | DECIMAL(18, 4) | NOT NULL, DEFAULT 0 | Average purchase price (cost basis per unit) |
+
+**Unique Constraint:** `(account_id, ticker)` - Prevents duplicate holdings for same ticker in an account
 
 **Indexes:**
 - `idx_holding_account` on `account_id`
@@ -241,8 +237,9 @@ Immutable log of all financial events. This is the **source of truth**.
 | `ticker` | VARCHAR(20) | NULL | Stock symbol or currency code (NULL for deposits/withdrawals) |
 | `quantity` | DECIMAL(18, 8) | NULL | Number of shares/units (NULL for cash-only transactions) |
 | `price` | DECIMAL(18, 4) | NULL | Price per unit at transaction time (NULL for transfers) |
+| `price_currency` | VARCHAR(3) | NULL | Currency for stock prices (USD, KRW, JPY, etc.) - Required for Buy/Sell |
 | `amount` | DECIMAL(18, 2) | NOT NULL | Cash flow amount (negative for outflow, positive for inflow) |
-| `date` | DATE | NOT NULL | Actual transaction date (not entry date) |
+| `date` | DATETIME | NOT NULL | Transaction datetime with minute precision (format: KSTDateTime) |
 | `linked_tx_id` | INTEGER | NULL, FOREIGN KEY | Reference to linked transaction (for transfers/exchanges) |
 | `description` | TEXT | NULL | User notes |
 | `created_at` | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Entry timestamp |
@@ -270,9 +267,10 @@ Immutable log of all financial events. This is the **source of truth**.
 
 **SQLAlchemy Model:**
 ```python
-from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, ForeignKey, CheckConstraint, Text
+from sqlalchemy import Column, Integer, String, Numeric, DateTime, ForeignKey, CheckConstraint, Text
 from sqlalchemy.orm import relationship
-from datetime import date, datetime
+from datetime import datetime
+from app.database import KSTDateTime
 
 class Transaction(Base):
     __tablename__ = 'transaction'
@@ -283,8 +281,9 @@ class Transaction(Base):
     ticker = Column(String(20), nullable=True)
     quantity = Column(Numeric(18, 8), nullable=True)
     price = Column(Numeric(18, 4), nullable=True)
+    price_currency = Column(String(3), nullable=True)
     amount = Column(Numeric(18, 2), nullable=False)
-    date = Column(Date, nullable=False)
+    date = Column(KSTDateTime, nullable=False)
     linked_tx_id = Column(Integer, ForeignKey('transaction.id', ondelete='SET NULL'), nullable=True)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
@@ -451,7 +450,7 @@ price = db.query(MarketData).filter(
 
 ### 5. AssetSnapshot
 
-Daily total asset value records for charting and performance tracking.
+Hourly total asset value records for charting and performance tracking.
 
 **Columns:**
 
@@ -488,7 +487,7 @@ class AssetSnapshot(Base):
 ```
 
 **Business Rules:**
-- Snapshots are generated daily (can be backfilled for historical dates)
+- Snapshots are generated hourly at :00 minutes (e.g., 12:00, 13:00, 14:00) and can be backfilled for historical dates
 - When a past transaction is inserted, snapshots from that date forward are regenerated
 - `principal` = sum of all deposits - sum of all withdrawals (excludes market gains/losses)
 - Unrealized P/L = `total_assets_krw` - `principal`
@@ -532,6 +531,109 @@ def generate_snapshot(date: date, db: Session) -> AssetSnapshot:
         principal=principal
     )
 ```
+
+---
+
+### 6. RecurringTransfer
+
+Stores configuration for scheduled recurring transfers (salary, rent, subscriptions, etc.). Used by APScheduler to automatically create transactions on specified days of the month.
+
+**Columns:**
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | INTEGER | PRIMARY KEY, AUTOINCREMENT | Unique identifier |
+| `from_account_id` | INTEGER | NOT NULL, FOREIGN KEY → Account.id | Source account |
+| `to_account_id` | INTEGER | NULL, FOREIGN KEY → Account.id | Destination account (NULL for income/expense patterns) |
+| `amount` | DECIMAL(15,2) | NOT NULL | Transfer amount (positive value) |
+| `day_of_month` | INTEGER | NOT NULL, CHECK (1-31) | Day of month to execute (e.g., 25 for salary on 25th) |
+| `description` | TEXT | NULL | Transaction description |
+| `is_active` | BOOLEAN | NOT NULL, DEFAULT TRUE | Whether schedule is currently active |
+| `last_executed_date` | DATETIME | NULL | Last successful execution timestamp |
+| `created_at` | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Schedule creation timestamp |
+| `deleted_at` | DATETIME | NULL | Soft delete timestamp |
+
+**Indexes:**
+- `idx_recurring_transfer_from_account` on `from_account_id`
+- `idx_recurring_transfer_to_account` on `to_account_id`
+- `idx_recurring_transfer_active` on `is_active, day_of_month` (for efficient scheduler queries)
+
+**SQLAlchemy Model:**
+```python
+from sqlalchemy import Column, Integer, Numeric, String, Boolean, DateTime, ForeignKey, CheckConstraint, Text
+from sqlalchemy.orm import relationship
+from datetime import datetime
+
+class RecurringTransfer(Base):
+    __tablename__ = 'recurring_transfer'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    from_account_id = Column(Integer, ForeignKey('account.id', ondelete='CASCADE'), nullable=False)
+    to_account_id = Column(Integer, ForeignKey('account.id', ondelete='CASCADE'), nullable=True)
+    amount = Column(Numeric(15, 2), nullable=False)
+    day_of_month = Column(Integer, nullable=False)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True)
+    last_executed_date = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    from_account = relationship("Account", foreign_keys=[from_account_id])
+    to_account = relationship("Account", foreign_keys=[to_account_id])
+
+    # Constraints
+    __table_args__ = (
+        CheckConstraint('day_of_month >= 1 AND day_of_month <= 31', name='check_day_of_month'),
+        CheckConstraint('amount > 0', name='check_positive_amount'),
+    )
+```
+
+**Business Rules:**
+
+**Two Patterns Supported:**
+
+**Pattern ① Income/Expense (to_account_id is NULL):**
+```python
+# Monthly salary deposit
+RecurringTransfer(
+    from_account_id=1,  # Salary account
+    to_account_id=None,  # NULL = income pattern
+    amount=3000000.00,
+    day_of_month=25,
+    description="Monthly salary"
+)
+# Creates Transaction(type="Deposit", amount=3000000) on the 25th
+```
+
+**Pattern ② Transfer (to_account_id is set):**
+```python
+# Monthly rent payment
+RecurringTransfer(
+    from_account_id=1,  # Checking account
+    to_account_id=2,    # Savings account
+    amount=500000.00,
+    day_of_month=1,
+    description="Monthly savings"
+)
+# Creates linked Transfer_Out/Transfer_In transactions on the 1st
+```
+
+**Execution Logic:**
+- APScheduler checks all `is_active=True` schedules daily
+- When `day_of_month` matches current date:
+  - Checks `last_executed_date` to prevent duplicate execution
+  - Creates appropriate Transaction(s) based on pattern
+  - Updates `last_executed_date` to current timestamp
+- Handles edge cases (e.g., day_of_month=31 on February uses last day of month)
+- Failed executions are logged but don't retry automatically
+
+**Validation:**
+- `from_account_id` must exist and not be deleted
+- `to_account_id` must exist if provided (NULL allowed)
+- `amount` must be positive (sign determined by transaction pattern)
+- `day_of_month` must be 1-31
+- Cannot create transfer from account to itself (`from_account_id != to_account_id`)
 
 ---
 
@@ -601,7 +703,6 @@ cp asset_data_backup.db asset_data.db
 ```sql
 -- Account queries
 CREATE INDEX idx_account_type ON account(type);
-CREATE INDEX idx_account_currency ON account(currency);
 
 -- Transaction queries
 CREATE INDEX idx_transaction_account ON transaction(account_id);

@@ -40,6 +40,15 @@ app/
 │       ├── Tab 2: <TransactionTimeline />
 │       └── Tab 3: <AccountAnalysisCharts />
 │
+├── ledger/
+│   └── page.tsx (Ledger)
+│       └── <LedgerTable />
+│
+├── recurring-transfers/
+│   └── page.tsx (Recurring Transfers)
+│       ├── <RecurringTransferCard />
+│       └── <AddRecurringTransferButton />
+│
 └── components/
     ├── modals/
     │   ├── <AddAccountModal />
@@ -225,6 +234,340 @@ const shouldShowAnalysisTab = allowedTabs.includes('analysis');
   onTabChange={setActiveTab}
 />
 ```
+
+---
+
+### 4. Ledger (`app/ledger/page.tsx`)
+
+**Purpose:** Comprehensive transaction history view across all accounts with filtering and sorting.
+
+**Route:** `/ledger`
+
+**Features:**
+- View all transactions from all accounts in one unified table
+- Multi-column sorting (date, account, type, amount)
+- Filter by account, transaction type, date range
+- Pagination for large transaction histories
+- Quick actions: View details, Edit, Delete (with confirmation)
+
+**Component Structure:**
+```typescript
+import { LedgerTable } from '@/components/LedgerTable';
+import { useTransactions } from '@/lib/hooks/useTransactions';
+
+export default function LedgerPage() {
+  const { data: transactions, isLoading } = useTransactions(); // No account filter = all accounts
+
+  return (
+    <div className="container mx-auto py-8">
+      <h1 className="text-3xl font-bold mb-6">Transaction Ledger</h1>
+      <LedgerTable transactions={transactions} isLoading={isLoading} />
+    </div>
+  );
+}
+```
+
+**LedgerTable Component (`components/LedgerTable.tsx`):**
+
+File: `frontend/components/LedgerTable.tsx`
+
+```typescript
+interface LedgerTableProps {
+  transactions: Transaction[];
+  isLoading: boolean;
+}
+
+export function LedgerTable({ transactions, isLoading }: LedgerTableProps) {
+  const [sortBy, setSortBy] = useState<'date' | 'account' | 'type' | 'amount'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [filterAccount, setFilterAccount] = useState<number | null>(null);
+  const [filterType, setFilterType] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<{ start: Date; end: Date } | null>(null);
+
+  // Sorting and filtering logic
+  const filteredAndSorted = useMemo(() => {
+    let result = [...transactions];
+
+    // Apply filters
+    if (filterAccount) {
+      result = result.filter(tx => tx.account_id === filterAccount);
+    }
+    if (filterType) {
+      result = result.filter(tx => tx.type === filterType);
+    }
+    if (dateRange) {
+      result = result.filter(tx =>
+        new Date(tx.date) >= dateRange.start &&
+        new Date(tx.date) <= dateRange.end
+      );
+    }
+
+    // Apply sorting
+    result.sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'date') comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (sortBy === 'account') comparison = a.account_name.localeCompare(b.account_name);
+      if (sortBy === 'type') comparison = a.type.localeCompare(b.type);
+      if (sortBy === 'amount') comparison = a.amount - b.amount;
+
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return result;
+  }, [transactions, sortBy, sortOrder, filterAccount, filterType, dateRange]);
+
+  return (
+    <div>
+      {/* Filter Controls */}
+      <div className="mb-4 flex gap-4">
+        <AccountSelect value={filterAccount} onChange={setFilterAccount} />
+        <TypeSelect value={filterType} onChange={setFilterType} />
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
+      </div>
+
+      {/* Transaction Table */}
+      <table className="w-full">
+        <thead>
+          <tr>
+            <th onClick={() => handleSort('date')}>Date</th>
+            <th onClick={() => handleSort('account')}>Account</th>
+            <th onClick={() => handleSort('type')}>Type</th>
+            <th>Ticker</th>
+            <th onClick={() => handleSort('amount')}>Amount</th>
+            <th>Description</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredAndSorted.map(tx => (
+            <tr key={tx.id}>
+              <td>{formatDate(tx.date)}</td>
+              <td>{tx.account_name}</td>
+              <td><Badge>{tx.type}</Badge></td>
+              <td>{tx.ticker || '-'}</td>
+              <td className={tx.amount > 0 ? 'text-green-600' : 'text-red-600'}>
+                {formatCurrency(tx.amount)}
+              </td>
+              <td>{tx.description}</td>
+              <td>
+                <button onClick={() => handleEdit(tx.id)}>Edit</button>
+                <button onClick={() => handleDelete(tx.id)}>Delete</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Pagination */}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+      />
+    </div>
+  );
+}
+```
+
+**Data Flow:**
+- Uses `useTransactions()` hook with no account filter parameter
+- Gets all transactions across all accounts
+- Real-time updates via React Query cache invalidation
+- Optimistic updates when deleting transactions
+
+---
+
+### 5. Recurring Transfers (`app/recurring-transfers/page.tsx`)
+
+**Purpose:** Manage scheduled recurring transactions (salary, rent, subscriptions).
+
+**Route:** `/recurring-transfers`
+
+**Features:**
+- List all recurring transfer schedules
+- View active/inactive status
+- Create new recurring schedules
+- Edit schedule configuration (amount, day, accounts)
+- Enable/disable schedules
+- Delete schedules (soft delete)
+- View last execution date and next scheduled date
+
+**Component Structure:**
+```typescript
+import { useRecurringTransfers } from '@/lib/hooks/useRecurringTransfers';
+import { RecurringTransferCard } from '@/components/RecurringTransferCard';
+import { AddRecurringTransferModal } from '@/components/modals/AddRecurringTransferModal';
+
+export default function RecurringTransfersPage() {
+  const { data: transfers, isLoading } = useRecurringTransfers();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  return (
+    <div className="container mx-auto py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Recurring Transfers</h1>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="btn-primary"
+        >
+          + Add Recurring Transfer
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {transfers?.map(transfer => (
+          <RecurringTransferCard key={transfer.id} transfer={transfer} />
+        ))}
+      </div>
+
+      <AddRecurringTransferModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
+    </div>
+  );
+}
+```
+
+**RecurringTransferCard Component:**
+```typescript
+interface RecurringTransferCardProps {
+  transfer: RecurringTransfer;
+}
+
+export function RecurringTransferCard({ transfer }: RecurringTransferCardProps) {
+  const { mutate: updateTransfer } = useUpdateRecurringTransfer(transfer.id);
+  const { mutate: deleteTransfer } = useDeleteRecurringTransfer();
+
+  const nextExecutionDate = calculateNextExecution(transfer.day_of_month);
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      {/* Active/Inactive Badge */}
+      <div className="flex justify-between items-start mb-4">
+        <Badge variant={transfer.is_active ? 'success' : 'secondary'}>
+          {transfer.is_active ? 'Active' : 'Inactive'}
+        </Badge>
+        <button onClick={() => handleEdit(transfer)}>⚙️</button>
+      </div>
+
+      {/* Transfer Info */}
+      <div className="mb-4">
+        <p className="text-sm text-gray-600">From</p>
+        <p className="font-semibold">{transfer.from_account_name}</p>
+      </div>
+
+      {transfer.to_account_id && (
+        <div className="mb-4">
+          <p className="text-sm text-gray-600">To</p>
+          <p className="font-semibold">{transfer.to_account_name}</p>
+        </div>
+      )}
+
+      {/* Amount */}
+      <div className="mb-4">
+        <p className="text-2xl font-bold text-blue-600">
+          {formatCurrency(transfer.amount)}
+        </p>
+      </div>
+
+      {/* Schedule Info */}
+      <div className="mb-4 text-sm">
+        <p className="text-gray-600">Executes on day {transfer.day_of_month} of each month</p>
+        <p className="text-gray-600">
+          Last executed: {transfer.last_executed_date
+            ? formatDate(transfer.last_executed_date)
+            : 'Never'}
+        </p>
+        <p className="font-semibold text-green-600">
+          Next: {formatDate(nextExecutionDate)}
+        </p>
+      </div>
+
+      {/* Description */}
+      {transfer.description && (
+        <p className="text-sm text-gray-600 mb-4">{transfer.description}</p>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => updateTransfer({ is_active: !transfer.is_active })}
+          className="btn-secondary flex-1"
+        >
+          {transfer.is_active ? 'Pause' : 'Resume'}
+        </button>
+        <button
+          onClick={() => handleDelete(transfer.id)}
+          className="btn-danger flex-1"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+**AddRecurringTransferModal Component:**
+```typescript
+export function AddRecurringTransferModal({ isOpen, onClose }: ModalProps) {
+  const { mutate: createTransfer } = useCreateRecurringTransfer();
+  const { data: accounts } = useAccounts();
+
+  const handleSubmit = (data: RecurringTransferCreate) => {
+    createTransfer(data, {
+      onSuccess: () => {
+        onClose();
+        toast.success('Recurring transfer created successfully');
+      }
+    });
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose}>
+      <h2 className="text-2xl font-bold mb-4">Add Recurring Transfer</h2>
+
+      <form onSubmit={handleSubmit}>
+        <label>From Account</label>
+        <select name="from_account_id" required>
+          {accounts?.map(acc => (
+            <option key={acc.id} value={acc.id}>{acc.name}</option>
+          ))}
+        </select>
+
+        <label>To Account (leave empty for income/expense)</label>
+        <select name="to_account_id">
+          <option value="">None (Income/Expense)</option>
+          {accounts?.map(acc => (
+            <option key={acc.id} value={acc.id}>{acc.name}</option>
+          ))}
+        </select>
+
+        <label>Amount</label>
+        <input type="number" name="amount" required min="0" step="0.01" />
+
+        <label>Day of Month (1-31)</label>
+        <input type="number" name="day_of_month" required min="1" max="31" />
+
+        <label>Description</label>
+        <textarea name="description" />
+
+        <div className="flex gap-2 mt-4">
+          <button type="submit" className="btn-primary">Create</button>
+          <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+```
+
+**Data Flow:**
+- Uses `useRecurringTransfers()` hook to fetch schedules
+- Real-time sync with APScheduler jobs
+- Optimistic updates when toggling active status
+- Calculates next execution date on frontend for display
 
 ---
 
@@ -940,6 +1283,216 @@ export function useCreateAccount() {
 
 ---
 
+### useRecurringTransfers
+
+**File:** `lib/hooks/useRecurringTransfers.ts`
+
+```typescript
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+interface RecurringTransfer {
+  id: number;
+  from_account_id: number;
+  from_account_name: string;
+  to_account_id: number | null;
+  to_account_name: string | null;
+  amount: number;
+  day_of_month: number;
+  description: string | null;
+  is_active: boolean;
+  last_executed_date: string | null;
+  created_at: string;
+}
+
+export function useRecurringTransfers(isActive?: boolean) {
+  return useQuery<{ recurring_transfers: RecurringTransfer[] }>({
+    queryKey: ['recurring-transfers', { isActive }],
+    queryFn: async () => {
+      const params = isActive !== undefined ? `?is_active=${isActive}` : '';
+      const res = await fetch(`/api/recurring-transfers${params}`);
+      if (!res.ok) throw new Error('Failed to fetch recurring transfers');
+      return res.json();
+    },
+  });
+}
+
+export function useCreateRecurringTransfer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      from_account_id: number;
+      to_account_id?: number | null;
+      amount: number;
+      day_of_month: number;
+      description?: string;
+    }) => {
+      const res = await fetch('/api/recurring-transfers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to create recurring transfer');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recurring-transfers'] });
+    },
+  });
+}
+
+export function useUpdateRecurringTransfer(id: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: Partial<RecurringTransfer>) => {
+      const res = await fetch(`/api/recurring-transfers/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Failed to update recurring transfer');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recurring-transfers'] });
+      queryClient.invalidateQueries({ queryKey: ['recurring-transfers', id] });
+    },
+  });
+}
+
+export function useDeleteRecurringTransfer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/recurring-transfers/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete recurring transfer');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recurring-transfers'] });
+    },
+  });
+}
+```
+
+**Purpose:**
+- Manage scheduled recurring transactions
+- Automatically syncs with APScheduler jobs in backend
+- Support pause/resume functionality via `is_active` field
+- Optimistic updates for better UX
+
+---
+
+### useHealth
+
+**File:** `lib/hooks/useHealth.ts`
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+
+interface HealthStatus {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  database: 'connected' | 'disconnected';
+  timestamp: string;
+  version: string;
+}
+
+export function useHealth() {
+  return useQuery<HealthStatus>({
+    queryKey: ['health'],
+    queryFn: async () => {
+      const res = await fetch('/api/health');
+      if (!res.ok) throw new Error('Health check failed');
+      return res.json();
+    },
+    refetchInterval: 30000, // Refetch every 30 seconds
+    retry: 1, // Only retry once
+  });
+}
+```
+
+**Purpose:**
+- Monitor backend health and database connectivity
+- Display status indicator in UI (e.g., footer, nav bar)
+- Automatically refetch every 30 seconds
+- Useful for debugging connection issues
+
+**Usage Example:**
+```typescript
+export function StatusIndicator() {
+  const { data: health, isError } = useHealth();
+
+  if (isError) return <Badge variant="danger">Offline</Badge>;
+  if (health?.status === 'healthy') return <Badge variant="success">Online</Badge>;
+  return <Badge variant="warning">Degraded</Badge>;
+}
+```
+
+---
+
+### usePrivacyToggle
+
+**File:** `lib/hooks/usePrivacyToggle.ts`
+
+```typescript
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+interface PrivacyState {
+  isPrivate: boolean;
+  togglePrivacy: () => void;
+  setPrivacy: (value: boolean) => void;
+}
+
+export const usePrivacyToggle = create<PrivacyState>()(
+  persist(
+    (set) => ({
+      isPrivate: false,
+      togglePrivacy: () => set((state) => ({ isPrivate: !state.isPrivate })),
+      setPrivacy: (value: boolean) => set({ isPrivate: value }),
+    }),
+    {
+      name: 'privacy-storage', // LocalStorage key
+    }
+  )
+);
+```
+
+**Purpose:**
+- Global state for hiding/showing monetary amounts
+- Persists preference to localStorage
+- Accessible from any component
+- Privacy mode replaces numbers with "••••••"
+
+**Usage Example:**
+```typescript
+export function TotalAssetCard({ amount }: { amount: number }) {
+  const { isPrivate, togglePrivacy } = usePrivacyToggle();
+
+  return (
+    <div>
+      <button onClick={togglePrivacy}>
+        {isPrivate ? '👁️' : '👁️‍🗨️'}
+      </button>
+      <span>
+        {isPrivate ? '••••••' : formatCurrency(amount)}
+      </span>
+    </div>
+  );
+}
+```
+
+**Integration Points:**
+- Used in `TotalAssetCard`, `AccountCard`, `HoldingsTable`, etc.
+- Global toggle button in header/nav bar
+- Applies to all monetary displays across the app
+
+---
+
 ## TypeScript Types
 
 **File:** `lib/types.ts`
@@ -950,8 +1503,7 @@ export function useCreateAccount() {
 export interface Account {
   id: number;
   name: string;
-  type: 'Deposit' | 'Securities' | 'ForeignCurrency' | 'MoneyMarket';
-  currency: string;
+  type: 'Deposit' | 'Securities' | 'ForeignCurrency' | 'MoneyMarket' | 'Savings';
   created_at: string;
 }
 
@@ -973,13 +1525,14 @@ export interface Transaction {
   id: number;
   account_id: number;
   account_name: string;
-  type: 'Buy' | 'Sell' | 'Deposit' | 'Withdrawal' | 'Transfer_In' | 'Transfer_Out' | 'Exchange' | 'Dividend';
+  type: 'Buy' | 'Sell' | 'Deposit' | 'Withdrawal' | 'Transfer_In' | 'Transfer_Out' | 'Exchange' | 'Dividend' | 'Interest';
   ticker?: string;
   ticker_name?: string;
   quantity?: number;
   price?: number;
+  price_currency?: string; // Currency of the price (USD, KRW, JPY, etc.) for Buy/Sell
   amount: number;
-  date: string;
+  date: string; // ISO 8601 datetime with minute precision
   description?: string;
   linked_tx_id?: number;
   created_at: string;
@@ -1009,6 +1562,20 @@ export interface DashboardSummary {
     value_krw: number;
     percent: number;
   }>;
+}
+
+export interface RecurringTransfer {
+  id: number;
+  from_account_id: number;
+  from_account_name: string;
+  to_account_id: number | null;
+  to_account_name: string | null;
+  amount: number;
+  day_of_month: number;
+  description: string | null;
+  is_active: boolean;
+  last_executed_date: string | null;
+  created_at: string;
 }
 ```
 

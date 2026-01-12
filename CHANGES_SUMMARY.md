@@ -1,3 +1,84 @@
+# 📚 Documentation Comprehensive Update
+
+**Date:** 2026-01-12
+**Status:** ✅ COMPLETE - All 14 markdown files updated
+
+---
+
+## 📋 Summary
+
+Comprehensive documentation update to fix 23 major discrepancies between codebase and documentation, add missing feature documentation, and improve consistency across all files.
+
+### Key Updates
+
+**Schema & API Documentation:**
+- Removed `currency` field from Account model (8 locations)
+- Added `price_currency` field to Transaction model
+- Changed Transaction `date` to DATETIME with minute precision
+- Added complete RecurringTransfer table documentation
+- Added Recurring Transfers API endpoints (5 new endpoints)
+- Added Candlestick Chart API endpoint
+- Added manual recalculation endpoint
+- Added Interest transaction type documentation
+
+**Missing Features Documented:**
+- Ledger page (`/ledger`) - transaction history across all accounts
+- Recurring Transfers page (`/recurring-transfers`) - scheduled transfer management
+- useRecurringTransfers, useHealth, usePrivacyToggle hooks
+- LedgerTable, RecurringTransferCard components
+
+**Consistency Improvements:**
+- Added Savings account type to all documentation
+- Updated transaction examples to use `datetime` instead of `date`
+- Clarified ForeignCurrency account transfer rules
+- Fixed Pattern ④ "REMOVED" → "EVOLVED" language
+- Standardized terminology (AssetSnapshot, account type names)
+- Fixed hourly vs daily snapshot frequency
+- Updated next.config.js → next.config.ts references
+
+### Files Updated (14 total)
+
+| File | Changes | Lines Added/Modified |
+|------|---------|---------------------|
+| **DATABASE.md** | 8 schema fixes | ~150 lines added (RecurringTransfer table) |
+| **API_SPEC.md** | 10 endpoint additions/fixes | ~300 lines added (recurring transfers, candlestick, etc.) |
+| **TRANSACTION_PATTERNS.md** | 5 pattern fixes | ~100 lines added (Interest pattern, datetime updates) |
+| **FRONTEND_COMPONENTS.md** | 5 missing features | ~250 lines added (Ledger, Recurring Transfers pages) |
+| **CLAUDE.md** | 6 consistency issues | Multiple section updates |
+| **RULES.md** | Terminology consistency | Savings account type added |
+| **CONTEXT.md** | Account type standardization | Minor updates |
+| **TODO.md** | Phase 5.5 marked complete | 40+ tasks marked [x] |
+| **SETUP.md** | next.config file extension | 3 references updated |
+| **AGENTS.md** | No changes needed | - |
+| **CHANGES_SUMMARY.md** | This entry added | - |
+| **IMPLEMENTATION_SUMMARY.md** | No changes needed | - |
+| **backend/README.md** | No changes needed | - |
+| **frontend/README.md** | No changes needed | - |
+
+### Documentation Now Accurately Reflects:
+
+✅ All database schema fields (Account, Transaction, Holding, RecurringTransfer)
+✅ All API endpoints including new recurring transfers endpoints
+✅ All transaction types including Interest
+✅ All account types including Savings
+✅ All frontend pages including Ledger and Recurring Transfers
+✅ All React Query hooks including utility hooks
+✅ Correct date/datetime handling with minute precision
+✅ Updated Pattern ④ explanation (evolved, not removed)
+✅ APScheduler background jobs behavior
+✅ Complete TypeScript type definitions
+
+### Verification Completed
+
+- ✅ Cross-referenced all database models with DATABASE.md
+- ✅ Verified all API endpoints exist in routers
+- ✅ Confirmed all frontend pages/components documented
+- ✅ Checked transaction type consistency across all files
+- ✅ Validated account type naming standardization
+- ✅ Ensured terminology consistency
+
+---
+
 # 🎉 Implementation Complete: Currency Removal & CASH Validation Fix
 
 **Date:** 2026-01-08
