@@ -112,41 +112,6 @@ class DashboardService:
             "top_assets": top_assets
         }
 
-        # Calculate top assets
-        top_assets = self._calculate_top_assets(db, current_snapshot.total_assets_krw)
-
-        return {
-            "total_assets": {
-                "krw": current_snapshot.total_assets_krw,
-                "usd": current_snapshot.total_assets_usd
-            },
-            "current_exchange_rate": {
-                "usd_to_krw": usd_krw_rate,
-                "updated_at": now.date().isoformat()
-            },
-            "changes": {
-                "day": {
-                    "amount_krw": day_amount,
-                    "amount_usd": (day_amount / usd_krw_rate).quantize(Decimal("0.01")),
-                    "percent": day_percent
-                },
-                "month": {
-                    "amount_krw": month_amount,
-                    "amount_usd": (month_amount / usd_krw_rate).quantize(Decimal("0.01")),
-                    "percent": month_percent
-                },
-                "year": {
-                    "amount_krw": year_amount,
-                    "amount_usd": (year_amount / usd_krw_rate).quantize(Decimal("0.01")),
-                    "percent": year_percent
-                }
-            },
-            "allocation": {
-                "by_type": allocation_by_type
-            },
-            "top_assets": top_assets
-        }
-
     def get_chart_data(
         self,
         period: str,
@@ -320,35 +285,42 @@ class DashboardService:
                         if krw_rate:
                             value = value * krw_rate
                     bond_value += value
-                else:
+                else:  # Stock
                     current_price = self.market_data_service.get_latest_price(holding.ticker, db)
                     if current_price is None:
                         current_price = holding.avg_price
-                    stock_value = holding.quantity * current_price
 
+                    # Calculate this holding's value
+                    holding_value = holding.quantity * current_price
+
+                    # Convert to KRW based on price currency
                     if holding.price_currency:
                         if holding.price_currency == "USD":
                             usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", today_date, db)
                             if not usd_krw_rate:
                                 usd_krw_rate = to_decimal(1300, precision=4)
-                            stock_value = stock_value * usd_krw_rate
+                            holding_value = holding_value * usd_krw_rate
                         elif holding.price_currency == "EUR":
                             eur_krw_rate = self.market_data_service.get_exchange_rate("EUR", "KRW", today_date, db)
                             if not eur_krw_rate:
                                 eur_krw_rate = to_decimal(1400, precision=4)
-                            stock_value = stock_value * eur_krw_rate
+                            holding_value = holding_value * eur_krw_rate
                     else:
+                        # Infer currency from ticker
                         stock_price_currency = infer_price_currency_from_ticker(holding.ticker)
                         if stock_price_currency == "USD":
                             usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", today_date, db)
                             if not usd_krw_rate:
                                 usd_krw_rate = to_decimal(1300, precision=4)
-                            stock_value = stock_value * usd_krw_rate
+                            holding_value = holding_value * usd_krw_rate
                         elif stock_price_currency == "EUR":
                             eur_krw_rate = self.market_data_service.get_exchange_rate("EUR", "KRW", today_date, db)
                             if not eur_krw_rate:
                                 eur_krw_rate = to_decimal(1400, precision=4)
-                            stock_value = stock_value * eur_krw_rate
+                            holding_value = holding_value * eur_krw_rate
+
+                    # Accumulate into total stock value
+                    stock_value += holding_value
 
         allocation = []
 
