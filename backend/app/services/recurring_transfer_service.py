@@ -303,6 +303,12 @@ class RecurringTransferService:
     def _calculate_next_execution(self, recurring: RecurringTransfer) -> Optional[datetime]:
         """
         Calculate the next execution date for a recurring transfer.
+        Always returns a future date (never a past date).
+
+        Logic:
+        - If today <= execution day -> this month (future or today)
+        - If today > execution day AND already executed this month -> next month
+        - If today > execution day AND NOT executed this month -> next month (avoid past dates)
 
         Args:
             recurring: RecurringTransfer object
@@ -318,21 +324,24 @@ class RecurringTransferService:
         # Determine if this month's execution is still pending
         execution_day_this_month = self._get_execution_day(recurring.day_of_month, today.year, today.month)
 
-        if today.day < execution_day_this_month:
-            # This month's execution hasn't happened yet
+        if today.day <= execution_day_this_month:
+            # Execution day is still in the future or is today
             return datetime(today.year, today.month, execution_day_this_month, 0, 0, 0)
         else:
-            # Check if already executed this month
+            # We've passed the execution day
             if recurring.last_executed_date:
                 last_exec = recurring.last_executed_date
                 if last_exec.year == today.year and last_exec.month == today.month:
-                    # Already executed this month, next is next month
+                    # Already executed this month, schedule for next month
                     next_month = today + relativedelta(months=1)
                     execution_day = self._get_execution_day(recurring.day_of_month, next_month.year, next_month.month)
                     return datetime(next_month.year, next_month.month, execution_day, 0, 0, 0)
 
-            # Not executed this month yet
-            return datetime(today.year, today.month, execution_day_this_month, 0, 0, 0)
+            # Not executed this month, but we're past the execution day
+            # Return next month to avoid displaying a past date
+            next_month = today + relativedelta(months=1)
+            execution_day = self._get_execution_day(recurring.day_of_month, next_month.year, next_month.month)
+            return datetime(next_month.year, next_month.month, execution_day, 0, 0, 0)
 
     def list_recurring_transfers(
         self,
