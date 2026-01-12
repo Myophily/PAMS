@@ -223,6 +223,20 @@ class AccountService:
                 stock_holding.avg_price = holding.price or Decimal("1")
                 stock_holding.price_currency = price_currency
 
+        # Create snapshots for initial holdings (both currency and stock)
+        # This ensures snapshots are created at the exact transaction time
+        from app.services.snapshot_service import SnapshotService
+        from app.services.recalculation_service import RecalculationService
+        from app.utils.date_helpers import is_past_transaction
+
+        snapshot_service = SnapshotService()
+        snapshot_service.generate_snapshot(transaction_date.replace(second=0, microsecond=0), db)
+
+        # Trigger recalculation if past transaction
+        if is_past_transaction(transaction_date):
+            recalc_service = RecalculationService()
+            recalc_service.recalculate_from_date(transaction_date, db)
+
     def _calculate_account_valuation(
         self,
         holdings: List[Holding],

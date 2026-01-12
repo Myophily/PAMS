@@ -350,12 +350,17 @@ class RecalculationService:
         db: Session
     ) -> None:
         """
-        Regenerate hourly asset snapshots from start_datetime to now.
+        Regenerate asset snapshots from start_datetime to now.
 
-        For each hour:
-        1. Delete existing snapshot for that hour
-        2. Fetch hourly market data for all holdings
-        3. Call SnapshotService.generate_snapshot()
+        Creates TWO types of snapshots:
+        1. Transaction-time snapshots: At exact transaction times (any minute)
+        2. Hourly snapshots: At top of each hour (:00)
+
+        Algorithm:
+        1. Get all transaction datetimes from start_datetime to now
+        2. Create set of datetimes to regenerate (transactions + hourly)
+        3. Delete existing snapshots for those datetimes
+        4. Regenerate all snapshots
 
         Args:
             start_datetime: Datetime to start regenerating from
@@ -366,34 +371,60 @@ class RecalculationService:
 
         snapshot_service = SnapshotService()
 
-        # Round to hour boundary
-        current_dt = start_datetime.replace(minute=0, second=0, microsecond=0)
-        now = datetime.now().replace(minute=0, second=0, microsecond=0)
+        # Truncate to minute precision
+        start_dt = start_datetime.replace(second=0, microsecond=0)
+        now = datetime.now().replace(second=0, microsecond=0)
 
-        # Calculate total hours to regenerate
-        total_hours = int((now - current_dt).total_seconds() / 3600) + 1
-        print(f"[Recalculation] Regenerating {total_hours} hourly snapshots from {current_dt} to {now}")
+        # Step 1: Get all transaction datetimes from start_dt to now
+        transactions = db.query(Transaction).filter(
+            Transaction.date >= start_dt,
+            Transaction.date <= now,
+            Transaction.deleted_at.is_(None)
+        ).all()
 
+        transaction_datetimes = set()
+        for tx in transactions:
+            # Truncate to minute precision
+            tx_dt = tx.date.replace(second=0, microsecond=0)
+            transaction_datetimes.add(tx_dt)
+
+        print(f"[Recalculation] Found {len(transaction_datetimes)} unique transaction times")
+
+        # Step 2: Generate hourly datetimes (:00 of each hour)
+        hourly_datetimes = set()
+        current_hour = start_dt.replace(minute=0, second=0, microsecond=0)
+        end_hour = now.replace(minute=0, second=0, microsecond=0)
+
+        while current_hour <= end_hour:
+            hourly_datetimes.add(current_hour)
+            current_hour += timedelta(hours=1)
+
+        print(f"[Recalculation] Generated {len(hourly_datetimes)} hourly times")
+
+        # Step 3: Combine transaction times and hourly times
+        all_snapshot_times = transaction_datetimes.union(hourly_datetimes)
+        all_snapshot_times = sorted(all_snapshot_times)
+
+        print(f"[Recalculation] Total snapshots to regenerate: {len(all_snapshot_times)}")
+
+        # Step 4: Delete existing snapshots for these times
+        db.query(AssetSnapshot).filter(
+            AssetSnapshot.snapshot_datetime.in_(all_snapshot_times)
+        ).delete(synchronize_session=False)
+
+        # Step 5: Regenerate all snapshots
         regenerated = 0
-        while current_dt <= now:
-            # Delete existing snapshot for this hour
-            db.query(AssetSnapshot).filter(
-                AssetSnapshot.snapshot_datetime == current_dt
-            ).delete()
-
-            # Generate fresh hourly snapshot
-            snapshot_service.generate_snapshot(current_dt, db)
+        for snapshot_dt in all_snapshot_times:
+            snapshot_service.generate_snapshot(snapshot_dt, db)
             regenerated += 1
 
-            # Batch commit every 24 hours for performance
+            # Batch commit every 24 snapshots for performance
             if regenerated % 24 == 0:
                 db.commit()
-                print(f"[Recalculation] Regenerated {regenerated}/{total_hours} snapshots...")
-
-            current_dt += timedelta(hours=1)
+                print(f"[Recalculation] Regenerated {regenerated}/{len(all_snapshot_times)} snapshots...")
 
         db.commit()
-        print(f"[Recalculation] Regenerated {regenerated} hourly snapshots")
+        print(f"[Recalculation] Regenerated {regenerated} snapshots ({len(transaction_datetimes)} tx times + {len(hourly_datetimes)} hourly)")
 
     def recalculate_all_holdings(self, db: Session) -> None:
         """

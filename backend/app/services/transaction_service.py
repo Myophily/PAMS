@@ -126,6 +126,9 @@ class TransactionService:
         holding = self.holding_service.get_or_create_holding(account_id, ticker, db)
         holding.quantity += transaction.amount
 
+        # Create snapshot at transaction time
+        self._create_transaction_snapshot(transaction_date, db)
+
         # Trigger recalculation if past transaction
         if is_past_transaction(transaction_date):
             self._trigger_recalculation(transaction_date, db)
@@ -195,6 +198,9 @@ class TransactionService:
         cash_holding = self.holding_service.get_or_create_cash_holding(account_id, db)
         cash_holding.quantity += transaction.amount  # Add negative amount
 
+        # Create snapshot at transaction time
+        self._create_transaction_snapshot(transaction_date, db)
+
         # Trigger recalculation if past transaction
         if is_past_transaction(transaction_date):
             self._trigger_recalculation(transaction_date, db)
@@ -259,6 +265,9 @@ class TransactionService:
         # Update CASH holding
         cash_holding = self.holding_service.get_or_create_cash_holding(account_id, db)
         cash_holding.quantity += transaction.amount
+
+        # Create snapshot at transaction time
+        self._create_transaction_snapshot(transaction_date, db)
 
         if is_past_transaction(transaction_date):
             self._trigger_recalculation(transaction_date, db)
@@ -384,6 +393,9 @@ class TransactionService:
         if tx_out.amount + tx_in.amount != 0:
             raise ValueError("Transfer amounts do not balance")
 
+        # Create snapshot at transaction time
+        self._create_transaction_snapshot(transaction_date, db)
+
         if is_past_transaction(transaction_date):
             self._trigger_recalculation(transaction_date, db)
 
@@ -495,6 +507,9 @@ class TransactionService:
         stock_holding.avg_price = new_avg_price
         stock_holding.price_currency = price_currency  # Store price currency with holding
 
+        # Create snapshot at transaction time
+        self._create_transaction_snapshot(transaction_date, db)
+
         if is_past_transaction(transaction_date):
             self._trigger_recalculation(transaction_date, db)
 
@@ -580,6 +595,9 @@ class TransactionService:
         # CRITICAL: Average price UNCHANGED on sell (for cost basis tracking)
         stock_holding.quantity -= transaction.quantity
         # stock_holding.avg_price stays the same!
+
+        # Create snapshot at transaction time
+        self._create_transaction_snapshot(transaction_date, db)
 
         if is_past_transaction(transaction_date):
             self._trigger_recalculation(transaction_date, db)
@@ -819,6 +837,9 @@ class TransactionService:
             cash_out.quantity += tx3.amount
             cash_in.quantity += tx4.amount
 
+            # Create snapshot at transaction time
+            self._create_transaction_snapshot(transaction_date, db)
+
             if is_past_transaction(transaction_date):
                 self._trigger_recalculation(transaction_date, db)
 
@@ -884,6 +905,9 @@ class TransactionService:
                 description=f"Exchange after transfer: {description or ''}",
                 db=db
             )
+
+            # Create snapshot at transaction time
+            self._create_transaction_snapshot(transaction_date, db)
 
             if is_past_transaction(transaction_date):
                 self._trigger_recalculation(transaction_date, db)
@@ -960,6 +984,9 @@ class TransactionService:
         cash_holding = self.holding_service.get_or_create_cash_holding(account_id, db)
         cash_holding.quantity += transaction.amount
 
+        # Create snapshot at transaction time
+        self._create_transaction_snapshot(transaction_date, db)
+
         # Trigger recalculation if past transaction
         if is_past_transaction(transaction_date):
             self._trigger_recalculation(transaction_date, db)
@@ -968,6 +995,28 @@ class TransactionService:
         return transaction
 
     # ========== HELPER METHODS ==========
+
+    def _create_transaction_snapshot(self, transaction_date: datetime, db: Session):
+        """
+        Create a snapshot at the exact transaction time.
+
+        This creates a "transaction-time snapshot" in addition to regular hourly snapshots.
+        Used when transactions occur at non-hourly times (e.g., 2:24 PM).
+
+        Args:
+            transaction_date: Exact datetime of transaction (minute precision)
+            db: Database session
+        """
+        from app.services.snapshot_service import SnapshotService
+
+        snapshot_service = SnapshotService()
+
+        # Truncate to minute precision (remove seconds/microseconds)
+        snapshot_datetime = transaction_date.replace(second=0, microsecond=0)
+
+        # Create or update snapshot (handles multiple transactions in same minute)
+        print(f"[TransactionService] Creating snapshot at transaction time: {snapshot_datetime}")
+        snapshot_service.generate_snapshot(snapshot_datetime, db)
 
     def _trigger_recalculation(self, start_date: datetime, db: Session):
         """

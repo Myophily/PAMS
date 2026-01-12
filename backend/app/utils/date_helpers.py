@@ -86,8 +86,8 @@ def is_past_transaction(transaction_date: Union[date, datetime]) -> bool:
     if isinstance(transaction_date, date) and not isinstance(transaction_date, datetime):
         return transaction_date < now.date()
 
-    # Handle datetime objects
-    return transaction_date.replace(second=0, microsecond=0) < now
+    # Handle datetime objects (include current minute to trigger recalculation)
+    return transaction_date.replace(second=0, microsecond=0) <= now
 
 
 def get_previous_business_day(target_date: date, max_lookback: int = 7) -> Optional[date]:
