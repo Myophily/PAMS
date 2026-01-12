@@ -1,7 +1,8 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, field_validator
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional, List
+from app.utils.timezone import parse_iso_to_kst, make_kst_aware
 
 
 # ========== REQUEST SCHEMAS ==========
@@ -84,6 +85,18 @@ class AccountCreateRequest(BaseModel):
     initial_balance: Optional[Decimal] = None  # DEPRECATED: Use initial_holdings instead
     initial_balance_date: Optional[datetime] = None  # Defaults to current datetime
     initial_holdings: Optional[List[InitialHoldingItem]] = None  # Now for ALL account types
+
+    @field_validator('initial_balance_date', mode='before')
+    @classmethod
+    def ensure_kst_timezone_for_balance_date(cls, v):
+        """Convert naive datetime from frontend to KST-aware datetime."""
+        if v is None:
+            return v  # None is valid (will default to now_kst in service layer)
+        if isinstance(v, str):
+            return parse_iso_to_kst(v)
+        if isinstance(v, datetime) and v.tzinfo is None:
+            return make_kst_aware(v)
+        return v
 
     @validator('initial_holdings')
     def validate_initial_holdings(cls, v, values):

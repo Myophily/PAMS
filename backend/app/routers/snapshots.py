@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.snapshot_service import SnapshotService
+from app.utils.timezone import now_kst
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -38,9 +39,9 @@ def get_snapshots(
         List of asset snapshots ordered by datetime
     """
     if not start_datetime:
-        start_datetime = datetime.now() - timedelta(days=30)
+        start_datetime = now_kst() - timedelta(days=30)
     if not end_datetime:
-        end_datetime = datetime.now()
+        end_datetime = now_kst()
 
     snapshots = snapshot_service.get_snapshots_range(start_datetime, end_datetime, db)
     return snapshots
@@ -87,7 +88,7 @@ def backfill_snapshots(
         Success status with count of snapshots created
     """
     if not end_datetime:
-        end_datetime = datetime.now()
+        end_datetime = now_kst()
 
     count = snapshot_service.backfill_hourly_snapshots(start_datetime, end_datetime, db)
     return {

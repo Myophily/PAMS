@@ -13,6 +13,7 @@ from app.utils.currency_inference import infer_currency_from_holdings
 from decimal import Decimal
 from datetime import date, datetime, timedelta
 from typing import Dict, List
+from app.utils.timezone import now_kst, now_kst_truncated
 
 
 class DashboardService:
@@ -50,7 +51,7 @@ class DashboardService:
         }
         """
         # Get current datetime snapshot (or regenerate if stale)
-        now = datetime.now().replace(minute=0, second=0, microsecond=0)
+        now = now_kst().replace(minute=0, second=0, microsecond=0)
         current_snapshot = self.snapshot_service.get_snapshot(now, db)
 
         # CRITICAL FIX: Always regenerate today's snapshot to use latest market data
@@ -608,7 +609,7 @@ class DashboardService:
         """
         # Determine datetime range
         if not end_datetime:
-            end_datetime = datetime.now()
+            end_datetime = now_kst()
 
         if not start_datetime:
             if period == "hourly":

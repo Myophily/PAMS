@@ -17,6 +17,7 @@ from decimal import Decimal
 from datetime import datetime, date
 from typing import List, Dict, Union
 from collections import defaultdict
+from app.utils.timezone import now_kst_truncated
 
 
 class RecalculationService:
@@ -373,7 +374,7 @@ class RecalculationService:
 
         # Truncate to minute precision
         start_dt = start_datetime.replace(second=0, microsecond=0)
-        now = datetime.now().replace(second=0, microsecond=0)
+        now = now_kst_truncated()
 
         # Step 1: Get all transaction datetimes from start_dt to now
         transactions = db.query(Transaction).filter(

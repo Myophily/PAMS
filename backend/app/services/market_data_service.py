@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models.market_data import MarketData
 from app.utils.decimal_helpers import to_decimal
 from app.utils.date_helpers import get_previous_business_day, is_weekend
+from app.utils.timezone import today_kst
 from decimal import Decimal
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -644,11 +645,11 @@ class MarketDataService:
 
         # NEW: Auto-fetch if not in cache
         print(f"[AUTO-FETCH] Price for {ticker} not in cache, fetching from API...")
-        price = self._fetch_stock_price_from_api(ticker, date.today())
+        price = self._fetch_stock_price_from_api(ticker, today_kst())
 
         if price:
             # Cache it
-            self._cache_stock_price(ticker, date.today(), price, "api", db)
+            self._cache_stock_price(ticker, today_kst(), price, "api", db)
             try:
                 db.commit()
             except Exception as e:
@@ -692,11 +693,11 @@ class MarketDataService:
 
         # NEW: Auto-fetch if not in cache
         print(f"[AUTO-FETCH] Exchange rate {from_currency}/{to_currency} not in cache, fetching from API...")
-        rate = self._fetch_exchange_rate_from_api(from_currency, to_currency, date.today())
+        rate = self._fetch_exchange_rate_from_api(from_currency, to_currency, today_kst())
 
         if rate:
             # Cache it
-            self._cache_exchange_rate(from_currency, to_currency, date.today(), rate, "api", db)
+            self._cache_exchange_rate(from_currency, to_currency, today_kst(), rate, "api", db)
             try:
                 db.commit()
             except Exception as e:

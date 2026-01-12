@@ -15,6 +15,7 @@ from app.utils.currency_inference import infer_currency_from_holdings
 from decimal import Decimal
 from datetime import date, datetime, timedelta
 from typing import Optional, List
+from app.utils.timezone import now_kst
 
 
 class SnapshotService:
@@ -325,7 +326,7 @@ class SnapshotService:
             10  # Filled 10 missing hourly snapshots
         """
         latest = self.get_latest_snapshot(db)
-        now = datetime.now().replace(minute=0, second=0, microsecond=0)
+        now = now_kst().replace(minute=0, second=0, microsecond=0)
 
         if not latest:
             # No snapshots exist - backfill last 30 days

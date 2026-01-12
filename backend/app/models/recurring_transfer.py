@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, Numeric, Boolean, DateTime, ForeignKey, 
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
+from app.utils.timezone import now_kst
 
 
 class RecurringTransfer(Base):
@@ -34,7 +35,7 @@ class RecurringTransfer(Base):
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
     last_executed_date = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=now_kst)
     deleted_at = Column(DateTime, nullable=True)
 
     # Relationships

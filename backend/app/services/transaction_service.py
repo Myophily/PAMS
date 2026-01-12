@@ -23,6 +23,7 @@ from app.utils.calculation_engine import (
 from decimal import Decimal
 from datetime import datetime
 from typing import Tuple, Optional, List
+from app.utils.timezone import now_kst
 
 
 class TransactionService:
@@ -1113,13 +1114,13 @@ class TransactionService:
             raise ValueError(f"Transaction {transaction_id} not found")
 
         # Soft delete
-        transaction.deleted_at = datetime.now()
+        transaction.deleted_at = now_kst()
 
         # If linked transaction exists, soft delete it too
         if transaction.linked_tx_id:
             linked_tx = self.get_transaction(transaction.linked_tx_id, db)
             if linked_tx:
-                linked_tx.deleted_at = datetime.now()
+                linked_tx.deleted_at = now_kst()
 
         # Trigger recalculation from this date
         self._trigger_recalculation(transaction.date, db)

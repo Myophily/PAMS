@@ -7,6 +7,7 @@ from dateutil.relativedelta import relativedelta
 from decimal import Decimal
 from typing import List, Optional
 import calendar
+from app.utils.timezone import now_kst
 
 
 class RecurringTransferService:
@@ -174,7 +175,7 @@ class RecurringTransferService:
         Args:
             db: Database session
         """
-        now = datetime.now()
+        now = now_kst()
         today = now.date()
 
         # Get all active recurring transfers
@@ -215,7 +216,7 @@ class RecurringTransferService:
         Args:
             db: Database session
         """
-        now = datetime.now()
+        now = now_kst()
         today = now.date()
 
         recurring_transfers = db.query(RecurringTransfer).filter(
@@ -278,7 +279,7 @@ class RecurringTransferService:
 
     def _scheduled_check(self, db: Session):
         """Scheduled job that checks and executes due transfers."""
-        print(f"[RecurringTransfer] Running scheduled check at {datetime.now()}")
+        print(f"[RecurringTransfer] Running scheduled check at {now_kst()}")
         self.check_and_execute_due_transfers(db)
 
     def _get_execution_day(self, day_of_month: int, year: int, month: int) -> int:
@@ -425,7 +426,7 @@ class RecurringTransferService:
         if not recurring or recurring.deleted_at:
             raise ValueError(f"Recurring transfer {recurring_id} not found")
 
-        recurring.deleted_at = datetime.now()
+        recurring.deleted_at = now_kst()
         db.commit()
 
         print(f"[RecurringTransfer] Deleted: {recurring.id}")

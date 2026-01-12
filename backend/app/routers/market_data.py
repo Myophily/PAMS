@@ -13,6 +13,7 @@ from app.services.market_data_service import MarketDataService
 from app.schemas.market_data_schema import StockPriceResponse, ExchangeRateResponse
 from app.models.market_data import MarketData
 from app.utils.date_helpers import validate_transaction_date
+from app.utils.timezone import now_kst, today_kst
 from datetime import date, datetime
 from typing import Optional
 
@@ -52,7 +53,7 @@ def get_stock_price(
                 # Date-only format
                 target_date = date.fromisoformat(date_param)
         else:
-            target_date = date.today()
+            target_date = today_kst()
 
         # Validate date is not in future (now accepts both date and datetime)
         validate_transaction_date(target_date)
@@ -71,7 +72,7 @@ def get_stock_price(
 
         # Data is considered cached if it existed before this request (>5 seconds old)
         is_cached = cached_data is not None and (
-            datetime.now() - (cached_data.fetched_at or datetime.now())
+            now_kst() - (cached_data.fetched_at or now_kst())
         ).total_seconds() > 5
 
         # Determine currency from ticker format
@@ -131,7 +132,7 @@ def get_exchange_rate(
                 # Date-only format
                 target_date = date.fromisoformat(date_param)
         else:
-            target_date = date.today()
+            target_date = today_kst()
 
         # Validate date is not in future (now accepts both date and datetime)
         validate_transaction_date(target_date)
@@ -159,7 +160,7 @@ def get_exchange_rate(
 
         # Data is considered cached if it existed before this request (>5 seconds old)
         is_cached = cached_data is not None and (
-            datetime.now() - (cached_data.fetched_at or datetime.now())
+            now_kst() - (cached_data.fetched_at or now_kst())
         ).total_seconds() > 5
 
         return ExchangeRateResponse(

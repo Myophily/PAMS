@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, Numeric, Date, DateTime, UniqueConstraint
 from datetime import datetime
 from app.database import Base
+from app.utils.timezone import now_kst
 
 
 class AssetSnapshot(Base):
@@ -11,7 +12,7 @@ class AssetSnapshot(Base):
     total_assets_krw = Column(Numeric(18, 2), nullable=False)
     total_assets_usd = Column(Numeric(18, 2), nullable=False)
     principal = Column(Numeric(18, 2), nullable=False)  # Total deposits - withdrawals
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=now_kst)
 
     # Constraints
     __table_args__ = (

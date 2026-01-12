@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from datetime import date, datetime
 from app.database import Base
+from app.utils.timezone import now_kst
 
 
 class Transaction(Base):
@@ -18,7 +19,7 @@ class Transaction(Base):
     date = Column(DateTime, nullable=False)  # DateTime with minute precision (HH:MM)
     linked_tx_id = Column(Integer, ForeignKey('transaction.id', ondelete='SET NULL'), nullable=True)  # Self-referencing
     description = Column(Text, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=now_kst)
     deleted_at = Column(DateTime, nullable=True)  # Soft delete - transactions are immutable
 
     # Relationships

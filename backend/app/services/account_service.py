@@ -23,6 +23,7 @@ from app.schemas.account_schema import (
 from decimal import Decimal
 from datetime import datetime
 from typing import List, Optional
+from app.utils.timezone import now_kst_truncated
 
 
 class AccountService:
@@ -85,7 +86,7 @@ class AccountService:
         db.flush()
 
         # Determine which initialization method to use
-        balance_date = initial_balance_date or datetime.now().replace(second=0, microsecond=0)
+        balance_date = initial_balance_date or now_kst_truncated()
 
         # Convert deprecated initial_balance to initial_holdings format
         if initial_balance and initial_balance > 0 and (not initial_holdings or len(initial_holdings) == 0):
