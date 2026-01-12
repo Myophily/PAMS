@@ -1,6 +1,7 @@
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, TypeDecorator, DateTime as SQLAlchemyDateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 import os
 from dotenv import load_dotenv
 
@@ -20,6 +21,44 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Create Base class for models
 Base = declarative_base()
+
+
+class KSTDateTime(TypeDecorator):
+    """
+    Custom DateTime type that ensures all datetimes are timezone-aware (KST).
+
+    SQLite stores datetimes as ISO 8601 strings. By default, SQLAlchemy retrieves
+    these as naive datetimes (no timezone). This TypeDecorator ensures:
+    - On insert: Validates that datetime is timezone-aware (raises error if naive)
+    - On retrieval: Converts naive datetimes from SQLite to KST-aware datetimes
+
+    This prevents "can't compare offset-naive and offset-aware datetimes" errors.
+    """
+    impl = SQLAlchemyDateTime
+    cache_ok = True
+
+    def process_result_value(self, value, dialect):
+        """Convert naive datetime from database to KST-aware."""
+        if value is not None and isinstance(value, datetime):
+            if value.tzinfo is None:
+                # Database returned naive datetime, make it KST-aware
+                # Import here to avoid circular dependency
+                from app.utils.timezone import make_kst_aware
+                return make_kst_aware(value)
+            # Already timezone-aware
+            return value
+        return value
+
+    def process_bind_param(self, value, dialect):
+        """Ensure datetime being stored is timezone-aware."""
+        if value is not None and isinstance(value, datetime):
+            if value.tzinfo is None:
+                raise ValueError(
+                    f"Attempting to store naive datetime: {value}. "
+                    f"All datetimes must be KST-aware. Use now_kst() or make_kst_aware()."
+                )
+            return value
+        return value
 
 
 def get_db():

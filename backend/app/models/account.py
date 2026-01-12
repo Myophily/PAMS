@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime, CheckConstraint, Index
+from sqlalchemy import Column, Integer, String, CheckConstraint, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from app.database import Base
+from app.database import Base, KSTDateTime
 from app.utils.timezone import now_kst
 
 
@@ -11,7 +11,7 @@ class Account(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False, unique=True)
     type = Column(String(20), nullable=False)
-    created_at = Column(DateTime, nullable=False, default=now_kst)
+    created_at = Column(KSTDateTime, nullable=False, default=now_kst)
 
     # Relationships
     holdings = relationship("Holding", back_populates="account", cascade="all, delete-orphan")

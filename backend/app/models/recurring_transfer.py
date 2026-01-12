@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, Numeric, Boolean, DateTime, ForeignKey, CheckConstraint, Text, Index
+from sqlalchemy import Column, Integer, Numeric, Boolean, ForeignKey, CheckConstraint, Text, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from app.database import Base
+from app.database import Base, KSTDateTime
 from app.utils.timezone import now_kst
 
 
@@ -34,9 +34,9 @@ class RecurringTransfer(Base):
     day_of_month = Column(Integer, nullable=False)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
-    last_executed_date = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=now_kst)
-    deleted_at = Column(DateTime, nullable=True)
+    last_executed_date = Column(KSTDateTime, nullable=True)
+    created_at = Column(KSTDateTime, nullable=False, default=now_kst)
+    deleted_at = Column(KSTDateTime, nullable=True)
 
     # Relationships
     from_account = relationship("Account", foreign_keys=[from_account_id])

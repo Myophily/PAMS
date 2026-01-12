@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, String, Numeric, Date, DateTime, ForeignKey, CheckConstraint, Text, Index
+from sqlalchemy import Column, Integer, String, Numeric, Date, ForeignKey, CheckConstraint, Text, Index
 from sqlalchemy.orm import relationship
 from datetime import date, datetime
-from app.database import Base
+from app.database import Base, KSTDateTime
 from app.utils.timezone import now_kst
 
 
@@ -16,11 +16,11 @@ class Transaction(Base):
     price = Column(Numeric(18, 4), nullable=True)
     price_currency = Column(String(3), nullable=True)  # Currency for stock prices (USD, KRW, JPY, etc.)
     amount = Column(Numeric(18, 2), nullable=False)  # CRITICAL: Decimal for money, NEVER Float
-    date = Column(DateTime, nullable=False)  # DateTime with minute precision (HH:MM)
+    date = Column(KSTDateTime, nullable=False)  # DateTime with minute precision (HH:MM)
     linked_tx_id = Column(Integer, ForeignKey('transaction.id', ondelete='SET NULL'), nullable=True)  # Self-referencing
     description = Column(Text, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=now_kst)
-    deleted_at = Column(DateTime, nullable=True)  # Soft delete - transactions are immutable
+    created_at = Column(KSTDateTime, nullable=False, default=now_kst)
+    deleted_at = Column(KSTDateTime, nullable=True)  # Soft delete - transactions are immutable
 
     # Relationships
     account = relationship("Account", back_populates="transactions")
