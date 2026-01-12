@@ -119,16 +119,6 @@ export function AssetCandlestickChart({
         {/* Period selector buttons */}
         <div className="flex gap-2">
           <button
-            onClick={() => onPeriodChange('hourly')}
-            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-              period === 'hourly'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Hourly
-          </button>
-          <button
             onClick={() => onPeriodChange('daily')}
             className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
               period === 'daily'
