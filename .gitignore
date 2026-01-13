@@ -7,6 +7,12 @@ backend/*.db
 backend/*.db.backup
 backend/*.db-shm
 backend/*.db-wal
+*.pyc
+*.pyo
+*.pyd
+.coverage
+htmlcov/
+.pytest_cache/
 
 # Node
 frontend/node_modules/

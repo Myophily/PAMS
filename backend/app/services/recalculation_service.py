@@ -11,7 +11,6 @@ from app.models.holding import Holding
 from app.models.account import Account
 from app.models.asset_snapshot import AssetSnapshot
 from app.utils.calculation_engine import calculate_avg_price_on_buy
-from app.utils.date_helpers import get_date_range
 from app.utils.currency_inference import is_currency_ticker, normalize_ticker, CURRENCY_TICKERS
 from decimal import Decimal
 from datetime import datetime, date
