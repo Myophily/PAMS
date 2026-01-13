@@ -7,11 +7,13 @@ Step-by-step setup instructions for local development.
 ## Prerequisites
 
 **Required Software:**
+
 - **Python:** 3.10 or higher ([Download](https://www.python.org/downloads/))
 - **Node.js:** 18 or higher ([Download](https://nodejs.org/))
 - **Git:** For version control ([Download](https://git-scm.com/))
 
 **Optional:**
+
 - **SQLite Browser:** To inspect database ([Download](https://sqlitebrowser.org/))
 - **VS Code:** Recommended IDE ([Download](https://code.visualstudio.com/))
 
@@ -41,7 +43,7 @@ cd ../frontend
 npm install
 
 # 6. Start frontend (Terminal 2)
-npm run dev
+npm run dev -- --webpack
 
 # 7. Open browser
 # Navigate to http://localhost:3000
@@ -61,6 +63,7 @@ python3 -m venv venv
 ```
 
 **Why virtual environment?**
+
 - Isolates project dependencies
 - Prevents conflicts with system Python packages
 - Makes deployment reproducible
@@ -68,16 +71,19 @@ python3 -m venv venv
 #### Step 1.2: Activate Virtual Environment
 
 **On macOS/Linux:**
+
 ```bash
 source venv/bin/activate
 ```
 
 **On Windows (Command Prompt):**
+
 ```cmd
 venv\Scripts\activate.bat
 ```
 
 **On Windows (PowerShell):**
+
 ```powershell
 venv\Scripts\Activate.ps1
 ```
@@ -92,6 +98,7 @@ pip install -r requirements.txt
 ```
 
 **Expected packages:**
+
 ```
 fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
@@ -102,6 +109,7 @@ requests>=2.31.0
 ```
 
 **Verify installation:**
+
 ```bash
 pip list
 ```
@@ -128,11 +136,13 @@ python -c "from app.database import init_db; init_db()"
 ```
 
 **This creates:**
+
 - `asset_data.db` file in backend directory
 - All required tables (Account, Transaction, Holding, MarketData, AssetSnapshot)
 - Indexes for performance
 
 **Verify database creation:**
+
 ```bash
 ls -l asset_data.db  # Should show file size > 0
 ```
@@ -144,6 +154,7 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 **Expected output:**
+
 ```
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 INFO:     Started reloader process [12345] using StatReload
@@ -153,6 +164,7 @@ INFO:     Application startup complete.
 ```
 
 **Verify backend is running:**
+
 - Open browser to `http://localhost:8000/docs`
 - You should see FastAPI auto-generated documentation (Swagger UI)
 
@@ -168,6 +180,7 @@ npm install
 ```
 
 **Expected packages:**
+
 ```json
 {
   "dependencies": {
@@ -187,6 +200,7 @@ npm install
 ```
 
 **Verify installation:**
+
 ```bash
 npm list --depth=0
 ```
@@ -194,14 +208,15 @@ npm list --depth=0
 #### Step 2.2: Configure Next.js Rewrites
 
 **File: `frontend/next.config.ts`**
+
 ```javascript
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
-        destination: 'http://localhost:8000/api/:path*',
+        source: "/api/:path*",
+        destination: "http://localhost:8000/api/:path*",
       },
     ];
   },
@@ -211,6 +226,7 @@ module.exports = nextConfig;
 ```
 
 **What this does:**
+
 - All requests to `/api/*` are proxied to FastAPI backend
 - Eliminates CORS issues
 - Frontend can call `/api/accounts` instead of `http://localhost:8000/api/accounts`
@@ -218,6 +234,7 @@ module.exports = nextConfig;
 #### Step 2.3: Create Environment Variables
 
 **File: `frontend/.env.local`**
+
 ```bash
 NEXT_PUBLIC_API_URL=/api
 ```
@@ -225,10 +242,11 @@ NEXT_PUBLIC_API_URL=/api
 #### Step 2.4: Start Frontend Development Server
 
 ```bash
-npm run dev
+npm run dev -- --webpack
 ```
 
 **Expected output:**
+
 ```
 - ready started server on 0.0.0.0:3000, url: http://localhost:3000
 - event compiled client and server successfully in 2.1s (123 modules)
@@ -237,6 +255,7 @@ npm run dev
 ```
 
 **Verify frontend is running:**
+
 - Open browser to `http://localhost:3000`
 - You should see the PAM dashboard (may be empty initially)
 
@@ -247,6 +266,7 @@ npm run dev
 **You need TWO terminal windows running simultaneously:**
 
 **Terminal 1 (Backend):**
+
 ```bash
 cd backend
 source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -254,12 +274,14 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 **Terminal 2 (Frontend):**
+
 ```bash
 cd frontend
-npm run dev
+npm run dev -- --webpack
 ```
 
 **Access the application:**
+
 - **Frontend (UI):** `http://localhost:3000`
 - **Backend API Docs:** `http://localhost:8000/docs`
 
@@ -348,6 +370,7 @@ PAM/
 ### Initial Schema Creation
 
 **File: `backend/app/database.py`**
+
 ```python
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -389,6 +412,7 @@ def init_db():
 ```
 
 **Run initialization:**
+
 ```bash
 python -c "from app.database import init_db; init_db()"
 ```
@@ -398,6 +422,7 @@ python -c "from app.database import init_db; init_db()"
 Create sample data for testing:
 
 **File: `backend/scripts/seed_data.py`**
+
 ```python
 from app.database import SessionLocal, init_db
 from app.models.account import Account
@@ -459,6 +484,7 @@ if __name__ == "__main__":
 ```
 
 **Run seed script:**
+
 ```bash
 python backend/scripts/seed_data.py
 ```
@@ -471,6 +497,7 @@ python backend/scripts/seed_data.py
 
 **Problem:** `ModuleNotFoundError: No module named 'fastapi'`
 **Solution:**
+
 ```bash
 # Make sure virtual environment is activated
 source venv/bin/activate  # Mac/Linux
@@ -482,6 +509,7 @@ pip install -r requirements.txt
 
 **Problem:** `sqlalchemy.exc.OperationalError: unable to open database file`
 **Solution:**
+
 ```bash
 # Check file permissions
 chmod 644 asset_data.db
@@ -493,6 +521,7 @@ python -c "from app.database import init_db; init_db()"
 
 **Problem:** `Address already in use: 127.0.0.1:8000`
 **Solution:**
+
 ```bash
 # Find process using port 8000
 lsof -i :8000  # Mac/Linux
@@ -510,6 +539,7 @@ uvicorn app.main:app --reload --port 8001
 
 **Problem:** `Error: Cannot find module 'next'`
 **Solution:**
+
 ```bash
 # Delete node_modules and reinstall
 rm -rf node_modules package-lock.json
@@ -518,6 +548,7 @@ npm install
 
 **Problem:** `API calls return 404 or CORS errors`
 **Solution:**
+
 1. Verify backend is running on port 8000
 2. Check `next.config.ts` has correct rewrites
 3. Restart Next.js dev server after config changes
@@ -525,6 +556,7 @@ npm install
 **Problem:** `Module not found: Can't resolve '@/components/...'`
 **Solution:**
 Check `tsconfig.json` has path aliases:
+
 ```json
 {
   "compilerOptions": {
@@ -540,6 +572,7 @@ Check `tsconfig.json` has path aliases:
 
 **Problem:** Database locked errors
 **Solution:**
+
 ```bash
 # Enable WAL mode
 sqlite3 asset_data.db "PRAGMA journal_mode=WAL;"
@@ -549,6 +582,7 @@ sqlite3 asset_data.db "PRAGMA journal_mode=WAL;"
 
 **Problem:** Corrupted database
 **Solution:**
+
 ```bash
 # Check integrity
 sqlite3 asset_data.db "PRAGMA integrity_check;"
@@ -564,19 +598,22 @@ cp asset_data_backup.db asset_data.db
 ### Daily Development Cycle
 
 1. **Start both servers:**
+
    ```bash
    # Terminal 1
    cd backend && source venv/bin/activate && uvicorn app.main:app --reload
 
    # Terminal 2
-   cd frontend && npm run dev
+   cd frontend && npm run dev -- --webpack
    ```
 
 2. **Make changes:**
+
    - Backend changes auto-reload (FastAPI `--reload`)
    - Frontend changes hot-reload (Next.js HMR)
 
 3. **Test changes:**
+
    - Frontend: Check browser at `http://localhost:3000`
    - Backend API: Check Swagger docs at `http://localhost:8000/docs`
 
@@ -593,6 +630,7 @@ cp asset_data_backup.db asset_data.db
 **Example: Adding a new API endpoint**
 
 1. **Define Pydantic schema (backend/app/schemas/example_schema.py):**
+
    ```python
    from pydantic import BaseModel
    from datetime import date
@@ -609,6 +647,7 @@ cp asset_data_backup.db asset_data.db
    ```
 
 2. **Create API endpoint (backend/app/routers/example.py):**
+
    ```python
    from fastapi import APIRouter, Depends
    from sqlalchemy.orm import Session
@@ -624,6 +663,7 @@ cp asset_data_backup.db asset_data.db
    ```
 
 3. **Register router (backend/app/main.py):**
+
    ```python
    from app.routers import example
 
@@ -631,23 +671,25 @@ cp asset_data_backup.db asset_data.db
    ```
 
 4. **Create React Query hook (frontend/lib/hooks/useExample.ts):**
+
    ```typescript
-   import { useQuery, useMutation } from '@tanstack/react-query';
+   import { useQuery, useMutation } from "@tanstack/react-query";
 
    export function useExample() {
      return useQuery({
-       queryKey: ['example'],
+       queryKey: ["example"],
        queryFn: async () => {
-         const res = await fetch('/api/example');
+         const res = await fetch("/api/example");
          return res.json();
-       }
+       },
      });
    }
    ```
 
 5. **Use in component (frontend/components/ExampleComponent.tsx):**
+
    ```typescript
-   import { useExample } from '@/lib/hooks/useExample';
+   import { useExample } from "@/lib/hooks/useExample";
 
    export default function ExampleComponent() {
      const { data, isLoading } = useExample();
@@ -688,6 +730,7 @@ npm start
 ### Docker (Optional)
 
 **Dockerfile (backend):**
+
 ```dockerfile
 FROM python:3.11-slim
 
@@ -702,6 +745,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 **Dockerfile (frontend):**
+
 ```dockerfile
 FROM node:18-alpine
 
@@ -717,8 +761,9 @@ CMD ["npm", "start"]
 ```
 
 **docker-compose.yml:**
+
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   backend:
@@ -741,6 +786,7 @@ services:
 ```
 
 **Run with Docker:**
+
 ```bash
 docker-compose up -d
 ```
@@ -762,6 +808,7 @@ tar -czf backups/asset_data_$(date +%Y%m%d).tar.gz backend/asset_data.db
 ### Automated Backup (cron job)
 
 **Create backup script (`backup.sh`):**
+
 ```bash
 #!/bin/bash
 BACKUP_DIR="/path/to/backups"
@@ -774,6 +821,7 @@ find "$BACKUP_DIR" -name "asset_data_*.db" -mtime +7 -delete
 ```
 
 **Add to crontab:**
+
 ```bash
 # Run daily at 2 AM
 0 2 * * * /path/to/PAM/backup.sh
@@ -782,6 +830,7 @@ find "$BACKUP_DIR" -name "asset_data_*.db" -mtime +7 -delete
 ### Cloud Sync
 
 **Using Dropbox:**
+
 ```bash
 # Move database to Dropbox
 mv backend/asset_data.db ~/Dropbox/PAM/asset_data.db
@@ -791,6 +840,7 @@ ln -s ~/Dropbox/PAM/asset_data.db backend/asset_data.db
 ```
 
 **Using Google Drive (with rclone):**
+
 ```bash
 # Install rclone
 brew install rclone  # Mac
@@ -816,11 +866,13 @@ After setup is complete:
 5. ✅ Explore dashboard charts and visualizations
 
 **Read next:**
+
 - [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md) - Understand the 4 core patterns
 - [API_SPEC.md](API_SPEC.md) - Full API reference
 - [DATABASE.md](DATABASE.md) - Database schema details
 
 **Need help?**
+
 - Check [Troubleshooting](#troubleshooting) section above
 - Review TODO.md for development roadmap
 - Inspect backend API docs at `http://localhost:8000/docs`

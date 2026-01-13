@@ -5,13 +5,15 @@ Frontend dashboard for the Personal Asset Management System application.
 ## Setup
 
 1. Install dependencies:
+
    ```bash
    npm install
    ```
 
 2. Start development server:
+
    ```bash
-   npm run dev
+   npm run dev -- --webpack
    ```
 
 3. Open browser:
@@ -37,6 +39,7 @@ Frontend dashboard for the Personal Asset Management System application.
 **CRITICAL:** All API calls use the `/api/*` prefix, which is proxied to the backend at `http://localhost:8000`.
 
 The proxy is configured in `next.config.ts`:
+
 ```typescript
 async rewrites() {
   return [
@@ -68,6 +71,7 @@ NEXT_PUBLIC_API_URL=/api
 ## React Query
 
 All data fetching uses `@tanstack/react-query`:
+
 - Automatic caching and background refetching
 - Loading and error states
 - Optimistic updates (Phase 2+)
@@ -82,6 +86,7 @@ All data fetching uses `@tanstack/react-query`:
 ## Phase 1 Status
 
 Current implementation:
+
 - ✅ Next.js 14 with App Router
 - ✅ TypeScript strict mode
 - ✅ Tailwind CSS
@@ -90,6 +95,7 @@ Current implementation:
 - ✅ Health check page
 
 Not yet implemented (Phase 2+):
+
 - ❌ Account management UI
 - ❌ Transaction entry forms
 - ❌ Charts and visualizations

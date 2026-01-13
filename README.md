@@ -7,11 +7,13 @@ PAMS is a reality-mirroring financial tracking system that reconstructs your com
 ## Key Features
 
 ### Local-First Architecture
+
 - **Complete data ownership** - All data stored locally in SQLite
 - **No cloud dependencies** - Runs entirely on your machine
 - **Privacy-focused** - Your financial data never leaves your computer
 
 ### Multi-Account Support
+
 - **Deposit/Withdrawal accounts (입출금통장)** - Daily spending and cash management
 - **Securities accounts (증권계좌)** - Stocks, ETFs, gold, and other securities
 - **Foreign Currency accounts (외화통장)** - Multi-currency holdings with exchange tracking
@@ -19,6 +21,7 @@ PAMS is a reality-mirroring financial tracking system that reconstructs your com
 - **Savings accounts** - Interest-earning accounts in any currency
 
 ### Reality-Mirroring Transaction System
+
 Four core transaction patterns that model real-world financial activities:
 
 1. **Income/Expense** - Salary, dividends, expenses (total assets change)
@@ -27,6 +30,7 @@ Four core transaction patterns that model real-world financial activities:
 4. **Exchange** - Currency conversion with automatic rate tracking
 
 ### Advanced Features
+
 - **Time-travel recalculation** - Add past transactions and automatically recalculate all holdings from that date forward
 - **Hourly asset snapshots** - Automated tracking of total portfolio value over time
 - **Recurring transfers** - Schedule automated transfers (salary, rent, bills)
@@ -36,6 +40,7 @@ Four core transaction patterns that model real-world financial activities:
 ## Tech Stack
 
 ### Backend
+
 - **FastAPI** - Modern Python web framework
 - **SQLAlchemy** - SQL toolkit and ORM
 - **SQLite** - Embedded database
@@ -43,6 +48,7 @@ Four core transaction patterns that model real-world financial activities:
 - **Pydantic** - Data validation and serialization
 
 ### Frontend
+
 - **Next.js 14** - React framework with App Router
 - **TypeScript** - Type-safe JavaScript
 - **React Query** - Data fetching and state management
@@ -85,12 +91,14 @@ PAMS/
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd PAMS
    ```
 
 2. **Set up the backend**
+
    ```bash
    cd backend
    python -m venv venv
@@ -99,6 +107,7 @@ PAMS/
    ```
 
 3. **Set up the frontend**
+
    ```bash
    cd ../frontend
    npm install
@@ -107,11 +116,13 @@ PAMS/
 4. **Configure environment variables**
 
    Backend (create `backend/.env`):
+
    ```env
    CORS_ORIGINS=http://localhost:3000
    ```
 
    Frontend (create `frontend/.env.local`):
+
    ```env
    NEXT_PUBLIC_API_URL=http://localhost:3000/api
    ```
@@ -121,6 +132,7 @@ PAMS/
 Open **two terminal windows**:
 
 **Terminal 1 - Backend:**
+
 ```bash
 cd backend
 source venv/bin/activate  # Windows: venv\Scripts\activate
@@ -128,12 +140,14 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 **Terminal 2 - Frontend:**
+
 ```bash
 cd frontend
-npm run dev
+npm run dev -- --webpack
 ```
 
 **Access the application:**
+
 - Frontend: [http://localhost:3000](http://localhost:3000)
 - API Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
 - Health Check: [http://localhost:8000/api/health](http://localhost:8000/api/health)
@@ -143,11 +157,13 @@ npm run dev
 Comprehensive documentation is available in the repository:
 
 ### Essential Reading
+
 - **[CONTEXT.md](CONTEXT.md)** - Project philosophy, core concepts, and architecture
 - **[RULES.md](RULES.md)** - Development constraints and transaction patterns
 - **[TODO.md](TODO.md)** - Current development priorities and roadmap
 
 ### Technical Documentation
+
 - **[API_SPEC.md](API_SPEC.md)** - Complete API endpoint documentation
 - **[DATABASE.md](DATABASE.md)** - Database schema and relationships
 - **[TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md)** - Detailed transaction logic
@@ -155,6 +171,7 @@ Comprehensive documentation is available in the repository:
 - **[SETUP.md](SETUP.md)** - Detailed setup instructions and troubleshooting
 
 ### For Developers
+
 - **[CLAUDE.md](CLAUDE.md)** - Development guidelines and AI assistant instructions
 
 ## Architecture Highlights
@@ -184,6 +201,7 @@ Transaction Logs (Source of Truth)
 ### Background Services
 
 APScheduler runs automated tasks:
+
 - **Hourly snapshots** - Capture total asset value every hour
 - **Recurring transfers** - Execute scheduled transfers automatically
 - **Gap detection** - Backfill missing snapshots on startup
@@ -193,6 +211,7 @@ APScheduler runs automated tasks:
 ### Running Tests
 
 **Backend:**
+
 ```bash
 cd backend
 pytest                              # Run all tests
@@ -201,6 +220,7 @@ pytest --cov=app --cov-report=html  # HTML coverage report
 ```
 
 **Frontend:**
+
 ```bash
 cd frontend
 npm run lint    # ESLint
@@ -210,6 +230,7 @@ npm run build   # Type-check and build
 ### Database Management
 
 **Inspect database:**
+
 ```bash
 # Interactive API docs (recommended)
 open http://localhost:8000/docs
@@ -219,6 +240,7 @@ open http://localhost:8000/docs
 ```
 
 **Reset database:**
+
 ```bash
 cd backend
 python scripts/reset_database.py  # Creates backup before reset

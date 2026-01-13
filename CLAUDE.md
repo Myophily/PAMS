@@ -30,19 +30,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 When you need detailed information on specific topics, refer to these files:
 
-| Topic | File | Use When |
-|-------|------|----------|
-| **API endpoints** | [API_SPEC.md](API_SPEC.md) | Creating/modifying backend endpoints, request/response formats |
-| **Database schema** | [DATABASE.md](DATABASE.md) | Querying or modifying database structure, understanding relationships |
-| **Transaction logic** | [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md) | Implementing transaction flows, calculation logic |
-| **UI components** | [FRONTEND_COMPONENTS.md](FRONTEND_COMPONENTS.md) | Building/modifying frontend components, React Query hooks |
-| **Setup & troubleshooting** | [SETUP.md](SETUP.md) | Setting up dev environment, fixing issues |
+| Topic                       | File                                               | Use When                                                              |
+| --------------------------- | -------------------------------------------------- | --------------------------------------------------------------------- |
+| **API endpoints**           | [API_SPEC.md](API_SPEC.md)                         | Creating/modifying backend endpoints, request/response formats        |
+| **Database schema**         | [DATABASE.md](DATABASE.md)                         | Querying or modifying database structure, understanding relationships |
+| **Transaction logic**       | [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md) | Implementing transaction flows, calculation logic                     |
+| **UI components**           | [FRONTEND_COMPONENTS.md](FRONTEND_COMPONENTS.md)   | Building/modifying frontend components, React Query hooks             |
+| **Setup & troubleshooting** | [SETUP.md](SETUP.md)                               | Setting up dev environment, fixing issues                             |
 
 ---
 
 ## Application Structure
 
 ### Pages & Routes
+
 - **Dashboard (`/`)** → Total asset overview, allocation charts, volatility graph
 - **Account List (`/accounts`)** → Card-based account management with action buttons
 - **Account Details (`/accounts/[id]`)** → 3-tab view (Holdings, Transactions, Analysis)
@@ -55,18 +56,21 @@ When you need detailed information on specific topics, refer to these files:
 ### Architecture Layers
 
 **Backend (FastAPI):**
+
 - **Routers** → HTTP request/response handling only
 - **Services** → Business logic, implement 4 transaction patterns
 - **Models** → Database schema (Account, Transaction, Holding, MarketData, AssetSnapshot)
 - **Schemas** → Pydantic validation (mirror frontend TypeScript types)
 
 **Frontend (Next.js):**
+
 - **Pages** → Dashboard, Account List, Account Details
 - **Components** → Reusable UI (Cards, Charts, Modals, Tables)
 - **Hooks** → React Query for data fetching and state management
 - **Types** → TypeScript interfaces (mirror backend schemas)
 
 **Database (SQLite):**
+
 - `Account` → Financial accounts
 - `Transaction` → **Immutable log** (source of truth)
 - `Holding` → **Computed state** (derived from transactions)
@@ -80,6 +84,7 @@ When you need detailed information on specific topics, refer to these files:
 **APScheduler** runs inside the FastAPI backend for automated tasks:
 
 **Jobs:**
+
 - **Hourly snapshots:** Generates `AssetSnapshot` every hour at :00 minutes (12:00, 13:00, 14:00, etc.)
 - **Recurring transfers:** Executes scheduled transfers based on `RecurringTransfer` configuration
   - Checks `day_of_month` against current date
@@ -89,12 +94,14 @@ When you need detailed information on specific topics, refer to these files:
 - **Gap detection:** Automatically backfills missing snapshots on server startup
 
 **Implementation:**
+
 - Job storage: SQLite database (same as application data)
 - Executor: Single-threaded to prevent race conditions
 - Lifecycle: Starts on backend startup, shuts down gracefully on stop
 - Configuration: See `app/main.py` for scheduler setup
 
 **Key behaviors:**
+
 - Recurring transfers are loaded from database on startup
 - Jobs are scheduled dynamically when transfers are created/updated/deleted
 - Missed executions are handled with 1-hour grace period
@@ -106,14 +113,14 @@ When you need detailed information on specific topics, refer to these files:
 
 All financial activities in PAMS must follow one of these 4 patterns. **For detailed implementation with SQL examples, calculation logic, and test cases:** [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md)
 
-| Pattern | Description | Accounts | Holdings | Total Assets | Linked? |
-|---------|-------------|----------|----------|--------------|---------|
-| **① Income/Expense** | Salary, expense, dividend | 1 | 1 (CASH) | **Changes** | No |
-| **② Transfer** | Move money between accounts | 2 | 2 (CASH) | Unchanged | Yes |
-| **③ Buy/Sell** | Convert cash ↔ stock | 1 | 2 (CASH + ticker) | Unchanged* | No |
-| **④ Exchange** | Convert currency | 1 | 2 (currencies) | Unchanged* | Yes |
+| Pattern              | Description                 | Accounts | Holdings          | Total Assets | Linked? |
+| -------------------- | --------------------------- | -------- | ----------------- | ------------ | ------- |
+| **① Income/Expense** | Salary, expense, dividend   | 1        | 1 (CASH)          | **Changes**  | No      |
+| **② Transfer**       | Move money between accounts | 2        | 2 (CASH)          | Unchanged    | Yes     |
+| **③ Buy/Sell**       | Convert cash ↔ stock        | 1        | 2 (CASH + ticker) | Unchanged\*  | No      |
+| **④ Exchange**       | Convert currency            | 1        | 2 (currencies)    | Unchanged\*  | Yes     |
 
-*Unchanged at transaction time; changes later due to market movements.
+\*Unchanged at transaction time; changes later due to market movements.
 
 ### Pattern Quick Reference
 
@@ -215,11 +222,13 @@ tx1.linked_tx_id = tx2.id
 ### Creating a New API Endpoint
 
 **Quick template:**
+
 1. **Backend:** Router → Service → Model (separation of concerns)
 2. **Frontend:** Hook → Component
 3. **Types:** Mirror Pydantic schemas in TypeScript
 
 **Complete examples:**
+
 - Backend: [API_SPEC.md](API_SPEC.md)
 - Frontend: [FRONTEND_COMPONENTS.md](FRONTEND_COMPONENTS.md#react-query-hooks)
 
@@ -228,6 +237,7 @@ tx1.linked_tx_id = tx2.id
 **Critical:** The frontend uses Next.js rewrites to proxy API requests.
 
 **Configuration** ([next.config.ts](frontend/next.config.ts)):
+
 ```typescript
 async rewrites() {
   return [{
@@ -238,12 +248,14 @@ async rewrites() {
 ```
 
 **What this means:**
+
 - Frontend code calls: `fetch('/api/accounts')`
 - Next.js automatically rewrites to: `http://localhost:8000/api/accounts`
 - No CORS issues in development (requests appear same-origin to browser)
 - Backend still has CORS configured for direct access
 
 **Why this matters:**
+
 - Never hardcode `http://localhost:8000` in frontend code
 - Always use relative paths: `/api/...`
 - The proxy only works when Next.js dev server is running
@@ -267,6 +279,7 @@ if transaction.date < date.today():
 ### Starting the Application
 
 **Terminal 1 (Backend):**
+
 ```bash
 cd backend
 source venv/bin/activate  # Windows: venv\Scripts\activate
@@ -274,17 +287,20 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 **Runs on:**
+
 - API server: `http://localhost:8000`
 - Interactive docs: `http://localhost:8000/docs` (FastAPI Swagger UI)
 - Health check: `http://localhost:8000/api/health`
 
 **Terminal 2 (Frontend):**
+
 ```bash
 cd frontend
-npm run dev
+npm run dev -- --webpack
 ```
 
 **Runs on:**
+
 - Frontend: `http://localhost:3000`
 - API requests automatically proxy to backend via Next.js rewrites
 
@@ -297,6 +313,7 @@ npm run dev
 ### When to Restart Servers
 
 **Backend restart required for:**
+
 - Changes to `app/main.py` or startup configuration
 - Installing new Python packages (`pip install ...`)
 - Database schema changes (though migrations auto-run on startup)
@@ -304,16 +321,19 @@ npm run dev
 - Changes to APScheduler configuration
 
 **Backend auto-reloads for:**
+
 - Changes to any Python file (thanks to `--reload` flag)
 - Changes to router/service/model files
 
 **Frontend restart required for:**
+
 - Changes to `next.config.ts`
 - Changes to `tailwind.config.ts` or PostCSS config
 - Installing new npm packages (`npm install ...`)
 - Changes to `.env.local` file
 
 **Frontend auto-reloads for:**
+
 - Component changes (hot module replacement)
 - Page changes (fast refresh)
 - Style changes (CSS hot reload)
@@ -322,12 +342,14 @@ npm run dev
 ### Environment Variables
 
 **Backend** (`.env` in `backend/` directory):
+
 ```env
 CORS_ORIGINS=http://localhost:3000
 # Add API keys for external services here (e.g., market data providers)
 ```
 
 **Frontend** (`.env.local` in `frontend/` directory):
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3000/api
 ```
@@ -337,6 +359,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3000/api
 ### Running Tests
 
 **Backend Tests:**
+
 ```bash
 cd backend
 source venv/bin/activate  # Ensure venv is active
@@ -362,12 +385,14 @@ pytest tests/test_transactions.py::test_create_deposit -v
 ```
 
 **Test Configuration:**
+
 - Config file: `backend/pytest.ini`
 - Test files: `backend/tests/` directory
 - Coverage reports: `backend/htmlcov/` (generated after running with `--cov-report=html`)
 - Test database: Uses in-memory SQLite (configured in `tests/conftest.py`)
 
 **Frontend Checks:**
+
 ```bash
 cd frontend
 
@@ -379,6 +404,7 @@ npm run build
 ```
 
 **Test Focus Areas:**
+
 - **Unit tests:** `tests/utils/` - Calculation logic, decimal helpers
 - **Service tests:** `tests/services/` - Transaction patterns, business logic
 - **API tests:** `tests/routers/` - Endpoint behavior, validation
@@ -389,6 +415,7 @@ npm run build
 **Database Location:** `backend/asset_data.db` (SQLite file)
 
 **Inspect Database:**
+
 ```bash
 # Health check API
 curl http://localhost:8000/api/health
@@ -402,6 +429,7 @@ open http://localhost:8000/docs
 ```
 
 **Reset Database (Clean Slate):**
+
 ```bash
 cd backend
 python scripts/reset_database.py  # Creates backup before reset
@@ -410,6 +438,7 @@ python scripts/reset_database.py  # Creates backup before reset
 **Database Migrations:**
 
 Migrations run **automatically** on server startup (see `app/main.py` `on_startup()` function):
+
 - `migrate_account_types()` - Account type enum updates
 - `migrate_date_to_datetime()` - Date field upgrades to datetime
 - `migrate_recurring_transfer_nullable_to_account()` - Recurring transfer schema
@@ -417,6 +446,7 @@ Migrations run **automatically** on server startup (see `app/main.py` `on_startu
 - Snapshot gap detection and backfill
 
 **Manual Migration Scripts:**
+
 ```bash
 cd backend/scripts
 python run_migration_003.py  # Run specific migration if needed
@@ -424,6 +454,7 @@ python migrate_cash_to_currencies.py  # One-time data migration
 ```
 
 **Backup Database:**
+
 ```bash
 # Simple backup
 cp backend/asset_data.db backend/asset_data_backup_$(date +%Y%m%d).db
@@ -436,6 +467,7 @@ cp backend/asset_data.db backend/asset_data_backup_$(date +%Y%m%d).db
 ## Code Review Checklist
 
 ### Backend
+
 - [ ] All monetary values use `Decimal`, not `float`
 - [ ] All dates use `datetime.date`, not strings
 - [ ] Database operations use proper transactions (wrap multi-record operations)
@@ -447,6 +479,7 @@ cp backend/asset_data.db backend/asset_data_backup_$(date +%Y%m%d).db
 - [ ] Transaction types are validated against account type (use `validate_transaction_type()`)
 
 ### Frontend
+
 - [ ] API calls go through `/api/*` routes (Next.js rewrites)
 - [ ] React Query is used for all data fetching
 - [ ] Loading and error states are handled
@@ -456,6 +489,7 @@ cp backend/asset_data.db backend/asset_data_backup_$(date +%Y%m%d).db
 - [ ] No inline styles (use Tailwind classes)
 
 ### Database
+
 - [ ] Foreign key constraints are defined
 - [ ] Unique constraints where needed (e.g., `(account_id, ticker)` on Holding)
 - [ ] Indexes on frequently queried columns
@@ -467,6 +501,7 @@ cp backend/asset_data.db backend/asset_data_backup_$(date +%Y%m%d).db
 ## Testing Strategy
 
 **Backend Testing:**
+
 ```bash
 cd backend
 pytest                              # Run all tests
@@ -477,23 +512,27 @@ pytest --cov=app --cov-report=html  # HTML coverage report
 ```
 
 **Focus areas:**
+
 - **Unit Tests:** Calculation logic (avg price, P/L, asset valuation) - `tests/utils/`
 - **Service Tests:** Transaction patterns, business logic - `tests/services/`
 - **Integration Tests:** Transaction flows (deposit, transfer, buy/sell, exchange) - `tests/services/`
 - **API Tests:** Endpoint behavior, validation, error handling - `tests/routers/`
 
 **Test Database:**
+
 - Uses separate in-memory SQLite database
 - Configured in `tests/conftest.py`
 - Database is created fresh for each test session
 - Does not affect production `asset_data.db`
 
 **Coverage:**
+
 - Run `pytest --cov=app --cov-report=term-missing` to see uncovered lines
 - HTML report: `pytest --cov=app --cov-report=html` → open `htmlcov/index.html`
 - Current coverage tracked in test runs
 
 **Frontend Testing:**
+
 - ESLint: `npm run lint`
 - TypeScript type checking: `npm run build`
 - Future: Jest/React Testing Library for component tests
@@ -504,14 +543,14 @@ pytest --cov=app --cov-report=html  # HTML coverage report
 
 ## Common Debugging Scenarios
 
-| Issue | First Steps | Reference |
-|-------|-------------|-----------|
-| **Total assets don't match** | Query `Transaction` table → Check `Holding` calculation → Verify market data | [DATABASE.md](DATABASE.md) |
-| **Past transaction didn't recalculate** | Verify `recalculate_from_date()` called → Check `AssetSnapshot` table | [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md) |
-| **API 500 error** | Check FastAPI console → Verify DB connection → Check foreign keys | [API_SPEC.md](API_SPEC.md) |
-| **Frontend stale data** | Check React Query cache → Verify `queryKey` → Call `invalidateQueries` | [FRONTEND_COMPONENTS.md](FRONTEND_COMPONENTS.md) |
-| **Backend won't start** | Check port 8000 not in use → Verify venv activated → Check `.env` file exists | [SETUP.md](SETUP.md) |
-| **Frontend can't reach API** | Verify backend running on :8000 → Check `next.config.ts` rewrites → Check browser network tab | [next.config.ts](frontend/next.config.ts) |
+| Issue                                   | First Steps                                                                                   | Reference                                          |
+| --------------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| **Total assets don't match**            | Query `Transaction` table → Check `Holding` calculation → Verify market data                  | [DATABASE.md](DATABASE.md)                         |
+| **Past transaction didn't recalculate** | Verify `recalculate_from_date()` called → Check `AssetSnapshot` table                         | [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md) |
+| **API 500 error**                       | Check FastAPI console → Verify DB connection → Check foreign keys                             | [API_SPEC.md](API_SPEC.md)                         |
+| **Frontend stale data**                 | Check React Query cache → Verify `queryKey` → Call `invalidateQueries`                        | [FRONTEND_COMPONENTS.md](FRONTEND_COMPONENTS.md)   |
+| **Backend won't start**                 | Check port 8000 not in use → Verify venv activated → Check `.env` file exists                 | [SETUP.md](SETUP.md)                               |
+| **Frontend can't reach API**            | Verify backend running on :8000 → Check `next.config.ts` rewrites → Check browser network tab | [next.config.ts](frontend/next.config.ts)          |
 
 **Troubleshooting guide:** [SETUP.md](SETUP.md#troubleshooting)
 
@@ -520,12 +559,14 @@ pytest --cov=app --cov-report=html  # HTML coverage report
 ## File Naming Conventions
 
 ### Backend
+
 - Models: `app/models/account.py` (singular)
 - Schemas: `app/schemas/account_schema.py` (singular)
 - Services: `app/services/transaction_service.py` (singular)
 - Routers: `app/routers/accounts.py` (plural)
 
 ### Frontend
+
 - Pages: `app/accounts/page.tsx` (plural)
 - Components: `components/AccountCard.tsx` (PascalCase)
 - Hooks: `lib/hooks/useAccounts.ts` (camelCase, starts with 'use')
@@ -573,6 +614,7 @@ refactor: extract market data fetching to service
 ## Final Reminders
 
 **When in doubt:**
+
 1. **Data integrity > Feature completeness** → A correct calculation that's slow is better than a fast one that's wrong
 2. **Read the docs first** → The information you need is likely already documented
 3. **Follow the patterns** → All transactions must follow one of the 4 patterns
@@ -580,6 +622,7 @@ refactor: extract market data fetching to service
 5. **Think like an accountant** → Every transaction should balance
 
 **Never skip:**
+
 - Reading [RULES.md](RULES.md) before modifying transaction logic
 - Triggering recalculation when inserting past transactions
 - Using `Decimal` for monetary calculations
