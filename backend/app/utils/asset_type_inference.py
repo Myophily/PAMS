@@ -12,9 +12,10 @@ CRYPTO_TICKERS = [
 
 
 # Known bond ETF/symbol tickers
+# Add Security Deposit as a bond ticker
 BOND_TICKERS = [
     "TLT", "BND", "GOVT", "VCIT", "LQD", "HYG", "SHY", "IEF", "EDV", "TIP",
-    "BSV", "VGIT", "MBB", "AGG", "SPSB", "SPTI", "SCHO", "SCHR", "SPLB"
+    "BSV", "VGIT", "MBB", "AGG", "SPSB", "SPTI", "SCHO", "SCHR", "SPLB", "SD"
 ]
 
 
