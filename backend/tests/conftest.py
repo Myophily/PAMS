@@ -1,8 +1,8 @@
 """
-Shared pytest fixtures for Personal Asset Manager testing.
+Shared pytest fixtures for Personal Asset Management System testing.
 
 This module provides database fixtures, sample data factories, and utilities
-for testing the PAM application with isolated in-memory databases.
+for testing the PAMS application with isolated in-memory databases.
 """
 
 import pytest

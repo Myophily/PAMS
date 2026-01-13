@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Context
 
-**Personal Asset Manager (PAM)** is a local-first financial dashboard application - a professional Asset Management System (PMS) beyond a simple household ledger.
+**Personal Asset Management System (PAMS)** is a local-first financial dashboard application - a professional Asset Management System (PMS) beyond a simple household ledger.
 
 - **Backend:** FastAPI + SQLAlchemy + SQLite
 - **Frontend:** Next.js 14 (App Router) + TypeScript + React Query
@@ -104,7 +104,7 @@ When you need detailed information on specific topics, refer to these files:
 
 ## The Four Core Transaction Patterns
 
-All financial activities in PAM must follow one of these 4 patterns. **For detailed implementation with SQL examples, calculation logic, and test cases:** [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md)
+All financial activities in PAMS must follow one of these 4 patterns. **For detailed implementation with SQL examples, calculation logic, and test cases:** [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md)
 
 | Pattern | Description | Accounts | Holdings | Total Assets | Linked? |
 |---------|-------------|----------|----------|--------------|---------|

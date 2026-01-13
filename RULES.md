@@ -1,4 +1,4 @@
-# RULES.md - Personal Asset Manager
+# RULES.md - Personal Asset Management System
 
 ## Core Development Principles
 
@@ -16,7 +16,7 @@
 
 #### Four Core Transaction Patterns
 
-PAM formalizes the flow of money in reality into 4 fundamental patterns:
+PAMS formalizes the flow of money in reality into 4 fundamental patterns:
 
 **Pattern ① Pure Income/Expense**
 - **Rule:** The cash balance of a single account increases or decreases. Total assets change.

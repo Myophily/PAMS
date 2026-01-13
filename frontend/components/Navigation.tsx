@@ -24,7 +24,7 @@ export function Navigation() {
       <div className="container mx-auto flex items-center justify-between">
         <Link href="/">
           <h1 className="text-xl font-bold cursor-pointer hover:text-gray-300 transition">
-            Personal Asset Manager
+            Personal Asset Management System
           </h1>
         </Link>
         <div className="flex gap-2">

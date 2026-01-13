@@ -1,8 +1,8 @@
-# Personal Asset Manager (PAM)
+# Personal Asset Management System (PAMS)
 
 > A local-first financial dashboard application - a professional Asset Management System (PMS) beyond a simple household ledger
 
-PAM is a reality-mirroring financial tracking system that reconstructs your complete financial state from transaction logs, enabling "time travel" to see how past transactions affect current asset valuation across multiple account types.
+PAMS is a reality-mirroring financial tracking system that reconstructs your complete financial state from transaction logs, enabling "time travel" to see how past transactions affect current asset valuation across multiple account types.
 
 ## Key Features
 
@@ -53,7 +53,7 @@ Four core transaction patterns that model real-world financial activities:
 ## Project Structure
 
 ```
-PAM/
+PAMS/
 ├── backend/
 │   ├── app/
 │   │   ├── models/          # SQLAlchemy database models
@@ -87,7 +87,7 @@ PAM/
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd PAM
+   cd PAMS
    ```
 
 2. **Set up the backend**

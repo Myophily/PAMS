@@ -122,7 +122,7 @@ export function TransferModal({
           error={errors.from_account_id?.message}
         >
           <option value={0}>Select source account</option>
-          <option value={-1}>External (Outside PAM)</option>
+          <option value={-1}>External (Outside PAMS)</option>
           <option disabled>──────────────</option>
           {accounts.map((account) => (
             <option key={account.id} value={account.id}>
@@ -158,7 +158,7 @@ export function TransferModal({
           error={errors.to_account_id?.message}
         >
           <option value={0}>Select destination account</option>
-          <option value={-1}>External (Outside PAM)</option>
+          <option value={-1}>External (Outside PAMS)</option>
           <option disabled>──────────────</option>
           {accounts
             .filter((account) => account.id !== fromAccountId)

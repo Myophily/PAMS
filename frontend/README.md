@@ -1,6 +1,6 @@
-# PAM Frontend (Next.js 14)
+# PAMS Frontend (Next.js 14)
 
-Frontend dashboard for the Personal Asset Manager application.
+Frontend dashboard for the Personal Asset Management System application.
 
 ## Setup
 

@@ -1,5 +1,5 @@
 """
-Core financial calculation engine for PAM.
+Core financial calculation engine for PAMS.
 
 CRITICAL: All functions are pure (no DB access). Use Decimal for all monetary calculations.
 

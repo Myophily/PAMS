@@ -1,6 +1,6 @@
-# API_SPEC.md - Personal Asset Manager
+# API_SPEC.md - Personal Asset Management System
 
-Complete API endpoint specifications for the PAM backend.
+Complete API endpoint specifications for the PAMS backend.
 
 ## Base URL
 

@@ -1,4 +1,4 @@
-# TODO.md - Personal Asset Manager
+# TODO.md - Personal Asset Management System
 
 ## Phase 1: Project Setup & Core Infrastructure
 

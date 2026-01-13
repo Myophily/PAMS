@@ -1,4 +1,4 @@
-# FRONTEND_COMPONENTS.md - Personal Asset Manager
+# FRONTEND_COMPONENTS.md - Personal Asset Management System
 
 Component hierarchy, props specifications, and UI patterns for the Next.js frontend.
 

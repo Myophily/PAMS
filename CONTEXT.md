@@ -1,8 +1,8 @@
-# CONTEXT.md - Personal Asset Manager
+# CONTEXT.md - Personal Asset Management System
 
 ## Project Overview
 
-**Personal Asset Manager (PAM)** is a local-first, reality-mirroring financial dashboard for tracking personal assets across multiple account types (checking, brokerage, foreign currency, MMF). Unlike traditional accounting software that focuses on budgeting, PAM reconstructs your complete financial state from transaction logs, enabling "time travel" to see how past transactions affect current asset valuation.
+**Personal Asset Management System (PAMS)** is a local-first, reality-mirroring financial dashboard for tracking personal assets across multiple account types (checking, brokerage, foreign currency, MMF). Unlike traditional accounting software that focuses on budgeting, PAMS reconstructs your complete financial state from transaction logs, enabling "time travel" to see how past transactions affect current asset valuation.
 
 **This is a professional Asset Management System (PMS) beyond a simple household ledger.** While the UI remains intuitive and simple, the backend logic is designed to be accounting-strict (incorporating double-entry bookkeeping concepts) to track all asset fluctuations in the real world without omission.
 
@@ -40,7 +40,7 @@ The `Holding` table (current balances) is a **computed view** derived from `Tran
 
 ### 2. Four Core Transaction Patterns
 
-PAM formalizes the flow of money in reality into 4 fundamental patterns:
+PAMS formalizes the flow of money in reality into 4 fundamental patterns:
 
 #### **Pattern ① Pure Income/Expense**
 - **Examples:** Salary deposit, food expense, bill payment
@@ -313,7 +313,7 @@ Total assets: Increased by $300 since purchase
 
 ## Deployment Model
 
-**Personal Asset Manager is NOT deployed** - it runs entirely on the user's local machine:
+**Personal Asset Management System is NOT deployed** - it runs entirely on the user's local machine:
 
 1. User clones the repository
 2. Sets up Python virtual environment

@@ -1,6 +1,6 @@
-# PAM - Agent Guidelines
+# PAMS - Agent Guidelines
 
-This document provides essential information for agentic coding assistants working in the PAM (Personal Asset Manager) repository.
+This document provides essential information for agentic coding assistants working in the PAMS (Personal Asset Management System) repository.
 
 ## Build & Test Commands
 

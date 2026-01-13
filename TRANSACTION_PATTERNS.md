@@ -1,4 +1,4 @@
-# TRANSACTION_PATTERNS.md - Personal Asset Manager
+# TRANSACTION_PATTERNS.md - Personal Asset Management System
 
 In-depth explanation of the 4 core transaction patterns with implementation examples.
 

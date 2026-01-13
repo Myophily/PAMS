@@ -1,6 +1,6 @@
-# PAM Backend (FastAPI)
+# PAMS Backend (FastAPI)
 
-Backend API for the Personal Asset Manager application.
+Backend API for the Personal Asset Management System application.
 
 ## Setup
 

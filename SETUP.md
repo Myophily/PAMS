@@ -1,4 +1,4 @@
-# SETUP.md - Personal Asset Manager
+# SETUP.md - Personal Asset Management System
 
 Step-by-step setup instructions for local development.
 
@@ -22,7 +22,7 @@ Step-by-step setup instructions for local development.
 ```bash
 # 1. Clone repository
 git clone <repository-url>
-cd PAM
+cd PAMS
 
 # 2. Backend setup
 cd backend

@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = FastAPI(
-    title="Personal Asset Manager API",
+    title="Personal Asset Management System API",
     version="1.0.0",
     description="Local-first financial dashboard API"
 )

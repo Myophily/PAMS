@@ -1,4 +1,4 @@
-# DATABASE.md - Personal Asset Manager
+# DATABASE.md - Personal Asset Management System
 
 Comprehensive database schema documentation with relationships and constraints.
 
