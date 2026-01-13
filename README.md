@@ -2,7 +2,7 @@
 
 # 💰 Personal Asset Management System (PAMS)
 
-### *Your Financial Life, Perfectly Reconstructed*
+### _Your Financial Life, Perfectly Reconstructed_
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
@@ -59,13 +59,13 @@ Financial data never leaves your computer<br/>
 
 PAMS supports all major account types used in modern financial management:
 
-| Account Type | Symbol | Use Case | Key Features |
-|-------------|--------|----------|--------------|
-| **Deposit/Withdrawal** | 💳 | Daily spending & cash | Transaction tracking, balance monitoring |
-| **Securities** | 📈 | Stocks, ETFs, bonds | Buy/sell tracking, P/L calculation, dividend recording |
-| **Foreign Currency** | 💱 | Multi-currency holdings | Exchange rate tracking, currency conversion |
-| **Money Market (MMF)** | 💵 | Short-term cash management | Interest tracking, high liquidity |
-| **Savings** | 🏦 | Interest-earning deposits | Any currency, interest calculation |
+| Account Type           | Symbol | Use Case                   | Key Features                                           |
+| ---------------------- | ------ | -------------------------- | ------------------------------------------------------ |
+| **Deposit/Withdrawal** | 💳     | Daily spending & cash      | Transaction tracking, balance monitoring               |
+| **Securities**         | 📈     | Stocks, ETFs, bonds        | Buy/sell tracking, P/L calculation, dividend recording |
+| **Foreign Currency**   | 💱     | Multi-currency holdings    | Exchange rate tracking, currency conversion            |
+| **Money Market (MMF)** | 💵     | Short-term cash management | Interest tracking, high liquidity                      |
+| **Savings**            | 🏦     | Interest-earning deposits  | Any currency, interest calculation                     |
 
 ### 🔄 Reality-Mirroring Transaction System
 
@@ -100,7 +100,7 @@ Four core transaction patterns that model **real-world financial activities**:
 </tr>
 </table>
 
-<sub>*Unchanged at transaction time; value changes later due to market movements</sub>
+<sub>\*Unchanged at transaction time; value changes later due to market movements</sub>
 
 ### 🚀 Advanced Capabilities
 
@@ -115,6 +115,7 @@ Add a transaction from 6 months ago, and PAMS automatically recalculates:
 - Cumulative profit/loss calculations
 
 **It's like Git rebase for your finances** - the history is rewritten consistently.
+
 </details>
 
 <details>
@@ -132,12 +133,14 @@ Add a transaction from 6 months ago, and PAMS automatically recalculates:
 <br/>
 
 Schedule automated financial flows:
+
 - Monthly salary deposits
 - Recurring rent/mortgage payments
 - Regular investment contributions
 - Subscription payments
 
 Set it once, let PAMS execute automatically at the right time.
+
 </details>
 
 <details>
@@ -155,16 +158,19 @@ Set it once, let PAMS execute automatically at the right time.
 <br/>
 
 **Portfolio Analytics:**
+
 - Asset allocation pie charts
 - Account-level and ticker-level breakdowns
 - Currency distribution analysis
 
 **Performance Tracking:**
+
 - Realized and unrealized P/L
 - Average purchase price tracking
 - ROI calculations per security
 
 **Risk Analysis:**
+
 - Volatility graphs over time
 - Drawdown analysis
 - Total asset value trends
@@ -176,24 +182,24 @@ Set it once, let PAMS execute automatically at the right time.
 
 ### Backend Power 🐍
 
-| Technology | Purpose | Why We Chose It |
-|-----------|---------|-----------------|
-| **FastAPI** | Web Framework | Async support, automatic API docs, type hints |
-| **SQLAlchemy** | ORM | Robust ORM with relationship handling |
-| **SQLite** | Database | Zero-config, embedded, perfect for local-first |
-| **APScheduler** | Job Scheduling | Hourly snapshots & recurring transfers |
-| **Pydantic** | Validation | Type-safe request/response schemas |
+| Technology      | Purpose        | Why We Chose It                                |
+| --------------- | -------------- | ---------------------------------------------- |
+| **FastAPI**     | Web Framework  | Async support, automatic API docs, type hints  |
+| **SQLAlchemy**  | ORM            | Robust ORM with relationship handling          |
+| **SQLite**      | Database       | Zero-config, embedded, perfect for local-first |
+| **APScheduler** | Job Scheduling | Hourly snapshots & recurring transfers         |
+| **Pydantic**    | Validation     | Type-safe request/response schemas             |
 
 ### Frontend Excellence ⚛️
 
-| Technology | Purpose | Why We Chose It |
-|-----------|---------|-----------------|
-| **Next.js 14** | React Framework | App Router, server components, API routes |
-| **TypeScript** | Type Safety | Catch errors at compile time, not runtime |
-| **React Query** | State Management | Caching, auto-refetch, optimistic updates |
-| **Tailwind CSS** | Styling | Rapid UI development with utility classes |
-| **Recharts** | Data Visualization | Beautiful charts with minimal code |
-| **Lucide React** | Icons | Consistent, customizable icon library |
+| Technology       | Purpose            | Why We Chose It                           |
+| ---------------- | ------------------ | ----------------------------------------- |
+| **Next.js 14**   | React Framework    | App Router, server components, API routes |
+| **TypeScript**   | Type Safety        | Catch errors at compile time, not runtime |
+| **React Query**  | State Management   | Caching, auto-refetch, optimistic updates |
+| **Tailwind CSS** | Styling            | Rapid UI development with utility classes |
+| **Recharts**     | Data Visualization | Beautiful charts with minimal code        |
+| **Lucide React** | Icons              | Consistent, customizable icon library     |
 
 </div>
 
@@ -267,9 +273,10 @@ Make sure you have these installed:
 <summary><b>Step 1️⃣: Clone the Repository</b></summary>
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Myophily/PAMS.git
 cd PAMS
 ```
+
 </details>
 
 <details open>
@@ -291,6 +298,7 @@ pip install -r requirements.txt
 ```
 
 **✅ You should see (venv) in your terminal prompt**
+
 </details>
 
 <details open>
@@ -304,22 +312,26 @@ npm install
 ```
 
 **✅ This will install Next.js, React, TypeScript, and all UI libraries**
+
 </details>
 
 <details open>
 <summary><b>Step 4️⃣: Configure Environment Variables</b></summary>
 
 **Backend Configuration** (create `backend/.env`):
+
 ```env
 CORS_ORIGINS=http://localhost:3000
 ```
 
 **Frontend Configuration** (create `frontend/.env.local`):
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3000/api
 ```
 
 **✅ These files are in .gitignore for security**
+
 </details>
 
 ---
@@ -337,6 +349,7 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 **✅ Success indicators:**
+
 - `INFO: Uvicorn running on http://127.0.0.1:8000`
 - `INFO: Application startup complete`
 - `INFO: Scheduler started`
@@ -349,6 +362,7 @@ npm run dev -- --webpack
 ```
 
 **✅ Success indicators:**
+
 - `✓ Ready in XXXms`
 - `○ Local: http://localhost:3000`
 - `✓ Compiled successfully`
@@ -387,28 +401,28 @@ npm run dev -- --webpack
 
 These documents explain the **"why"** behind PAMS:
 
-| Document | Purpose | Read When |
-|----------|---------|-----------|
-| **[CONTEXT.md](CONTEXT.md)** 📖 | Project philosophy, core concepts, architecture decisions | Before making ANY changes |
-| **[RULES.md](RULES.md)** ⚠️ | Development constraints & the 4 transaction patterns | Before modifying transaction logic |
-| **[TODO.md](TODO.md)** 📝 | Current development priorities and roadmap | Planning new features |
+| Document                        | Purpose                                                   | Read When                          |
+| ------------------------------- | --------------------------------------------------------- | ---------------------------------- |
+| **[CONTEXT.md](CONTEXT.md)** 📖 | Project philosophy, core concepts, architecture decisions | Before making ANY changes          |
+| **[RULES.md](RULES.md)** ⚠️     | Development constraints & the 4 transaction patterns      | Before modifying transaction logic |
+| **[TODO.md](TODO.md)** 📝       | Current development priorities and roadmap                | Planning new features              |
 
 ### 🔧 Technical Documentation (Implementation Details)
 
 Detailed specs for building and extending features:
 
-| Document | Purpose | Use For |
-|----------|---------|---------|
-| **[API_SPEC.md](API_SPEC.md)** 🔌 | Complete API endpoint reference | Creating/modifying endpoints |
-| **[DATABASE.md](DATABASE.md)** 🗄️ | Database schema, relationships, queries | Understanding data structure |
-| **[TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md)** 💸 | Detailed transaction logic & calculations | Implementing financial flows |
-| **[FRONTEND_COMPONENTS.md](FRONTEND_COMPONENTS.md)** 🎨 | UI component specifications & React Query hooks | Building UI features |
-| **[SETUP.md](SETUP.md)** 🛠️ | Detailed setup & troubleshooting guide | Installation issues |
+| Document                                                  | Purpose                                         | Use For                      |
+| --------------------------------------------------------- | ----------------------------------------------- | ---------------------------- |
+| **[API_SPEC.md](API_SPEC.md)** 🔌                         | Complete API endpoint reference                 | Creating/modifying endpoints |
+| **[DATABASE.md](DATABASE.md)** 🗄️                         | Database schema, relationships, queries         | Understanding data structure |
+| **[TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md)** 💸 | Detailed transaction logic & calculations       | Implementing financial flows |
+| **[FRONTEND_COMPONENTS.md](FRONTEND_COMPONENTS.md)** 🎨   | UI component specifications & React Query hooks | Building UI features         |
+| **[SETUP.md](SETUP.md)** 🛠️                               | Detailed setup & troubleshooting guide          | Installation issues          |
 
 ### 👨‍💻 For Developers & AI Assistants
 
-| Document | Purpose | Audience |
-|----------|---------|----------|
+| Document                      | Purpose                                 | Audience                       |
+| ----------------------------- | --------------------------------------- | ------------------------------ |
 | **[CLAUDE.md](CLAUDE.md)** 🤖 | Development guidelines, coding patterns | AI assistants & new developers |
 
 > **⚡ Quick Tip:** Press `Ctrl+F` in the documentation to search for specific topics!
@@ -448,13 +462,13 @@ The heart of PAMS is its **event-sourcing inspired** design:
 
 These rules ensure financial accuracy is **never** compromised:
 
-| # | Rule | Why It Matters |
-|---|------|----------------|
-| **1** | **Holdings are computed, never manual** | Prevents manual errors, ensures audit trail |
-| **2** | **Transactions are immutable** | Preserves history, enables time-travel |
-| **3** | **Linked transactions are bidirectional** | Ensures referential integrity |
-| **4** | **Past transactions trigger recalculation** | Maintains consistency across time |
-| **5** | **Use Decimal for money** | Avoids floating-point rounding errors |
+| #     | Rule                                        | Why It Matters                              |
+| ----- | ------------------------------------------- | ------------------------------------------- |
+| **1** | **Holdings are computed, never manual**     | Prevents manual errors, ensures audit trail |
+| **2** | **Transactions are immutable**              | Preserves history, enables time-travel      |
+| **3** | **Linked transactions are bidirectional**   | Ensures referential integrity               |
+| **4** | **Past transactions trigger recalculation** | Maintains consistency across time           |
+| **5** | **Use Decimal for money**                   | Avoids floating-point rounding errors       |
 
 > **💡 Key Insight:** The `Holding` table is like a **database view** - it's always derivable from `Transaction` history. If you add a transaction from 6 months ago, PAMS recalculates everything from that point forward.
 
@@ -492,6 +506,7 @@ APScheduler runs inside the FastAPI backend to automate critical tasks:
 </table>
 
 **Implementation Details:**
+
 - Job storage: SQLite (same database as app data)
 - Executor: Single-threaded (prevents race conditions)
 - Lifecycle: Starts with backend, graceful shutdown
@@ -512,6 +527,7 @@ pytest -k "test_transfer"           # Run tests matching pattern
 ```
 
 **Test Coverage:**
+
 - ✅ Unit tests (calculation logic, utilities)
 - ✅ Service tests (transaction patterns, business logic)
 - ✅ API tests (endpoint behavior, validation)
@@ -533,23 +549,28 @@ npm run build   # Type-check and build (catches TypeScript errors)
 <summary><b>Inspect Database</b></summary>
 
 **Option 1: Interactive API Docs (Recommended)**
+
 ```bash
 open http://localhost:8000/docs
 ```
+
 Use FastAPI's Swagger UI to query and inspect data.
 
 **Option 2: SQLite Browser GUI**
+
 1. Download from [sqlitebrowser.org](https://sqlitebrowser.org/)
 2. Open `backend/asset_data.db`
 3. Browse tables, run queries, inspect schema
 
 **Option 3: Command Line**
+
 ```bash
 sqlite3 backend/asset_data.db
 .tables                    # List all tables
 .schema Transaction        # Show table schema
 SELECT * FROM Account;     # Query data
 ```
+
 </details>
 
 <details>
@@ -561,6 +582,7 @@ python scripts/reset_database.py  # Creates backup before reset
 ```
 
 **What this does:**
+
 - Creates timestamped backup (`asset_data_backup_YYYYMMDD_HHMMSS.db`)
 - Drops all tables
 - Recreates schema from models
@@ -572,16 +594,19 @@ python scripts/reset_database.py  # Creates backup before reset
 
 **Automatic Migrations:**
 Migrations run automatically on server startup:
+
 - Account type enum updates
 - Date to datetime conversions
 - Schema changes for recurring transfers
 - Snapshot timestamp migrations
 
 **Manual Migration (if needed):**
+
 ```bash
 cd backend/scripts
 python run_migration_003.py  # Run specific migration
 ```
+
 </details>
 
 ---
@@ -603,22 +628,26 @@ Follow this systematic approach:
 **Detailed Steps:**
 
 1. **Read documentation first**
+
    - Review [RULES.md](RULES.md) for constraints
    - Check [TRANSACTION_PATTERNS.md](TRANSACTION_PATTERNS.md) for transaction logic
 
 2. **Backend (Python)**
+
    - Router → Service → Model (separation of concerns)
    - Add Pydantic schemas for validation
    - Implement business logic in services
    - Create API endpoints in routers
 
 3. **Frontend (TypeScript)**
+
    - Hook → Component
    - Create React Query hooks in `lib/hooks/`
    - Build UI components
    - Handle loading and error states
 
 4. **Type Safety**
+
    - Mirror Pydantic schemas in TypeScript (`lib/types.ts`)
    - Use type hints everywhere
    - No `any` types allowed
@@ -672,6 +701,7 @@ perf: optimize holding calculation query
 **Format:** `<type>: <description>`
 
 **Types:**
+
 - `feat` - New feature
 - `fix` - Bug fix
 - `docs` - Documentation only
@@ -719,13 +749,13 @@ If you can't test it, you can't trust it. All business logic must be unit testab
 
 ### 🎨 Design Decisions
 
-| Decision | Rationale |
-|----------|-----------|
+| Decision                   | Rationale                                                     |
+| -------------------------- | ------------------------------------------------------------- |
 | **SQLite over PostgreSQL** | Local-first, zero configuration, perfect for personal finance |
-| **Computed holdings** | Single source of truth, automatic consistency |
-| **Immutable transactions** | Audit trail, time-travel, never lose history |
-| **Linked transactions** | Model real-world relationships (transfers, exchanges) |
-| **Type safety everywhere** | Catch bugs early, self-documenting code |
+| **Computed holdings**      | Single source of truth, automatic consistency                 |
+| **Immutable transactions** | Audit trail, time-travel, never lose history                  |
+| **Linked transactions**    | Model real-world relationships (transfers, exchanges)         |
+| **Type safety everywhere** | Catch bugs early, self-documenting code                       |
 
 ## 📜 License
 
