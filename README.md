@@ -818,6 +818,6 @@ PAMS stands on the shoulders of giants:
 
 ### **Made for those who want complete control over their financial data** 🎯
 
-<sub>Built with ❤️ using modern web technologies for local-first financial management</sub>
+<sub>Coded by Claude Sonnet 4.5 & GLM 4.7</sub>
 
 </div>
