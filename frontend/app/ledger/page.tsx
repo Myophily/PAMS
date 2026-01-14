@@ -6,7 +6,10 @@ import { useTransactions } from '@/lib/hooks/useTransactions';
 import { LedgerTable } from '@/components/LedgerTable';
 import { MonthNavigation } from '@/components/MonthNavigation';
 import { MonthlyCashFlowSummary } from '@/components/MonthlyCashFlowSummary';
-import { transactionsToLedgerRows } from '@/lib/utils/ledger';
+import {
+  transactionsToLedgerRows,
+  isLedgerDisplayableTransaction
+} from '@/lib/utils/ledger';
 import {
   getMonthsFromTransactions,
   filterTransactionsByMonth,
@@ -63,7 +66,7 @@ export default function ConsolidatedLedgerPage() {
       : cashAccounts.map(acc => acc.id);
   }, [filters.selectedAccountIds, cashAccounts]);
 
-  // Filter transactions to only show selected cash accounts
+  // Filter transactions to only show selected cash accounts and income/expense transactions
   const filteredTransactions = useMemo(() => {
     if (!transactionsData?.transactions) return [];
 
@@ -76,6 +79,10 @@ export default function ConsolidatedLedgerPage() {
 
         // Only include selected accounts
         if (!selectedAccountIds.includes(tx.account_id)) return false;
+
+        // Hide transfer and exchange transactions (Pattern ② and ④)
+        // Only show Pattern ① transactions: Deposit, Withdrawal, Dividend, Interest
+        if (!isLedgerDisplayableTransaction(tx.type)) return false;
 
         return true;
       })
@@ -182,7 +189,8 @@ export default function ConsolidatedLedgerPage() {
           Consolidated Ledger
         </h1>
         <p className="text-gray-600">
-          View all transactions across your deposit accounts in traditional ledger format
+          View actual income and expenses across your deposit accounts.
+          Internal transfers and currency exchanges are hidden.
         </p>
       </div>
 
@@ -357,8 +365,8 @@ export default function ConsolidatedLedgerPage() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
                 {viewMode === 'monthly'
-                  ? 'No transactions found in the selected month. Try selecting a different month or adjusting your account selection.'
-                  : 'No transactions found for the selected filters. Try adjusting your date range or account selection.'}
+                  ? 'No income or expense transactions found in the selected month. Internal transfers and exchanges are hidden from this view.'
+                  : 'No income or expense transactions found for the selected filters. Internal transfers and exchanges are hidden from this view.'}
               </p>
             </div>
           )}
