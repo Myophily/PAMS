@@ -1,10 +1,17 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAccounts } from '@/lib/hooks/useAccounts';
 import { useTransactions } from '@/lib/hooks/useTransactions';
 import { LedgerTable } from '@/components/LedgerTable';
+import { MonthNavigation } from '@/components/MonthNavigation';
+import { MonthlyCashFlowSummary } from '@/components/MonthlyCashFlowSummary';
 import { transactionsToLedgerRows } from '@/lib/utils/ledger';
+import {
+  getMonthsFromTransactions,
+  filterTransactionsByMonth,
+  calculateMonthlyCashFlow
+} from '@/lib/utils/month';
 import { Spinner } from '@/components/ui/Spinner';
 import { LedgerRow } from '@/lib/types';
 
@@ -24,6 +31,9 @@ export default function ConsolidatedLedgerPage() {
     end_date: '',
     selectedAccountIds: [] as number[],
   });
+
+  const [viewMode, setViewMode] = useState<'monthly' | 'date-range'>('monthly');
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
   // Fetch all accounts
   const { data: accountsData, isLoading: accountsLoading } = useAccounts();
@@ -82,10 +92,43 @@ export default function ConsolidatedLedgerPage() {
       });
   }, [transactionsData, cashAccounts, selectedAccountIds]);
 
+  // Extract available months from transactions
+  const availableMonths = useMemo(() => {
+    return getMonthsFromTransactions(filteredTransactions);
+  }, [filteredTransactions]);
+
+  // Default to most recent month
+  useEffect(() => {
+    if (!selectedMonth && availableMonths.length > 0 && viewMode === 'monthly') {
+      setSelectedMonth(availableMonths[0].value);
+    }
+  }, [availableMonths, selectedMonth, viewMode]);
+
+  // Filter transactions by month or show all (depending on view mode)
+  const displayedTransactions = useMemo(() => {
+    if (viewMode === 'date-range') return filteredTransactions;
+    if (!selectedMonth) return [];
+    return filterTransactionsByMonth(filteredTransactions, selectedMonth);
+  }, [viewMode, selectedMonth, filteredTransactions]);
+
   // Transform to ledger rows with running balance
   const ledgerRows: LedgerRow[] = useMemo(() => {
-    return transactionsToLedgerRows(filteredTransactions, '0.00');
-  }, [filteredTransactions]);
+    return transactionsToLedgerRows(displayedTransactions, '0.00');
+  }, [displayedTransactions]);
+
+  // Calculate monthly summary
+  const monthlySummary = useMemo(() => {
+    return calculateMonthlyCashFlow(ledgerRows);
+  }, [ledgerRows]);
+
+  // Switch to date-range mode when date filters are active
+  useEffect(() => {
+    if (filters.start_date || filters.end_date) {
+      setViewMode('date-range');
+    } else {
+      setViewMode('monthly');
+    }
+  }, [filters.start_date, filters.end_date]);
 
   const handleAccountToggle = (accountId: number) => {
     setFilters(prev => {
@@ -112,6 +155,14 @@ export default function ConsolidatedLedgerPage() {
     setFilters(prev => ({
       ...prev,
       selectedAccountIds: []
+    }));
+  };
+
+  const handleClearDateRange = () => {
+    setFilters(prev => ({
+      ...prev,
+      start_date: '',
+      end_date: ''
     }));
   };
 
@@ -247,6 +298,41 @@ export default function ConsolidatedLedgerPage() {
         </div>
       </div>
 
+      {/* Monthly Navigation */}
+      {viewMode === 'monthly' && availableMonths.length > 0 && (
+        <MonthNavigation
+          availableMonths={availableMonths}
+          currentMonth={selectedMonth || ''}
+          onMonthChange={setSelectedMonth}
+          disabled={false}
+        />
+      )}
+
+      {/* Date Range Active Banner */}
+      {viewMode === 'date-range' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-800">
+            Custom date range active - monthly view disabled.
+            <button
+              onClick={handleClearDateRange}
+              className="underline ml-2 hover:text-blue-900 font-medium"
+            >
+              Return to monthly view
+            </button>
+          </p>
+        </div>
+      )}
+
+      {/* Monthly Cash Flow Summary */}
+      {viewMode === 'monthly' && availableMonths.length > 0 && selectedMonth && ledgerRows.length > 0 && (
+        <MonthlyCashFlowSummary
+          monthLabel={availableMonths.find(m => m.value === selectedMonth)?.label || ''}
+          {...monthlySummary}
+          currency="KRW"
+          accountCount={selectedAccountIds.length}
+        />
+      )}
+
       {/* Ledger Table */}
       {cashAccounts.length > 0 ? (
         <>
@@ -270,7 +356,9 @@ export default function ConsolidatedLedgerPage() {
           {ledgerRows.length === 0 && !isLoading && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
-                No transactions found for the selected filters. Try adjusting your date range or account selection.
+                {viewMode === 'monthly'
+                  ? 'No transactions found in the selected month. Try selecting a different month or adjusting your account selection.'
+                  : 'No transactions found for the selected filters. Try adjusting your date range or account selection.'}
               </p>
             </div>
           )}

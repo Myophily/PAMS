@@ -255,3 +255,18 @@ export interface LedgerFilters {
   end_date?: string;
   ticker?: string;
 }
+
+// Month pagination types
+export interface MonthOption {
+  value: string;    // "2024-01"
+  label: string;    // "January 2024"
+}
+
+export interface MonthlyCashFlowSummary {
+  totalDebit: DecimalString;
+  totalCredit: DecimalString;
+  netCashFlow: DecimalString;
+  openingBalance: DecimalString;
+  closingBalance: DecimalString;
+  transactionCount: number;
+}
