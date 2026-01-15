@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.models.market_data import MarketData
 from app.utils.decimal_helpers import to_decimal
 from app.utils.date_helpers import get_previous_business_day, is_weekend
-from app.utils.timezone import today_kst
+from app.utils.timezone import today_kst, now_kst
 from decimal import Decimal
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -340,6 +340,7 @@ class MarketDataService:
             # Update existing
             market_data.exchange_rate = to_decimal(rate, precision=4)
             market_data.source = source
+            market_data.fetched_at = now_kst()
         else:
             # Create new
             market_data = MarketData(
@@ -663,17 +664,19 @@ class MarketDataService:
         self,
         from_currency: str,
         to_currency: str,
-        db: Session
+        db: Session,
+        force_refresh: bool = False
     ) -> Optional[Decimal]:
         """
         Get the most recent exchange rate.
 
-        NEW: If not found in cache, automatically fetches from API.
+        If not found in cache (or force_refresh=True), fetches from API.
 
         Args:
             from_currency: Source currency
             to_currency: Target currency
             db: Database session
+            force_refresh: If True, bypass cache and fetch from API
 
         Returns:
             Latest exchange rate or None
@@ -682,21 +685,23 @@ class MarketDataService:
 
         ticker_symbol = f"{from_currency}_{to_currency}"
 
-        # Check cache first
-        latest = db.query(MarketData).filter(
-            MarketData.ticker == ticker_symbol,
-            MarketData.exchange_rate.isnot(None)
-        ).order_by(MarketData.date.desc()).first()
+        # Skip cache if force_refresh is True
+        if not force_refresh:
+            # Check cache first
+            latest = db.query(MarketData).filter(
+                MarketData.ticker == ticker_symbol,
+                MarketData.exchange_rate.isnot(None)
+            ).order_by(MarketData.date.desc()).first()
 
-        if latest:
-            return latest.exchange_rate
+            if latest:
+                return latest.exchange_rate
 
-        # NEW: Auto-fetch if not in cache
-        print(f"[AUTO-FETCH] Exchange rate {from_currency}/{to_currency} not in cache, fetching from API...")
+        # Fetch from API (either forced or cache miss)
+        print(f"[FETCH] Exchange rate {from_currency}/{to_currency} from API...")
         rate = self._fetch_exchange_rate_from_api(from_currency, to_currency, today_kst())
 
         if rate:
-            # Cache it
+            # Cache it (updates existing record or creates new)
             self._cache_exchange_rate(from_currency, to_currency, today_kst(), rate, "api", db)
             try:
                 db.commit()

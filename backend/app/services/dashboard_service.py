@@ -65,10 +65,22 @@ class DashboardService:
         current_snapshot = self.snapshot_service.generate_snapshot(now, db)
         db.commit()
 
-        # Get exchange rate (exchange rates are daily, not hourly)
-        usd_krw_rate = self.market_data_service.get_exchange_rate("USD", "KRW", now.date(), db)
+        # Get exchange rate with fetch timestamp (force_refresh for real-time updates)
+        from app.models.market_data import MarketData
+        usd_krw_rate = self.market_data_service.get_latest_exchange_rate("USD", "KRW", db, force_refresh=True)
         if not usd_krw_rate:
             usd_krw_rate = to_decimal(1300, precision=4)  # Fallback
+
+        # Get actual fetch timestamp from MarketData, truncated to the hour
+        exchange_rate_record = db.query(MarketData).filter(
+            MarketData.ticker == "USD_KRW",
+            MarketData.date == now.date()
+        ).first()
+        if exchange_rate_record and exchange_rate_record.fetched_at:
+            # Truncate to hour (e.g., 11:09 → 11:00)
+            exchange_rate_updated_at = exchange_rate_record.fetched_at.replace(minute=0, second=0, microsecond=0)
+        else:
+            exchange_rate_updated_at = now
 
         # Calculate changes (using hours: 1 day=24h, 30 days=720h, 365 days=8760h)
         day_amount, day_percent = self.snapshot_service.calculate_period_change(now, 24, db)
@@ -88,7 +100,7 @@ class DashboardService:
             },
             "current_exchange_rate": {
                 "usd_to_krw": usd_krw_rate,
-                "updated_at": now.date().isoformat()
+                "updated_at": exchange_rate_updated_at.isoformat()
             },
             "changes": {
                 "day": {

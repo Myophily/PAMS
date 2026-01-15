@@ -74,6 +74,25 @@ def generate_hourly_snapshot():
         db.close()
 
 
+def refresh_exchange_rates():
+    """Background job to refresh exchange rates hourly."""
+    from app.database import SessionLocal
+    from app.services.market_data_service import MarketDataService
+
+    db = SessionLocal()
+    try:
+        market_data_service = MarketDataService()
+
+        # Force refresh by fetching from API (bypasses cache)
+        rate = market_data_service.get_latest_exchange_rate("USD", "KRW", db, force_refresh=True)
+
+        print(f"[Exchange Rate] Refreshed USD/KRW: {rate}")
+    except Exception as e:
+        print(f"[Exchange Rate] Error refreshing: {e}")
+    finally:
+        db.close()
+
+
 @app.on_event("startup")
 def on_startup():
     """Initialize database, run migrations, and start scheduler on startup."""
@@ -125,6 +144,16 @@ def on_startup():
         replace_existing=True
     )
     print("[Scheduler] Hourly snapshot generation scheduled")
+
+    # Schedule hourly exchange rate refresh
+    scheduler.add_job(
+        func=refresh_exchange_rates,
+        trigger='cron',
+        minute=0,  # Run at top of every hour
+        id='hourly_exchange_rate_refresh',
+        replace_existing=True
+    )
+    print("[Scheduler] Hourly exchange rate refresh scheduled")
 
     # Load and schedule recurring transfers
     db = SessionLocal()

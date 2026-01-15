@@ -11,7 +11,7 @@ export function useDashboardSummary() {
       const data = await res.json();
       return data.data || data;
     },
-    staleTime: 60000, // Consider data fresh for 1 minute
+    staleTime: 0, // Always refetch on mount for real-time exchange rate
   });
 }
 
