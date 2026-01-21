@@ -176,7 +176,7 @@ export interface CreateExchangeInput {
   exchange_rate?: number;
   date: string;
   description?: string;
-  to_account_id: number;  // Required for cross-account exchange-transfer
+  to_account_id?: number;  // Optional for same-account exchange, required for cross-account
 }
 
 // Market data types

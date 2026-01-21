@@ -15,6 +15,7 @@ from app.schemas.transaction_schema import (
     TransactionResponse,
     TransactionListResponse
 )
+from app.utils.date_helpers import is_past_transaction
 from datetime import date
 from typing import List, Optional
 
@@ -249,30 +250,63 @@ def create_sell(request: SellCreate, db: Session = Depends(get_db)):
 
 @router.post("/exchange", status_code=201)
 def create_exchange(request: ExchangeCreate, db: Session = Depends(get_db)):
-    """Create cross-account exchange transactions (Pattern ④+②)."""
+    """Create exchange transactions (Pattern ④). Supports same-account and cross-account exchanges."""
     try:
-        tx1, tx2, tx3, tx4 = transaction_service.create_exchange(
-            account_id=request.account_id,
-            from_ticker=request.from_ticker,
-            to_ticker=request.to_ticker,
-            from_amount=request.from_amount,
-            to_amount=request.to_amount,
-            transaction_date=request.date,
-            description=request.description,
-            to_account_id=request.to_account_id,
-            db=db
-        )
+        # Handle optional to_account_id
+        to_account_id = request.to_account_id
 
-        # Always returns 4 transactions (cross-account exchange-transfer)
-        return {
-            "status": "success",
-            "data": {
-                "exchange_sell_id": tx1.id,
-                "exchange_buy_id": tx2.id,
-                "transfer_out_id": tx3.id,
-                "transfer_in_id": tx4.id
+        if to_account_id is None or to_account_id == request.account_id:
+            # Same-account exchange (2 transactions)
+            tx1, tx2 = transaction_service._create_exchange_pair(
+                account_id=request.account_id,
+                from_ticker=request.from_ticker,
+                to_ticker=request.to_ticker,
+                from_amount=request.from_amount,
+                to_amount=request.to_amount,
+                transaction_date=request.date,
+                description=request.description,
+                db=db
+            )
+
+            # Handle snapshots and recalculation
+            transaction_service._create_transaction_snapshot(request.date, db)
+            if is_past_transaction(request.date):
+                transaction_service._trigger_recalculation(request.date, db)
+
+            db.commit()
+
+            return {
+                "status": "success",
+                "data": {
+                    "type": "same_account",
+                    "exchange_sell_id": tx1.id,
+                    "exchange_buy_id": tx2.id
+                }
             }
-        }
+        else:
+            # Cross-account exchange (4 transactions)
+            tx1, tx2, tx3, tx4 = transaction_service.create_exchange(
+                account_id=request.account_id,
+                from_ticker=request.from_ticker,
+                to_ticker=request.to_ticker,
+                from_amount=request.from_amount,
+                to_amount=request.to_amount,
+                transaction_date=request.date,
+                description=request.description,
+                to_account_id=to_account_id,
+                db=db
+            )
+
+            return {
+                "status": "success",
+                "data": {
+                    "type": "cross_account",
+                    "exchange_sell_id": tx1.id,
+                    "exchange_buy_id": tx2.id,
+                    "transfer_out_id": tx3.id,
+                    "transfer_in_id": tx4.id
+                }
+            }
     except ValueError as e:
         # Business logic validation errors
         raise HTTPException(status_code=400, detail=str(e))

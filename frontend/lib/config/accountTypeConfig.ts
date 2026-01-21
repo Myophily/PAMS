@@ -34,7 +34,7 @@ export const ACCOUNT_TYPE_CONFIG: Record<string, AccountTypeConfig> = {
     displayName: 'Securities Account',
     description: 'Investment and stock trading',
     allowedTabs: ['holdings', 'transactions', 'analysis'],
-    primaryActions: ['buy', 'sell', 'dividend', 'transfer'],
+    primaryActions: ['buy', 'sell', 'dividend', 'transfer', 'exchange'],
   },
   ForeignCurrency: {
     displayName: 'Foreign Currency Account',

@@ -144,7 +144,7 @@ export const createTransferSchema = z.object({
 
 export type CreateTransferFormData = z.infer<typeof createTransferSchema>;
 
-// Exchange schema (cross-account only)
+// Exchange schema (supports same-account and cross-account)
 export const createExchangeSchema = z.object({
   account_id: z.number().positive('Please select an account'),
   from_ticker: z.string().min(1, 'From currency is required'),
@@ -154,11 +154,17 @@ export const createExchangeSchema = z.object({
   exchange_rate: z.number().positive().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid datetime format'),
   description: z.string().optional(),
-  to_account_id: z.number().positive('Please select a target account'),  // Required for cross-account exchange
+  to_account_id: z.number().min(0).optional(),  // 0 for same-account exchange, >0 for cross-account
 }).refine(data => data.from_ticker !== data.to_ticker, {
   message: 'Source and destination currencies must be different',
   path: ['to_ticker'],
-}).refine(data => data.to_account_id !== data.account_id, {
+}).refine(data => {
+  // Only validate different accounts if to_account_id is provided
+  if (data.to_account_id) {
+    return data.to_account_id !== data.account_id;
+  }
+  return true;
+}, {
   message: 'Target account must be different from source account',
   path: ['to_account_id'],
 });

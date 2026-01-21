@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { useAccounts } from '@/lib/hooks/useAccounts';
-import { useExchangeRate } from '@/lib/hooks/useMarketData';
 import { useCreateExchange } from '@/lib/hooks/useTransactions';
 import {
   createExchangeSchema,
@@ -51,7 +50,7 @@ export function ExchangeModal({
       from_amount: 0,
       to_amount: 0,
       date: getCurrentDateTimeLocal(),
-      to_account_id: 0,
+      to_account_id: 0,  // Default to same account
     },
   });
 
@@ -61,6 +60,7 @@ export function ExchangeModal({
   const date = watch('date');
   const accountId = watch('account_id');
   const toAccountId = watch('to_account_id');
+  const exchangeRate = watch('exchange_rate');
 
   // Determine if cross-account transfer
   const isCrossAccount = toAccountId && toAccountId > 0 && toAccountId !== accountId;
@@ -68,9 +68,6 @@ export function ExchangeModal({
   // Get source and target accounts
   const sourceAccount = accounts.find((acc) => acc.id === accountId);
   const targetAccount = accounts.find((acc) => acc.id === toAccountId);
-
-  // Fetch exchange rate
-  const { data: rateData } = useExchangeRate(fromTicker, toTicker, date);
 
   // Auto-set currency constraints for cross-account transfers
   useEffect(() => {
@@ -104,15 +101,13 @@ export function ExchangeModal({
     }
   }, [sourceAccount, targetAccount, setValue]);
 
-  // Auto-calculate amounts when rate or amount changes
+  // Calculate to_amount when rate or from_amount changes (manual rate input)
   useEffect(() => {
-    if (rateData?.rate && fromAmount > 0) {
-      const rateNumber = parseFloat(rateData.rate);
-      const calculated = fromAmount / rateNumber;
+    if (exchangeRate && exchangeRate > 0 && fromAmount > 0) {
+      const calculated = fromAmount / exchangeRate;
       setValue('to_amount', parseFloat(calculated.toFixed(2)));
-      setValue('exchange_rate', rateNumber);
     }
-  }, [rateData, fromAmount, setValue]);
+  }, [exchangeRate, fromAmount, setValue]);
 
   const onSubmit = async (data: CreateExchangeFormData) => {
     try {
@@ -124,11 +119,11 @@ export function ExchangeModal({
         to_amount: data.to_amount,
         date: data.date,
         description: data.description,
-        to_account_id: data.to_account_id,
+        to_account_id: data.to_account_id || undefined,
       });
-      const message = isCrossAccount
-        ? 'Exchange and transfer completed successfully!'
-        : 'Exchange completed successfully!';
+      const message = toAccountId === 0
+        ? 'Same-account exchange completed successfully!'
+        : 'Exchange and transfer completed successfully!';
       toast.success(message);
       reset();
       onClose();
@@ -160,13 +155,18 @@ export function ExchangeModal({
     onClose();
   };
 
-  // Allow both Foreign Currency and Deposit accounts as source
+  // Allow Securities, Foreign Currency, and Deposit accounts as source
   const eligibleSourceAccounts = accounts.filter((acc) =>
-    acc.type === 'ForeignCurrency' || acc.type === 'Deposit'
+    acc.type === 'ForeignCurrency' ||
+    acc.type === 'Deposit' ||
+    acc.type === 'Securities'
   );
 
-  // Filter available target accounts (exclude source, disallow Foreign->Foreign)
+  // Filter available target accounts (exclude source, disallow Foreign->Foreign, Securities->Securities)
   const availableTargetAccounts = accounts.filter((acc) => {
+    // Always allow "Same Account" option (to_account_id = 0)
+    if (acc.id === 0) return true;
+
     if (acc.id === accountId) return false; // Can't select same account
 
     // Disallow Foreign → Foreign
@@ -174,13 +174,13 @@ export function ExchangeModal({
       return false;
     }
 
-    // Disallow Deposit → Deposit (no exchange needed)
-    if (sourceAccount?.type === 'Deposit' && acc.type === 'Deposit') {
+    // Disallow Securities → Securities
+    if (sourceAccount?.type === 'Securities' && acc.type === 'Securities') {
       return false;
     }
 
-    // For Deposit source, only allow Foreign Currency targets
-    if (sourceAccount?.type === 'Deposit' && acc.type !== 'ForeignCurrency') {
+    // Disallow Deposit → Deposit (no exchange needed)
+    if (sourceAccount?.type === 'Deposit' && acc.type === 'Deposit') {
       return false;
     }
 
@@ -212,26 +212,32 @@ export function ExchangeModal({
         </Select>
 
         <Select
-          label="Target Account (Required)"
+          label="Target Account"
           {...register('to_account_id', { valueAsNumber: true })}
           error={errors.to_account_id?.message}
         >
-          <option value={0}>Select a target account</option>
-          {availableTargetAccounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name} ({account.type})
-            </option>
-          ))}
+          <option value={0}>Same Account</option>
+          {availableTargetAccounts
+            .filter(acc => acc.id !== 0) // Filter out placeholder
+            .map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name} ({account.type})
+              </option>
+            ))}
         </Select>
 
-        {toAccountId && toAccountId !== accountId && (
+        {toAccountId === 0 ? (
+          <div className="bg-green-50 border border-green-200 rounded p-3 text-sm text-gray-900">
+            <span className="font-medium text-green-900">Same Account Exchange:</span>{' '}
+            <span className="text-gray-900">
+              Exchange {fromTicker} to {toTicker} within the same account.
+              Creates 2 linked Exchange transactions.
+            </span>
+          </div>
+        ) : toAccountId !== accountId ? (
           <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-900">
             <span className="font-medium text-blue-900">
-              {sourceAccount?.type === 'ForeignCurrency' && targetAccount?.type !== 'ForeignCurrency'
-                ? 'Foreign → Deposit Exchange:'
-                : sourceAccount?.type === 'Deposit' && targetAccount?.type === 'ForeignCurrency'
-                ? 'Deposit → Foreign Exchange:'
-                : 'Cross-Account Exchange:'}
+              Cross-Account Exchange:
             </span>{' '}
             <span className="text-gray-900">
               {sourceAccount?.type === 'ForeignCurrency' && targetAccount?.type !== 'ForeignCurrency'
@@ -241,21 +247,13 @@ export function ExchangeModal({
                 : 'This will create 4 transactions (Exchange + Transfer).'}
             </span>
           </div>
-        )}
+        ) : null}
 
         <div className="grid grid-cols-2 gap-4">
           <Select
             label="From Currency"
             {...register('from_ticker')}
             error={errors.from_ticker?.message}
-            disabled={
-              sourceAccount?.type === 'Deposit' && targetAccount?.type === 'ForeignCurrency'
-            }
-            value={
-              sourceAccount?.type === 'Deposit' && targetAccount?.type === 'ForeignCurrency'
-                ? 'KRW'
-                : undefined
-            }
           >
             {currencies.map((curr) => (
               <option key={curr.value} value={curr.value}>
@@ -268,14 +266,6 @@ export function ExchangeModal({
             label="To Currency"
             {...register('to_ticker')}
             error={errors.to_ticker?.message}
-            disabled={
-              sourceAccount?.type === 'ForeignCurrency' && targetAccount?.type !== 'ForeignCurrency'
-            }
-            value={
-              sourceAccount?.type === 'ForeignCurrency' && targetAccount?.type !== 'ForeignCurrency'
-                ? 'KRW'
-                : undefined
-            }
           >
             {currencies
               .filter((curr) => curr.value !== fromTicker)
@@ -287,14 +277,18 @@ export function ExchangeModal({
           </Select>
         </div>
 
-        {rateData?.rate && (
-          <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm text-gray-900">
-            <span className="font-medium text-blue-900">Exchange Rate:</span>{' '}
-            <span className="text-gray-900">
-              1 {fromTicker} = {parseFloat(rateData.rate).toFixed(4)} {toTicker}
-            </span>
-          </div>
-        )}
+        <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
+          <label className="font-medium text-blue-900 block mb-2">
+            Exchange Rate (1 {fromTicker} = ? {toTicker})
+          </label>
+          <Input
+            type="number"
+            step="0.0001"
+            placeholder="Enter rate manually"
+            {...register('exchange_rate', { valueAsNumber: true })}
+            error={errors.exchange_rate?.message}
+          />
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
           <Input

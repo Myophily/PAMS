@@ -31,7 +31,8 @@ ALLOWED_TRANSACTIONS: Dict[str, Set[str]] = {
         'Transfer_Out',
         'Buy',
         'Sell',
-        'Dividend'
+        'Dividend',
+        'Exchange'
     },
     'ForeignCurrency': {
         'Deposit',

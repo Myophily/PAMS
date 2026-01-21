@@ -713,14 +713,13 @@ class TransactionService:
         to_amount: Decimal,
         transaction_date: datetime,
         description: Optional[str],
-        to_account_id: int,
+        to_account_id: Optional[int],
         db: Session = None
-    ) -> Tuple[Transaction, Transaction, Transaction, Transaction]:
+    ) -> Tuple[Transaction, Transaction] | Tuple[Transaction, Transaction, Transaction, Transaction]:
         """
-        Create cross-account exchange transactions (Pattern ④+②).
+        Create exchange transactions (Pattern ④).
 
-        Exchanges always require a target account - same-account exchanges are not supported.
-        Creates 4 transactions: Exchange in source account + Transfer between accounts.
+        Supports both same-account exchanges (2 transactions) and cross-account exchanges (4 transactions).
 
         Args:
             account_id: Source account ID
@@ -730,17 +729,31 @@ class TransactionService:
             to_amount: Amount of target currency
             transaction_date: Date of transaction
             description: Optional user notes
-            to_account_id: Target account for cross-account transfer (REQUIRED)
+            to_account_id: Target account for cross-account transfer (optional)
             db: Database session
 
         Returns:
-            Tuple of (tx1, tx2, tx3, tx4) - Always 4 transactions
+            - Same-account: Tuple of (tx_sell, tx_buy) - 2 transactions
+            - Cross-account: Tuple of (tx1, tx2, tx3, tx4) - 4 transactions
 
         Raises:
-            ValueError: If validation fails (same account, Foreign→Foreign, etc.)
+            ValueError: If validation fails (Insufficient balance, Securities→Securities, etc.)
 
         Example:
-            # Cross-account exchange-transfer (Foreign -> Deposit)
+            # Same-account exchange
+            >>> tx_sell, tx_buy = service.create_exchange(
+            ...     account_id=1,
+            ...     from_ticker="KRW",
+            ...     to_ticker="USD",
+            ...     from_amount=Decimal("1300000"),
+            ...     to_amount=Decimal("1000"),
+            ...     transaction_date=date.today(),
+            ...     description=None,
+            ...     to_account_id=None,
+            ...     db=db
+            ... )
+
+            # Cross-account exchange-transfer
             >>> tx1, tx2, tx3, tx4 = service.create_exchange(
             ...     account_id=3,
             ...     from_ticker="USD",
@@ -753,11 +766,20 @@ class TransactionService:
             ...     db=db
             ... )
         """
-        # Validate that to_account_id is different from account_id
-        if to_account_id == account_id:
-            raise ValueError(
-                "Cross-account exchange required. Cannot exchange within same account. "
-                "Exchange must transfer between different accounts."
+        # Determine if same-account or cross-account exchange
+        is_same_account = to_account_id is None or to_account_id == account_id
+
+        if is_same_account:
+            # Pattern ④: Same-account exchange (2 linked transactions)
+            return self._create_exchange_pair(
+                account_id=account_id,
+                from_ticker=from_ticker,
+                to_ticker=to_ticker,
+                from_amount=from_amount,
+                to_amount=to_amount,
+                transaction_date=transaction_date,
+                description=description,
+                db=db
             )
 
         # Cross-account exchange-transfer (4 transactions)
@@ -775,6 +797,14 @@ class TransactionService:
             raise ValueError(
                 "Transfer between Foreign Currency accounts not supported. "
                 "Please use separate Exchange and Transfer operations."
+            )
+
+        # Disallow Securities → Securities
+        if (source_account.type == 'Securities' and
+            target_account.type == 'Securities'):
+            raise ValueError(
+                "Transfer between Securities accounts not supported. "
+                "Please use Buy/Sell for securities, or Deposit/Withdrawal for cash."
             )
 
         # Determine transaction order based on account types
@@ -837,6 +867,242 @@ class TransactionService:
             cash_in = self.holding_service.get_or_create_krw_cash_holding(to_account_id, db)
             cash_out.quantity += tx3.amount
             cash_in.quantity += tx4.amount
+
+            # Create snapshot at transaction time
+            self._create_transaction_snapshot(transaction_date, db)
+
+            if is_past_transaction(transaction_date):
+                self._trigger_recalculation(transaction_date, db)
+
+            db.commit()
+            return tx1, tx2, tx3, tx4
+
+        elif source_account.type == 'Securities' and target_account.type != 'ForeignCurrency':
+            # Securities → Non-Foreign (Deposit/MoneyMarket/Savings): Exchange first, then Transfer
+            if from_ticker == 'KRW':
+                # KRW → KRW: Just a transfer, no exchange needed
+                # Create outflow transaction
+                tx1 = Transaction(
+                    account_id=account_id,
+                    type="Transfer_Out",
+                    ticker="KRW",
+                    quantity=None,
+                    price=None,
+                    amount=-to_decimal(from_amount, precision=2),
+                    date=transaction_date,
+                    linked_tx_id=None,
+                    description=description or f"Transfer to {target_account.name}"
+                )
+                db.add(tx1)
+                db.flush()
+
+                # Create inflow transaction
+                tx2 = Transaction(
+                    account_id=to_account_id,
+                    type="Transfer_In",
+                    ticker="KRW",
+                    quantity=None,
+                    price=None,
+                    amount=to_decimal(from_amount, precision=2),
+                    date=transaction_date,
+                    linked_tx_id=None,
+                    description=description or f"Transfer from {source_account.name}"
+                )
+                db.add(tx2)
+                db.flush()
+
+                # Link transactions bidirectionally
+                tx1.linked_tx_id = tx2.id
+                tx2.linked_tx_id = tx1.id
+
+                # Update KRW holdings
+                cash_out = self.holding_service.get_or_create_krw_cash_holding(account_id, db)
+                cash_in = self.holding_service.get_or_create_krw_cash_holding(to_account_id, db)
+                cash_out.quantity += tx1.amount
+                cash_in.quantity += tx2.amount
+
+                # Create snapshot at transaction time
+                self._create_transaction_snapshot(transaction_date, db)
+
+                if is_past_transaction(transaction_date):
+                    self._trigger_recalculation(transaction_date, db)
+
+                db.commit()
+                return tx1, tx2, None, None
+            else:
+                # Foreign currency (USD, etc.) → KRW: Exchange first, then Transfer
+                # Step 1: Exchange foreign currency to KRW in source (Securities) account
+                tx1, tx2 = self._create_exchange_pair(
+                    account_id=account_id,
+                    from_ticker=from_ticker,
+                    to_ticker='KRW',
+                    from_amount=from_amount,
+                    to_amount=to_amount,
+                    transaction_date=transaction_date,
+                    description=f"Exchange for transfer: {description or ''}",
+                    db=db
+                )
+
+                # Step 2: Transfer KRW from Securities to target (direct creation, no validation)
+                # Create outflow transaction
+                tx3 = Transaction(
+                    account_id=account_id,
+                    type="Transfer_Out",
+                    ticker="KRW",
+                    quantity=None,
+                    price=None,
+                    amount=-to_decimal(to_amount, precision=2),
+                    date=transaction_date,
+                    linked_tx_id=None,
+                    description=description or f"Transfer to {target_account.name}"
+                )
+                db.add(tx3)
+                db.flush()
+
+                # Create inflow transaction
+                tx4 = Transaction(
+                    account_id=to_account_id,
+                    type="Transfer_In",
+                    ticker="KRW",
+                    quantity=None,
+                    price=None,
+                    amount=to_decimal(to_amount, precision=2),
+                    date=transaction_date,
+                    linked_tx_id=None,
+                    description=description or f"Transfer from {source_account.name}"
+                )
+                db.add(tx4)
+                db.flush()
+
+                # Link transactions bidirectionally
+                tx3.linked_tx_id = tx4.id
+                tx4.linked_tx_id = tx3.id
+
+                # Update KRW holdings
+                cash_out = self.holding_service.get_or_create_krw_cash_holding(account_id, db)
+                cash_in = self.holding_service.get_or_create_krw_cash_holding(to_account_id, db)
+                cash_out.quantity += tx3.amount
+                cash_in.quantity += tx4.amount
+
+                # Create snapshot at transaction time
+                self._create_transaction_snapshot(transaction_date, db)
+
+                if is_past_transaction(transaction_date):
+                    self._trigger_recalculation(transaction_date, db)
+
+            db.commit()
+            return tx1, tx2, tx3, tx4
+
+        elif (from_ticker == 'KRW' and to_ticker == 'KRW'):
+            # Same currency: just a transfer, no exchange needed
+            # Create outflow transaction
+            tx1 = Transaction(
+                account_id=account_id,
+                type="Transfer_Out",
+                ticker="KRW",
+                quantity=None,
+                price=None,
+                amount=-to_decimal(from_amount, precision=2),
+                date=transaction_date,
+                linked_tx_id=None,
+                description=description or f"Transfer to {target_account.name}"
+            )
+            db.add(tx1)
+            db.flush()
+
+            # Create inflow transaction
+            tx2 = Transaction(
+                account_id=to_account_id,
+                type="Transfer_In",
+                ticker="KRW",
+                quantity=None,
+                price=None,
+                amount=to_decimal(from_amount, precision=2),
+                date=transaction_date,
+                linked_tx_id=None,
+                description=description or f"Transfer from {source_account.name}"
+            )
+            db.add(tx2)
+            db.flush()
+
+            # Link transactions bidirectionally
+            tx1.linked_tx_id = tx2.id
+            tx2.linked_tx_id = tx1.id
+
+            # Update KRW holdings
+            cash_out = self.holding_service.get_or_create_krw_cash_holding(account_id, db)
+            cash_in = self.holding_service.get_or_create_krw_cash_holding(to_account_id, db)
+            cash_out.quantity += tx1.amount
+            cash_in.quantity += tx2.amount
+
+            # Create snapshot at transaction time
+            self._create_transaction_snapshot(transaction_date, db)
+
+            if is_past_transaction(transaction_date):
+                self._trigger_recalculation(transaction_date, db)
+
+            db.commit()
+            return tx1, tx2, None, None
+
+        elif source_account.type == 'Securities' and target_account.type == 'ForeignCurrency':
+            # Securities → Foreign: Transfer first, then Exchange
+            if from_ticker != 'KRW':
+                raise ValueError(
+                    "Must transfer KRW to Foreign Currency account before exchange"
+                )
+
+            # Step 1: Transfer KRW from Securities to ForeignCurrency (direct creation, no validation)
+            # Create outflow transaction
+            tx1 = Transaction(
+                account_id=account_id,
+                type="Transfer_Out",
+                ticker="KRW",
+                quantity=None,
+                price=None,
+                amount=-to_decimal(from_amount, precision=2),
+                date=transaction_date,
+                linked_tx_id=None,
+                description=description or f"Transfer to {target_account.name}"
+            )
+            db.add(tx1)
+            db.flush()
+
+            # Create inflow transaction
+            tx2 = Transaction(
+                account_id=to_account_id,
+                type="Transfer_In",
+                ticker="KRW",
+                quantity=None,
+                price=None,
+                amount=to_decimal(from_amount, precision=2),
+                date=transaction_date,
+                linked_tx_id=None,
+                description=description or f"Transfer from {source_account.name}"
+            )
+            db.add(tx2)
+            db.flush()
+
+            # Link transactions bidirectionally
+            tx1.linked_tx_id = tx2.id
+            tx2.linked_tx_id = tx1.id
+
+            # Update KRW holdings
+            cash_out = self.holding_service.get_or_create_krw_cash_holding(account_id, db)
+            cash_in = self.holding_service.get_or_create_krw_cash_holding(to_account_id, db)
+            cash_out.quantity += tx1.amount
+            cash_in.quantity += tx2.amount
+
+            # Step 2: Exchange KRW to foreign currency in ForeignCurrency account
+            tx3, tx4 = self._create_exchange_pair(
+                account_id=to_account_id,
+                from_ticker='KRW',
+                to_ticker=to_ticker,
+                from_amount=from_amount,
+                to_amount=to_amount,
+                transaction_date=transaction_date,
+                description=f"Exchange after transfer: {description or ''}",
+                db=db
+            )
 
             # Create snapshot at transaction time
             self._create_transaction_snapshot(transaction_date, db)

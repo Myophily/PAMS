@@ -97,7 +97,7 @@ class SellCreate(TransactionCreateBase):
 # ========== PATTERN ④+② CROSS-ACCOUNT EXCHANGE ==========
 
 class ExchangeCreate(TransactionCreateBase):
-    """Create cross-account exchange transaction (Pattern ④+②)."""
+    """Create exchange transaction (Pattern ④). Supports same-account and cross-account exchanges."""
     account_id: int
     from_ticker: str
     to_ticker: str
@@ -105,7 +105,7 @@ class ExchangeCreate(TransactionCreateBase):
     to_amount: Decimal
     date: datetime
     description: Optional[str] = None
-    to_account_id: int  # Required for cross-account exchange-transfer
+    to_account_id: Optional[int] = None  # Optional for same-account exchange
 
 
 # ========== RESPONSE SCHEMAS ==========
