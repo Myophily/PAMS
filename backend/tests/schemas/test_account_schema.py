@@ -155,3 +155,31 @@ class TestInitialHoldingItemPriceCurrency:
             price=Decimal("75000")
         )
         assert item.price_currency == "KRW"
+
+    def test_korean_bond_s_d_infers_krw(self):
+        """Test that Korean bond S_D auto-infers KRW price_currency."""
+        item = InitialHoldingItem(
+            ticker="S_D",
+            quantity=Decimal("100"),
+            price=Decimal("1000000")
+        )
+        assert item.price_currency == "KRW"
+
+    def test_korean_bond_lower_case_infers_krw(self):
+        """Test that lower case Korean bond still auto-infers KRW."""
+        item = InitialHoldingItem(
+            ticker="s_d",
+            quantity=Decimal("100"),
+            price=Decimal("1000000")
+        )
+        assert item.price_currency == "KRW"
+
+    def test_korean_bond_manual_override(self):
+        """Test that Korean bond respects manual price_currency override."""
+        item = InitialHoldingItem(
+            ticker="S_D",
+            quantity=Decimal("100"),
+            price=Decimal("1000000"),
+            price_currency="USD"
+        )
+        assert item.price_currency == "USD"

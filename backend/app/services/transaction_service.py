@@ -468,9 +468,9 @@ class TransactionService:
         # Calculate total cost
         total_cost = quantity * price
 
-        # Check sufficient cash
-        self.holding_service.validate_sufficient_balance(
-            account_id, "CASH", total_cost, db
+        # Check sufficient cash in transaction currency
+        self.holding_service.validate_sufficient_balance_for_buy(
+            account_id, total_cost, price_currency, db
         )
 
         # Create transaction

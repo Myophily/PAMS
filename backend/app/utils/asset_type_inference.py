@@ -18,6 +18,9 @@ BOND_TICKERS = [
     "BSV", "VGIT", "MBB", "AGG", "SPSB", "SPTI", "SCHO", "SCHR", "SPLB", "S_D"
 ]
 
+# Korean bonds that should use KRW as price currency
+KOREAN_BOND_TICKERS = ["S_D"]
+
 
 # Known gold/precious metal tickers (including gold ETFs)
 GOLD_TICKERS = [

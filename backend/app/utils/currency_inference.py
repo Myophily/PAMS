@@ -165,7 +165,9 @@ def infer_price_currency_from_ticker(ticker: str) -> str:
     Infer price currency from ticker symbol.
 
     Korean stocks (numeric or .KS suffix) → KRW
+    Korean bonds (S_D, etc.) → KRW
     Japanese stocks (.T suffix) → JPY
+    Hong Kong stocks (.HK suffix) → HKD
     US stocks and others → USD
 
     Args:
@@ -183,6 +185,8 @@ def infer_price_currency_from_ticker(ticker: str) -> str:
         "KRW"
         >>> infer_price_currency_from_ticker("7203.T")
         "JPY"
+        >>> infer_price_currency_from_ticker("S_D")
+        "KRW"
     """
     if not ticker:
         return "USD"
@@ -193,6 +197,11 @@ def infer_price_currency_from_ticker(ticker: str) -> str:
     if ticker_upper.isdigit() and len(ticker_upper) == 6:
         return "KRW"
     if ticker_upper.endswith('.KS') or ticker_upper.endswith('.KQ'):
+        return "KRW"
+
+    # Korean bonds (S_D, etc.)
+    from app.utils.asset_type_inference import KOREAN_BOND_TICKERS
+    if ticker_upper in KOREAN_BOND_TICKERS:
         return "KRW"
 
     # Japanese stocks: .T suffix

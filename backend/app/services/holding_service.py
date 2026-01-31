@@ -211,6 +211,59 @@ class HoldingService:
                 f"Required: {required_qty}, Available: {holding.quantity}"
             )
 
+    def validate_sufficient_balance_for_buy(
+        self,
+        account_id: int,
+        required_amount: Decimal,
+        price_currency: str,
+        db: Session
+    ) -> None:
+        """
+        Validate sufficient cash balance for buy transaction in specific currency.
+
+        Checks if account has enough cash in required currency.
+        For multi-currency accounts, tries to convert from other currencies.
+
+        Args:
+            account_id: Account ID
+            required_amount: Required amount in price_currency
+            price_currency: Currency code (KRW, USD, etc.)
+            db: Database session
+
+        Raises:
+            ValueError: If insufficient balance
+
+        Examples:
+            >>> # Buy Korean bond with KRW - succeeds if enough KRW
+            >>> service.validate_sufficient_balance_for_buy(1, Decimal("1000000"), "KRW", db)
+
+            >>> # Buy US stock with USD - converts from KRW if needed
+            >>> service.validate_sufficient_balance_for_buy(1, Decimal("1000"), "USD", db)
+        """
+        from app.utils.currency_inference import is_currency_ticker
+
+        holdings = self.get_all_holdings_for_account(account_id, db, include_zero=False)
+
+        total_cash = Decimal("0")
+
+        for holding in holdings:
+            if is_currency_ticker(holding.ticker):
+                if holding.ticker == price_currency:
+                    total_cash += holding.quantity
+                else:
+                    fx_rate = self.market_data_service.get_latest_exchange_rate(
+                        holding.ticker, price_currency, db
+                    )
+                    if fx_rate:
+                        converted = holding.quantity * fx_rate
+                        total_cash += converted
+
+        if total_cash < required_amount:
+            raise ValueError(
+                f"Insufficient {price_currency} balance. "
+                f"Required: {required_amount}, Available: {total_cash}"
+            )
+
     def get_total_holdings_value(
         self,
         account_id: int,

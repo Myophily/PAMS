@@ -32,6 +32,8 @@ export const CURRENCY_NAMES: Record<string, string> = {
   SGD: 'Singapore Dollar',
 };
 
+export const KOREAN_BOND_TICKERS = ['S_D'] as const;
+
 /**
  * Check if ticker is a currency code.
  */

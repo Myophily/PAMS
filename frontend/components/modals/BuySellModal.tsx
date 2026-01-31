@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
-import { useAccounts } from '@/lib/hooks/useAccounts';
+import { useAccounts, useAccountDetails } from '@/lib/hooks/useAccounts';
 import { useStockPrice } from '@/lib/hooks/useMarketData';
 import { useCreateBuy, useCreateSell } from '@/lib/hooks/useTransactions';
 import { formatDecimal, parseDecimal } from '@/lib/utils/decimal';
@@ -18,6 +18,7 @@ import {
 } from '@/lib/validation/schemas';
 import { getCurrentDateTimeLocal } from '@/lib/utils/datetime';
 import { extractErrorMessage } from '@/lib/utils/error';
+import { KOREAN_BOND_TICKERS } from '@/lib/utils/currency';
 
 interface BuySellModalProps {
   isOpen: boolean;
@@ -67,6 +68,7 @@ export function BuySellModal({
   const accounts = accountsData?.accounts || [];
   const brokerageAccounts = accounts.filter((acc) => acc.type === 'Securities');
   const selectedAccount = accounts.find((acc) => acc.id === accountId);
+  const { data: accountDetails } = useAccountDetails(accountId || 0);
 
   // Fetch stock price suggestion
   const { data: priceData } = useStockPrice(ticker, date);
@@ -97,6 +99,11 @@ export function BuySellModal({
       return 'KRW';
     }
 
+    // Korean bonds (S_D, etc.)
+    if (KOREAN_BOND_TICKERS.includes(upper as any)) {
+      return 'KRW';
+    }
+
     // Japanese stocks: .T suffix
     if (upper.endsWith('.T')) {
       return 'JPY';
@@ -115,16 +122,39 @@ export function BuySellModal({
 
   const onSubmit = async (data: CreateBuySellFormData) => {
     try {
-      // Validate Buy: sufficient cash
       if (data.type === 'Buy' && selectedAccount) {
         const cost = data.quantity * data.price;
-        if (cost > parseDecimal(selectedAccount.balance)) {
-          toast.error('Insufficient cash balance');
-          return;
+
+        if (accountDetails) {
+          const cashHolding = accountDetails.holdings.find(
+            h => h.ticker === data.price_currency
+          );
+          const availableCash = cashHolding ? parseDecimal(cashHolding.quantity) : 0;
+
+          if (cost > availableCash) {
+            toast.error(
+              `Insufficient ${data.price_currency} balance. Required: ${formatDecimal(cost)}, Available: ${formatDecimal(availableCash)}`
+            );
+            return;
+          }
         }
       }
 
-      // TODO: For Sell, validate holding quantity (need to fetch holdings)
+      if (data.type === 'Sell' && selectedAccount) {
+        if (accountDetails) {
+          const stockHolding = accountDetails.holdings.find(
+            h => h.ticker === data.ticker
+          );
+          const availableQuantity = stockHolding ? parseDecimal(stockHolding.quantity) : 0;
+
+          if (data.quantity > availableQuantity) {
+            toast.error(
+              `Insufficient ${data.ticker} shares. Required: ${data.quantity}, Available: ${availableQuantity}`
+            );
+            return;
+          }
+        }
+      }
 
       // Use specific hook based on transaction type
       if (data.type === 'Buy') {
@@ -203,7 +233,7 @@ export function BuySellModal({
           <option value={0}>Select a brokerage account</option>
           {brokerageAccounts.map((account) => (
             <option key={account.id} value={account.id}>
-              {account.name} (Cash: {formatDecimal(account.balance)} USD)
+              {account.name} (Cash: {formatDecimal(account.balance)} {account.currency})
             </option>
           ))}
         </Select>

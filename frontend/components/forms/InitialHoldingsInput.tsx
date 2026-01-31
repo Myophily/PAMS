@@ -6,12 +6,15 @@ import { Plus, Trash2, Info } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
-import { CURRENCY_TICKERS, isCurrencyTicker } from '@/lib/utils/currency';
+import { CURRENCY_TICKERS, isCurrencyTicker, KOREAN_BOND_TICKERS } from '@/lib/utils/currency';
 import { CreateAccountFormData } from '@/lib/validation/schemas';
 
 function inferCurrencyFromTicker(ticker: string): 'USD' | 'KRW' | 'JPY' | 'EUR' | 'GBP' | 'HKD' {
   const upper = ticker.toUpperCase();
   if (/^\d{6}$/.test(upper) || upper.endsWith('.KS') || upper.endsWith('.KQ')) {
+    return 'KRW';
+  }
+  if (KOREAN_BOND_TICKERS.includes(upper as any)) {
     return 'KRW';
   }
   if (upper.endsWith('.T')) {
