@@ -7,7 +7,7 @@ from dateutil.relativedelta import relativedelta
 from decimal import Decimal
 from typing import List, Optional
 import calendar
-from app.utils.timezone import now_kst
+from app.utils.timezone import now_kst, date_to_kst_datetime
 
 
 class RecurringTransferService:
@@ -189,7 +189,7 @@ class RecurringTransferService:
         for recurring in recurring_transfers:
             # Determine execution date for this month
             execution_day = self._get_execution_day(recurring.day_of_month, today.year, today.month)
-            execution_date = datetime(today.year, today.month, execution_day, 0, 0, 0)
+            execution_date = date_to_kst_datetime(date(today.year, today.month, execution_day))
 
             # Check if execution date has passed and not yet executed this month
             should_execute = False
@@ -231,7 +231,7 @@ class RecurringTransferService:
                 # Never executed - check if should have executed in current month
                 execution_day = self._get_execution_day(recurring.day_of_month, today.year, today.month)
                 if today.day >= execution_day:
-                    execution_date = datetime(today.year, today.month, execution_day, 0, 0, 0)
+                    execution_date = date_to_kst_datetime(date(today.year, today.month, execution_day))
                     self.execute_recurring_transfer(recurring.id, execution_date, db)
             else:
                 # Check for missed months
@@ -244,7 +244,7 @@ class RecurringTransferService:
                         current_check.year,
                         current_check.month
                     )
-                    execution_date = datetime(current_check.year, current_check.month, execution_day, 0, 0, 0)
+                    execution_date = date_to_kst_datetime(date(current_check.year, current_check.month, execution_day))
 
                     # Only execute if the execution day has passed
                     if execution_date.date() <= today:
@@ -267,7 +267,7 @@ class RecurringTransferService:
 
         # Schedule daily check job (runs at 00:01 AM every day)
         scheduler.add_job(
-            func=lambda: self._scheduled_check(db),
+            func=self._scheduled_check,
             trigger='cron',
             hour=0,
             minute=1,
@@ -277,10 +277,15 @@ class RecurringTransferService:
 
         print("[RecurringTransfer] Scheduler initialized - daily check at 00:01 AM")
 
-    def _scheduled_check(self, db: Session):
+    def _scheduled_check(self):
         """Scheduled job that checks and executes due transfers."""
-        print(f"[RecurringTransfer] Running scheduled check at {now_kst()}")
-        self.check_and_execute_due_transfers(db)
+        from app.database import SessionLocal
+        db = SessionLocal()
+        try:
+            print(f"[RecurringTransfer] Running scheduled check at {now_kst()}")
+            self.check_and_execute_due_transfers(db)
+        finally:
+            db.close()
 
     def _get_execution_day(self, day_of_month: int, year: int, month: int) -> int:
         """
