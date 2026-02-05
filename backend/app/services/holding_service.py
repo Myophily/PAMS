@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.models.holding import Holding
 from app.utils.decimal_helpers import to_decimal
+from app.services.market_data_service import MarketDataService
 from decimal import Decimal
 from typing import List, Optional
 
@@ -20,6 +21,9 @@ class HoldingService:
     Holdings represent the current state of assets in an account.
     They are ALWAYS computed from the transaction log, never manually edited.
     """
+
+    def __init__(self):
+        self.market_data_service = MarketDataService()
 
     def get_or_create_cash_holding(self, account_id: int, db: Session) -> Holding:
         """
