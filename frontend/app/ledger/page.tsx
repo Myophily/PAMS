@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useAccounts } from '@/lib/hooks/useAccounts';
 import { useTransactions } from '@/lib/hooks/useTransactions';
 import { LedgerTable } from '@/components/LedgerTable';
@@ -8,8 +8,8 @@ import { MonthNavigation } from '@/components/MonthNavigation';
 import { MonthlyCashFlowSummary } from '@/components/MonthlyCashFlowSummary';
 import {
   transactionsToLedgerRows,
-  isLedgerDisplayableTransaction
 } from '@/lib/utils/ledger';
+import { filterLedgerMoneyFlowTransactions } from '@/lib/utils/ledgerFilters';
 import {
   getMonthsFromTransactions,
   filterTransactionsByMonth,
@@ -21,7 +21,7 @@ import { LedgerRow } from '@/lib/types';
 /**
  * Consolidated Ledger Page
  *
- * Shows transactions from all deposit accounts in a unified ledger view.
+ * Shows external money in/out transactions from all accounts.
  * Features:
  * - Filter by specific accounts (multi-select)
  * - Date range filtering
@@ -35,18 +35,17 @@ export default function ConsolidatedLedgerPage() {
     selectedAccountIds: [] as number[],
   });
 
-  const [viewMode, setViewMode] = useState<'monthly' | 'date-range'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const viewMode = filters.start_date || filters.end_date
+    ? 'date-range'
+    : 'monthly';
 
   // Fetch all accounts
   const { data: accountsData, isLoading: accountsLoading } = useAccounts();
 
-  // Filter for Deposit, MoneyMarket, and Savings accounts (cash-based accounts)
-  const cashAccounts = useMemo(() => {
+  const accounts = useMemo(() => {
     if (!accountsData?.accounts) return [];
-    return accountsData.accounts.filter(acc =>
-      ['Deposit', 'MoneyMarket', 'Savings'].includes(acc.type)
-    );
+    return accountsData.accounts;
   }, [accountsData]);
 
   // Fetch ALL transactions (no account_id filter to avoid Rules of Hooks violation)
@@ -63,60 +62,42 @@ export default function ConsolidatedLedgerPage() {
   const selectedAccountIds = useMemo(() => {
     return filters.selectedAccountIds.length > 0
       ? filters.selectedAccountIds
-      : cashAccounts.map(acc => acc.id);
-  }, [filters.selectedAccountIds, cashAccounts]);
+      : accounts.map(acc => acc.id);
+  }, [filters.selectedAccountIds, accounts]);
 
-  // Filter transactions to only show selected cash accounts and income/expense transactions
+  // Filter transactions to external money in/out across selected accounts.
   const filteredTransactions = useMemo(() => {
     if (!transactionsData?.transactions) return [];
 
-    const cashAccountIds = new Set(cashAccounts.map(acc => acc.id));
-
-    return transactionsData.transactions
-      .filter(tx => {
-        // Only include transactions from cash accounts
-        if (!cashAccountIds.has(tx.account_id)) return false;
-
-        // Only include selected accounts
-        if (!selectedAccountIds.includes(tx.account_id)) return false;
-
-        // Hide transfer and exchange transactions (Pattern ② and ④)
-        // Only show Pattern ① transactions: Deposit, Withdrawal, Dividend, Interest
-        if (!isLedgerDisplayableTransaction(tx.type)) return false;
-
-        return true;
-      })
-      .map(tx => ({
-        ...tx,
-        // Ensure account_name is populated from the accounts list
-        account_name: tx.account_name || cashAccounts.find(acc => acc.id === tx.account_id)?.name || 'Unknown'
-      }))
-      .sort((a, b) => {
-        // Sort chronologically (oldest first)
-        const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
-        if (dateDiff !== 0) return dateDiff;
-        return a.id - b.id;
-      });
-  }, [transactionsData, cashAccounts, selectedAccountIds]);
+    return filterLedgerMoneyFlowTransactions(
+      transactionsData.transactions,
+      accounts,
+      filters.selectedAccountIds
+    );
+  }, [transactionsData, accounts, filters.selectedAccountIds]);
 
   // Extract available months from transactions
   const availableMonths = useMemo(() => {
     return getMonthsFromTransactions(filteredTransactions);
   }, [filteredTransactions]);
 
-  // Default to most recent month
-  useEffect(() => {
-    if (!selectedMonth && availableMonths.length > 0 && viewMode === 'monthly') {
-      setSelectedMonth(availableMonths[0].value);
+  const currentMonth = useMemo(() => {
+    if (viewMode !== 'monthly') return null;
+    if (
+      selectedMonth &&
+      availableMonths.some(month => month.value === selectedMonth)
+    ) {
+      return selectedMonth;
     }
+    return availableMonths[0]?.value || null;
   }, [availableMonths, selectedMonth, viewMode]);
 
   // Filter transactions by month or show all (depending on view mode)
   const displayedTransactions = useMemo(() => {
     if (viewMode === 'date-range') return filteredTransactions;
-    if (!selectedMonth) return [];
-    return filterTransactionsByMonth(filteredTransactions, selectedMonth);
-  }, [viewMode, selectedMonth, filteredTransactions]);
+    if (!currentMonth) return [];
+    return filterTransactionsByMonth(filteredTransactions, currentMonth);
+  }, [viewMode, currentMonth, filteredTransactions]);
 
   // Transform to ledger rows with running balance
   const ledgerRows: LedgerRow[] = useMemo(() => {
@@ -127,15 +108,6 @@ export default function ConsolidatedLedgerPage() {
   const monthlySummary = useMemo(() => {
     return calculateMonthlyCashFlow(ledgerRows);
   }, [ledgerRows]);
-
-  // Switch to date-range mode when date filters are active
-  useEffect(() => {
-    if (filters.start_date || filters.end_date) {
-      setViewMode('date-range');
-    } else {
-      setViewMode('monthly');
-    }
-  }, [filters.start_date, filters.end_date]);
 
   const handleAccountToggle = (accountId: number) => {
     setFilters(prev => {
@@ -154,7 +126,7 @@ export default function ConsolidatedLedgerPage() {
   const handleSelectAll = () => {
     setFilters(prev => ({
       ...prev,
-      selectedAccountIds: cashAccounts.map(acc => acc.id)
+      selectedAccountIds: accounts.map(acc => acc.id)
     }));
   };
 
@@ -189,8 +161,8 @@ export default function ConsolidatedLedgerPage() {
           Consolidated Ledger
         </h1>
         <p className="text-gray-600">
-          View actual income and expenses across your deposit accounts.
-          Internal transfers and currency exchanges are hidden.
+          View money entering and leaving your current assets across all
+          accounts. Internal transfers, exchanges, buys, and sells are hidden.
         </p>
       </div>
 
@@ -221,13 +193,13 @@ export default function ConsolidatedLedgerPage() {
               </div>
             </div>
 
-            {cashAccounts.length === 0 ? (
+            {accounts.length === 0 ? (
               <p className="text-sm text-gray-500 italic">
-                No cash-based accounts found. Create a Deposit, MoneyMarket, or Savings account to use the ledger.
+                No accounts found. Create an account to use the ledger.
               </p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {cashAccounts.map(acc => (
+                {accounts.map(acc => (
                   <label
                     key={acc.id}
                     className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
@@ -254,7 +226,7 @@ export default function ConsolidatedLedgerPage() {
               </div>
             )}
 
-            {filters.selectedAccountIds.length === 0 && cashAccounts.length > 0 && (
+            {filters.selectedAccountIds.length === 0 && accounts.length > 0 && (
               <p className="text-xs text-gray-500 mt-2">
                 No selection means all accounts are included
               </p>
@@ -310,7 +282,7 @@ export default function ConsolidatedLedgerPage() {
       {viewMode === 'monthly' && availableMonths.length > 0 && (
         <MonthNavigation
           availableMonths={availableMonths}
-          currentMonth={selectedMonth || ''}
+          currentMonth={currentMonth || ''}
           onMonthChange={setSelectedMonth}
           disabled={false}
         />
@@ -332,9 +304,9 @@ export default function ConsolidatedLedgerPage() {
       )}
 
       {/* Monthly Cash Flow Summary */}
-      {viewMode === 'monthly' && availableMonths.length > 0 && selectedMonth && ledgerRows.length > 0 && (
+      {viewMode === 'monthly' && availableMonths.length > 0 && currentMonth && ledgerRows.length > 0 && (
         <MonthlyCashFlowSummary
-          monthLabel={availableMonths.find(m => m.value === selectedMonth)?.label || ''}
+          monthLabel={availableMonths.find(m => m.value === currentMonth)?.label || ''}
           {...monthlySummary}
           currency="KRW"
           accountCount={selectedAccountIds.length}
@@ -342,7 +314,7 @@ export default function ConsolidatedLedgerPage() {
       )}
 
       {/* Ledger Table */}
-      {cashAccounts.length > 0 ? (
+      {accounts.length > 0 ? (
         <>
           <LedgerTable
             rows={ledgerRows}
@@ -365,8 +337,8 @@ export default function ConsolidatedLedgerPage() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
                 {viewMode === 'monthly'
-                  ? 'No income or expense transactions found in the selected month. Internal transfers and exchanges are hidden from this view.'
-                  : 'No income or expense transactions found for the selected filters. Internal transfers and exchanges are hidden from this view.'}
+                  ? 'No money in/out transactions found in the selected month. Internal transfers, exchanges, buys, and sells are hidden from this view.'
+                  : 'No money in/out transactions found for the selected filters. Internal transfers, exchanges, buys, and sells are hidden from this view.'}
               </p>
             </div>
           )}
@@ -374,10 +346,10 @@ export default function ConsolidatedLedgerPage() {
       ) : (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
           <p className="text-gray-600 mb-2">
-            No cash-based accounts available
+            No accounts available
           </p>
           <p className="text-sm text-gray-500">
-            Create a Deposit, MoneyMarket, or Savings account to start using the consolidated ledger.
+            Create an account to start using the consolidated ledger.
           </p>
         </div>
       )}

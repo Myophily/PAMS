@@ -5,19 +5,13 @@
  * with running balance calculation.
  */
 
-import { TransactionDetail, LedgerRow, DecimalString } from '../types';
+import type { TransactionDetail, LedgerRow, DecimalString } from '../types';
 import { parseDecimal } from './decimal';
 
-/**
- * Transaction types that represent actual income/expense (Pattern ①)
- * These should be displayed in the ledger.
- */
-export const LEDGER_DISPLAYABLE_TRANSACTION_TYPES = [
-  'Deposit',
-  'Withdrawal',
-  'Dividend',
-  'Interest'
-] as const;
+export {
+  LEDGER_DISPLAYABLE_TRANSACTION_TYPES,
+  isLedgerDisplayableTransaction,
+} from './ledgerFilters';
 
 /**
  * Transaction types that represent internal movements (Patterns ② and ④)
@@ -28,24 +22,6 @@ export const LEDGER_HIDDEN_TRANSACTION_TYPES = [
   'Transfer_Out',
   'Exchange'
 ] as const;
-
-export type LedgerDisplayableTransactionType = typeof LEDGER_DISPLAYABLE_TRANSACTION_TYPES[number];
-
-/**
- * Determines if a transaction should be displayed in the ledger.
- *
- * Ledger view only shows Pattern ① transactions (actual income/expense).
- * Pattern ② (transfers) and Pattern ④ (exchanges) are internal movements
- * and should be hidden.
- *
- * @param transactionType - The type of transaction
- * @returns true if transaction should be displayed in ledger
- */
-export function isLedgerDisplayableTransaction(transactionType: string): boolean {
-  return LEDGER_DISPLAYABLE_TRANSACTION_TYPES.includes(
-    transactionType as LedgerDisplayableTransactionType
-  );
-}
 
 /**
  * Converts transactions into ledger rows with running balance.
