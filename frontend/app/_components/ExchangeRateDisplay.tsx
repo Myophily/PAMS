@@ -19,12 +19,14 @@ export function ExchangeRateDisplay({
   });
 
   return (
-    <div className="bg-white rounded-lg shadow p-4">
-      <div className="text-sm text-gray-600 mb-1">Exchange Rate (USD/KRW)</div>
-      <div className="text-2xl font-bold text-gray-900">
+    <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-4">
+      <div className="mb-1 text-sm font-medium tracking-[0] text-[var(--charcoal)]">
+        Exchange Rate (USD/KRW)
+      </div>
+      <div className="font-mono text-2xl font-semibold text-[var(--ink)]">
         ₩{formatNumber(rate, 2)}
       </div>
-      <div className="text-xs text-gray-500 mt-1">Updated: {updateTime}</div>
+      <div className="mt-1 text-xs text-[var(--mute)]">Updated: {updateTime}</div>
     </div>
   );
 }

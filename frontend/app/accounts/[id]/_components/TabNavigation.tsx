@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 interface TabNavigationProps {
   tabs: Array<{ key: string; label: string }>;
@@ -22,16 +22,17 @@ export function TabNavigation({ tabs, activeTab }: TabNavigationProps) {
   };
 
   return (
-    <div className="border-b border-gray-200">
-      <nav className="-mb-px flex space-x-8">
+    <div className="border-b border-[var(--hairline)] px-4">
+      <nav className="flex gap-2 overflow-x-auto">
         {tabs.map((tab) => (
           <button
+            type="button"
             key={tab.key}
             onClick={() => handleTabChange(tab.key)}
-            className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
+            className={`border-b-2 px-2 py-4 text-sm font-medium tracking-[0] transition ${
               activeTab === tab.key
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-[var(--primary)] text-[var(--ink)]'
+                : 'border-transparent text-[var(--charcoal)] hover:border-[var(--hairline-strong)] hover:text-[var(--ink)]'
             }`}
           >
             {tab.label}

@@ -68,7 +68,7 @@ export function RecurringTransferModal({
       toast.success('Recurring transfer created successfully!');
       reset();
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMessage = extractErrorMessage(error);
       toast.error(errorMessage);
     }

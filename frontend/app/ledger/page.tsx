@@ -154,39 +154,43 @@ export default function ConsolidatedLedgerPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+    <div className="space-y-8">
+      <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-6">
+        <p className="resend-caption mb-3 uppercase tracking-[0]">
+          Money flow
+        </p>
+        <h1 className="resend-display mb-3 text-5xl tracking-[0] sm:text-6xl">
           Consolidated Ledger
         </h1>
-        <p className="text-gray-600">
+        <p className="max-w-3xl text-[var(--charcoal)]">
           View money entering and leaving your current assets across all
           accounts. Internal transfers, exchanges, buys, and sells are hidden.
         </p>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
+      <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-6">
+        <h2 className="mb-4 text-lg font-medium tracking-[0] text-[var(--ink)]">
+          Filters
+        </h2>
 
         <div className="space-y-4">
-          {/* Account Selection */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium tracking-[0] text-[var(--body)]">
                 Accounts
               </label>
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={handleSelectAll}
-                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  className="text-sm font-medium text-[var(--link)] hover:text-[var(--ink)]"
                 >
                   Select All
                 </button>
                 <button
+                  type="button"
                   onClick={handleClearSelection}
-                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  className="text-sm font-medium text-[var(--link)] hover:text-[var(--ink)]"
                 >
                   Clear
                 </button>
@@ -194,7 +198,7 @@ export default function ConsolidatedLedgerPage() {
             </div>
 
             {accounts.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">
+              <p className="text-sm italic text-[var(--mute)]">
                 No accounts found. Create an account to use the ledger.
               </p>
             ) : (
@@ -202,7 +206,7 @@ export default function ConsolidatedLedgerPage() {
                 {accounts.map(acc => (
                   <label
                     key={acc.id}
-                    className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--hairline-strong)] bg-[var(--surface-elevated)] p-3 transition hover:bg-[var(--surface-card)]"
                   >
                     <input
                       type="checkbox"
@@ -211,13 +215,13 @@ export default function ConsolidatedLedgerPage() {
                         filters.selectedAccountIds.includes(acc.id)
                       }
                       onChange={() => handleAccountToggle(acc.id)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="rounded border-[var(--hairline-strong)] bg-[var(--surface-card)] text-[var(--primary)] focus:ring-[var(--ink)]"
                     />
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-[var(--ink)]">
                         {acc.name}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-[var(--mute)]">
                         {acc.type}
                       </div>
                     </div>
@@ -227,16 +231,15 @@ export default function ConsolidatedLedgerPage() {
             )}
 
             {filters.selectedAccountIds.length === 0 && accounts.length > 0 && (
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="mt-2 text-xs text-[var(--mute)]">
                 No selection means all accounts are included
               </p>
             )}
           </div>
 
-          {/* Date Range */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="mb-1 block text-sm font-medium tracking-[0] text-[var(--body)]">
                 Start Date
               </label>
               <input
@@ -245,12 +248,12 @@ export default function ConsolidatedLedgerPage() {
                 onChange={(e) =>
                   setFilters({ ...filters, start_date: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="h-10 w-full rounded-lg border border-[var(--hairline-strong)] bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--ink)] focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="mb-1 block text-sm font-medium tracking-[0] text-[var(--body)]">
                 End Date
               </label>
               <input
@@ -259,17 +262,17 @@ export default function ConsolidatedLedgerPage() {
                 onChange={(e) =>
                   setFilters({ ...filters, end_date: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="h-10 w-full rounded-lg border border-[var(--hairline-strong)] bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--ink)] focus:outline-none"
               />
             </div>
           </div>
 
-          {/* Clear Filters */}
           {(filters.start_date || filters.end_date || filters.selectedAccountIds.length > 0) && (
             <div>
               <button
+                type="button"
                 onClick={() => setFilters({ start_date: '', end_date: '', selectedAccountIds: [] })}
-                className="text-sm text-blue-600 hover:text-blue-800 underline"
+                className="text-sm font-medium text-[var(--link)] hover:text-[var(--ink)]"
               >
                 Clear all filters
               </button>
@@ -278,7 +281,6 @@ export default function ConsolidatedLedgerPage() {
         </div>
       </div>
 
-      {/* Monthly Navigation */}
       {viewMode === 'monthly' && availableMonths.length > 0 && (
         <MonthNavigation
           availableMonths={availableMonths}
@@ -288,14 +290,14 @@ export default function ConsolidatedLedgerPage() {
         />
       )}
 
-      {/* Date Range Active Banner */}
       {viewMode === 'date-range' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm text-blue-800">
+        <div className="rounded-xl border border-[rgba(59,158,255,0.34)] bg-[rgba(59,158,255,0.1)] p-4">
+          <p className="text-sm text-[var(--link)]">
             Custom date range active - monthly view disabled.
             <button
+              type="button"
               onClick={handleClearDateRange}
-              className="underline ml-2 hover:text-blue-900 font-medium"
+              className="ml-2 font-medium text-[var(--ink)] hover:text-[var(--primary)]"
             >
               Return to monthly view
             </button>
@@ -303,7 +305,6 @@ export default function ConsolidatedLedgerPage() {
         </div>
       )}
 
-      {/* Monthly Cash Flow Summary */}
       {viewMode === 'monthly' && availableMonths.length > 0 && currentMonth && ledgerRows.length > 0 && (
         <MonthlyCashFlowSummary
           monthLabel={availableMonths.find(m => m.value === currentMonth)?.label || ''}
@@ -313,7 +314,6 @@ export default function ConsolidatedLedgerPage() {
         />
       )}
 
-      {/* Ledger Table */}
       {accounts.length > 0 ? (
         <>
           <LedgerTable
@@ -323,10 +323,9 @@ export default function ConsolidatedLedgerPage() {
             isLoading={isLoading}
           />
 
-          {/* Info notes */}
           {filteredTransactions.length >= 10000 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-sm text-yellow-800">
+            <div className="rounded-xl border border-[rgba(255,197,61,0.38)] bg-[rgba(255,197,61,0.1)] p-4">
+              <p className="text-sm text-[var(--accent-yellow)]">
                 <strong>Note:</strong> Showing up to 10,000 transactions.
                 Use date filters to narrow down the results.
               </p>
@@ -334,8 +333,8 @@ export default function ConsolidatedLedgerPage() {
           )}
 
           {ledgerRows.length === 0 && !isLoading && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
+            <div className="rounded-xl border border-[rgba(59,158,255,0.34)] bg-[rgba(59,158,255,0.1)] p-4">
+              <p className="text-sm text-[var(--link)]">
                 {viewMode === 'monthly'
                   ? 'No money in/out transactions found in the selected month. Internal transfers, exchanges, buys, and sells are hidden from this view.'
                   : 'No money in/out transactions found for the selected filters. Internal transfers, exchanges, buys, and sells are hidden from this view.'}
@@ -344,11 +343,11 @@ export default function ConsolidatedLedgerPage() {
           )}
         </>
       ) : (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-          <p className="text-gray-600 mb-2">
+        <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-8 text-center">
+          <p className="mb-2 text-[var(--charcoal)]">
             No accounts available
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-[var(--mute)]">
             Create an account to start using the consolidated ledger.
           </p>
         </div>

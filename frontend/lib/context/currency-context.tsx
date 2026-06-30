@@ -1,8 +1,10 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useSyncExternalStore } from 'react';
 
 type Currency = 'KRW' | 'USD';
+const CURRENCY_STORAGE_KEY = 'pam_currency';
+const CURRENCY_CHANGE_EVENT = 'pam_currency_change';
 
 interface CurrencyContextType {
   currency: Currency;
@@ -16,23 +18,33 @@ const CurrencyContext = createContext<CurrencyContextType>({
   toggleCurrency: () => {},
 });
 
-export function CurrencyProvider({ children }: { children: React.ReactNode }) {
-  const [currency, setCurrency] = useState<Currency>('KRW');
-  const [mounted, setMounted] = useState(false);
+function readCurrency(): Currency {
+  if (typeof window === 'undefined') return 'KRW';
 
-  useEffect(() => {
-    setMounted(true);
-    const saved = localStorage.getItem('pam_currency') as Currency;
-    if (saved && (saved === 'KRW' || saved === 'USD')) {
-      setCurrency(saved);
-    }
-  }, []);
+  const saved = window.localStorage.getItem(CURRENCY_STORAGE_KEY);
+  return saved === 'KRW' || saved === 'USD' ? saved : 'KRW';
+}
+
+function subscribeCurrency(callback: () => void): () => void {
+  window.addEventListener('storage', callback);
+  window.addEventListener(CURRENCY_CHANGE_EVENT, callback);
+
+  return () => {
+    window.removeEventListener('storage', callback);
+    window.removeEventListener(CURRENCY_CHANGE_EVENT, callback);
+  };
+}
+
+export function CurrencyProvider({ children }: { children: React.ReactNode }) {
+  const currency = useSyncExternalStore<Currency>(
+    subscribeCurrency,
+    readCurrency,
+    () => 'KRW',
+  );
 
   const updateCurrency = (c: Currency) => {
-    setCurrency(c);
-    if (mounted) {
-      localStorage.setItem('pam_currency', c);
-    }
+    window.localStorage.setItem(CURRENCY_STORAGE_KEY, c);
+    window.dispatchEvent(new Event(CURRENCY_CHANGE_EVENT));
   };
 
   const toggleCurrency = () => {
@@ -40,7 +52,9 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency: updateCurrency, toggleCurrency }}>
+    <CurrencyContext.Provider
+      value={{ currency, setCurrency: updateCurrency, toggleCurrency }}
+    >
       {children}
     </CurrencyContext.Provider>
   );

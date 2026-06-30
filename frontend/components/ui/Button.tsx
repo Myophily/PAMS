@@ -14,19 +14,24 @@ export function Button({
   className = '',
   ...props
 }: ButtonProps) {
-  const baseClasses = 'rounded font-medium transition disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseClasses =
+    'inline-flex items-center justify-center gap-2 rounded-lg border font-medium tracking-[0] transition disabled:cursor-not-allowed disabled:opacity-50';
 
   const sizes = {
-    sm: 'px-2 py-1 text-sm',
-    md: 'px-4 py-2',
-    lg: 'px-6 py-3 text-lg',
+    sm: 'h-8 px-3 text-sm',
+    md: 'h-9 px-4 text-sm',
+    lg: 'h-11 px-5 text-base',
   };
 
   const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700',
-    secondary: 'border border-gray-300 hover:bg-gray-100',
-    danger: 'bg-red-600 text-white hover:bg-red-700',
-    ghost: 'bg-transparent text-gray-700 hover:bg-gray-100',
+    primary:
+      'border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-on)] hover:bg-[var(--surface-light)]',
+    secondary:
+      'border-[var(--hairline-strong)] bg-[var(--surface-elevated)] text-[var(--ink)] hover:bg-[var(--surface-card)]',
+    danger:
+      'border-[rgba(255,32,71,0.38)] bg-[rgba(255,32,71,0.1)] text-[var(--accent-red)] hover:bg-[rgba(255,32,71,0.16)]',
+    ghost:
+      'border-transparent bg-transparent text-[var(--charcoal)] hover:border-[var(--hairline-strong)] hover:bg-[var(--surface-elevated)] hover:text-[var(--ink)]',
   };
 
   return (

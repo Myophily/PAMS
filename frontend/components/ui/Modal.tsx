@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react';
 
+import { X } from 'lucide-react';
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -32,22 +34,23 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50"
+        className="fixed inset-0 bg-black/78 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Modal content */}
-      <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto mx-4">
-        <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+      <div className="relative mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] text-[var(--body)]">
+        <div className="flex items-center justify-between border-b border-[var(--hairline)] p-6">
+          <h2 className="text-xl font-medium tracking-[0] text-[var(--ink)]">
+            {title}
+          </h2>
           <button
+            type="button"
             onClick={onClose}
-            className="text-gray-600 hover:text-gray-900 text-2xl leading-none transition-colors"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-[var(--charcoal)] transition hover:border-[var(--hairline-strong)] hover:bg-[var(--surface-elevated)] hover:text-[var(--ink)]"
             aria-label="Close modal"
           >
-            ×
+            <X size={18} />
           </button>
         </div>
 

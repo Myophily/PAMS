@@ -29,7 +29,7 @@ export default function HomePage() {
 
   if (error) {
     return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+      <div className="rounded-xl border border-[rgba(255,32,71,0.38)] bg-[rgba(255,32,71,0.1)] px-4 py-3 text-[var(--accent-red)]">
         <strong>Error:</strong> {error.message}
       </div>
     );
@@ -37,11 +37,11 @@ export default function HomePage() {
 
   if (!summary) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+      <div className="rounded-xl border border-[rgba(255,197,61,0.38)] bg-[rgba(255,197,61,0.1)] p-6">
+        <h3 className="mb-2 text-lg font-medium tracking-[0] text-[var(--ink)]">
           No Data Available
         </h3>
-        <p className="text-gray-700">
+        <p className="text-[var(--body)]">
           Create your first account to start tracking your assets.
         </p>
       </div>
@@ -49,10 +49,16 @@ export default function HomePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
+    <div className="space-y-8">
+      <div>
+        <p className="resend-caption mb-3 uppercase tracking-[0]">
+          Local-first asset desk
+        </p>
+        <h1 className="resend-display text-5xl tracking-[0] sm:text-6xl">
+          Dashboard
+        </h1>
+      </div>
 
-      {/* Top section: Total Assets + Exchange Rate */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <TotalAssetCard
@@ -66,16 +72,13 @@ export default function HomePage() {
         />
       </div>
 
-      {/* Asset change stats */}
       <AssetChangeStats changes={summary.changes} />
 
-      {/* Charts section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <AssetAllocationChart data={summary.allocation} riskSummary={summary.risk_summary} />
         <TopAssetsBarChart assets={summary.top_assets} />
       </div>
 
-      {/* Full width candlestick chart */}
       <AssetCandlestickChart
         data={candlestickData?.candles || []}
         period={chartPeriod}

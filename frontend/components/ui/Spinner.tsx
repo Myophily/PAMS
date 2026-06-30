@@ -12,7 +12,7 @@ export function Spinner({ size = 'md' }: SpinnerProps) {
   return (
     <div className="flex items-center justify-center">
       <div
-        className={`${sizes[size]} animate-spin rounded-full border-4 border-gray-300 border-t-blue-600`}
+        className={`${sizes[size]} animate-spin rounded-full border-4 border-[var(--hairline-strong)] border-t-[var(--primary)]`}
       />
     </div>
   );

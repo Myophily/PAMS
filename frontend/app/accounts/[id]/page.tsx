@@ -40,7 +40,7 @@ export default function AccountDetailPage() {
 
   if (error) {
     return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+      <div className="rounded-xl border border-[rgba(255,32,71,0.38)] bg-[rgba(255,32,71,0.1)] px-4 py-3 text-[var(--accent-red)]">
         <strong>Error:</strong> {error.message}
       </div>
     );
@@ -48,9 +48,11 @@ export default function AccountDetailPage() {
 
   if (!accountData) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Account Not Found</h3>
-        <p className="text-gray-700">
+      <div className="rounded-xl border border-[rgba(255,197,61,0.38)] bg-[rgba(255,197,61,0.1)] p-6">
+        <h3 className="mb-2 text-lg font-medium tracking-[0] text-[var(--ink)]">
+          Account Not Found
+        </h3>
+        <p className="text-[var(--body)]">
           The account you are looking for does not exist.
         </p>
       </div>
@@ -98,7 +100,7 @@ export default function AccountDetailPage() {
         isRefetching={isFetching}
       />
 
-      <div className="bg-white rounded-lg shadow">
+      <div className="overflow-hidden rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)]">
         <TabNavigation tabs={availableTabs} activeTab={activeTab} />
 
         <div className="p-6">

@@ -1,7 +1,21 @@
 'use client';
 
+import type { ReactNode } from 'react';
+
+import {
+  ArrowDown,
+  ArrowLeftRight,
+  ArrowUp,
+  Banknote,
+  CircleDollarSign,
+  Coins,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+
 import type { AccountWithBalance } from '@/lib/types';
 import { Badge } from '@/components/ui/Badge';
 import { formatCurrency } from '@/lib/utils/format';
@@ -22,6 +36,18 @@ const ACTION_LABELS: Record<string, string> = {
   exchange: 'Exchange',
   interest: 'Interest',
   delete: 'Delete',
+};
+
+const ACTION_ICONS: Record<string, ReactNode> = {
+  transfer: <ArrowLeftRight size={14} />,
+  deposit: <ArrowDown size={14} />,
+  withdrawal: <ArrowUp size={14} />,
+  buy: <TrendingUp size={14} />,
+  sell: <TrendingDown size={14} />,
+  dividend: <Banknote size={14} />,
+  exchange: <CircleDollarSign size={14} />,
+  interest: <Coins size={14} />,
+  delete: <Trash2 size={14} />,
 };
 
 // Map actions to modal names
@@ -57,46 +83,49 @@ export function AccountCard({ account }: AccountCardProps) {
 
   return (
     <Link href={`/accounts/${account.id}`}>
-      <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition cursor-pointer">
+      <div className="group rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-6 transition hover:border-[rgba(252,253,255,0.28)]">
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xl font-bold text-gray-900">{account.name}</h3>
+            <h3 className="text-xl font-medium tracking-[0] text-[var(--ink)]">
+              {account.name}
+            </h3>
             <Badge variant="default">{accountConfig.displayName}</Badge>
           </div>
-          <span className="text-sm text-gray-500">{currency}</span>
+          <span className="text-sm text-[var(--mute)]">{currency}</span>
         </div>
 
         <div className="mb-4">
-          <div className="text-3xl font-bold text-gray-900">
+          <div className="font-mono text-2xl font-semibold text-[var(--ink)]">
             {formatCurrency(
               account.total_value_krw || account.total_value || account.balance,
               'KRW'
             )}
           </div>
-          <div className="text-sm text-gray-600 mt-1">
+          <div className="mt-1 text-sm text-[var(--charcoal)]">
             ≈ {formatCurrency(account.balance_usd, 'USD')}
-            <span className="text-xs text-gray-400 ml-1">
+            <span className="ml-1 text-xs text-[var(--ash)]">
               ({account.currency})
             </span>
           </div>
         </div>
 
-        <div className="text-sm text-gray-500 mb-4">
+        <div className="mb-4 text-sm text-[var(--mute)]">
           {account.holdings_count} {account.holdings_count === 1 ? 'holding' : 'holdings'}
         </div>
 
-        {/* Action buttons */}
         <div className="flex flex-wrap gap-2">
           {actions.map((action) => (
             <button
               key={action}
-              className={`text-sm px-3 py-1 rounded transition ${
+              type="button"
+              className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium tracking-[0] transition ${
                 action === 'delete'
-                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                  ? 'border-[rgba(255,32,71,0.38)] bg-[rgba(255,32,71,0.1)] text-[var(--accent-red)] hover:bg-[rgba(255,32,71,0.16)]'
+                  : 'border-[var(--hairline-strong)] bg-[var(--surface-elevated)] text-[var(--body)] hover:text-[var(--ink)]'
               }`}
               onClick={(e) => handleAction(action, e)}
             >
+              {ACTION_ICONS[action]}
               {ACTION_LABELS[action] || action}
             </button>
           ))}

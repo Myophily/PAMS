@@ -14,7 +14,7 @@ function inferCurrencyFromTicker(ticker: string): 'USD' | 'KRW' | 'JPY' | 'EUR' 
   if (/^\d{6}$/.test(upper) || upper.endsWith('.KS') || upper.endsWith('.KQ')) {
     return 'KRW';
   }
-  if (KOREAN_BOND_TICKERS.includes(upper as any)) {
+  if ((KOREAN_BOND_TICKERS as readonly string[]).includes(upper)) {
     return 'KRW';
   }
   if (upper.endsWith('.T')) {

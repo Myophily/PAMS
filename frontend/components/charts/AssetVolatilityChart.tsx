@@ -1,16 +1,15 @@
 'use client';
 
 import {
-  LineChart,
+  Area,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
   Line,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Area,
-  ComposedChart,
 } from 'recharts';
 import { parseDecimal } from '@/lib/utils/decimal';
 import type { DecimalString } from '@/lib/types';
@@ -27,9 +26,11 @@ interface AssetVolatilityChartProps {
 export function AssetVolatilityChart({ data }: AssetVolatilityChartProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">Asset Growth</h3>
-        <div className="flex items-center justify-center h-[400px] text-gray-500">
+      <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-6">
+        <h3 className="mb-4 text-lg font-medium tracking-[0] text-[var(--ink)]">
+          Asset Growth
+        </h3>
+        <div className="flex h-[400px] items-center justify-center text-[var(--mute)]">
           No data available
         </div>
       </div>
@@ -49,41 +50,48 @@ export function AssetVolatilityChart({ data }: AssetVolatilityChartProps) {
   }));
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4">Asset Growth</h3>
+    <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-6">
+      <h3 className="mb-4 text-lg font-medium tracking-[0] text-[var(--ink)]">
+        Asset Growth
+      </h3>
       <ResponsiveContainer width="100%" height={400}>
         <ComposedChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" />
+          <CartesianGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
           <XAxis
             dataKey="displayDate"
-            tick={{ fontSize: 12 }}
+            tick={{ fill: 'rgba(252,253,255,0.7)', fontSize: 12 }}
+            axisLine={{ stroke: 'rgba(255,255,255,0.14)' }}
+            tickLine={{ stroke: 'rgba(255,255,255,0.14)' }}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fontSize: 12 }}
+            tick={{ fill: 'rgba(252,253,255,0.7)', fontSize: 12 }}
+            axisLine={{ stroke: 'rgba(255,255,255,0.14)' }}
+            tickLine={{ stroke: 'rgba(255,255,255,0.14)' }}
             tickFormatter={(value) => `₩${(value / 1000000).toFixed(1)}M`}
           />
           <Tooltip
             formatter={(value: number | undefined) => value ? `₩${value.toLocaleString()}` : ''}
             contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
+              backgroundColor: '#0a0a0c',
+              border: '1px solid rgba(255,255,255,0.14)',
+              borderRadius: '8px',
+              color: '#fcfdff',
             }}
           />
-          <Legend />
+          <Legend wrapperStyle={{ color: 'rgba(252,253,255,0.7)' }} />
           <Area
             type="monotone"
             dataKey="gain_loss"
-            fill="#10B981"
-            fillOpacity={0.2}
+            fill="#11ff99"
+            fillOpacity={0.14}
             stroke="none"
             name="Gain/Loss"
           />
           <Line
             type="monotone"
             dataKey="total_assets"
-            stroke="#3B82F6"
+            stroke="#3b9eff"
             strokeWidth={2}
             name="Total Assets"
             dot={false}
@@ -91,7 +99,7 @@ export function AssetVolatilityChart({ data }: AssetVolatilityChartProps) {
           <Line
             type="monotone"
             dataKey="principal"
-            stroke="#6B7280"
+            stroke="#a1a4a5"
             strokeWidth={2}
             strokeDasharray="5 5"
             name="Principal"

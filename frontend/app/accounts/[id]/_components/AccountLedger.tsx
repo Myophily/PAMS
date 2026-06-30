@@ -48,12 +48,13 @@ export function AccountLedger({
 
   return (
     <div className="space-y-4">
-      {/* Filter Section */}
-      <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Filters</h3>
+      <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-4">
+        <h3 className="mb-3 text-sm font-medium tracking-[0] text-[var(--body)]">
+          Filters
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1 block text-sm font-medium tracking-[0] text-[var(--body)]">
               Start Date
             </label>
             <input
@@ -62,12 +63,12 @@ export function AccountLedger({
               onChange={(e) =>
                 setFilters({ ...filters, start_date: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="h-10 w-full rounded-lg border border-[var(--hairline-strong)] bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--ink)] focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1 block text-sm font-medium tracking-[0] text-[var(--body)]">
               End Date
             </label>
             <input
@@ -76,7 +77,7 @@ export function AccountLedger({
               onChange={(e) =>
                 setFilters({ ...filters, end_date: e.target.value })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="h-10 w-full rounded-lg border border-[var(--hairline-strong)] bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--ink)] focus:border-[var(--ink)] focus:outline-none"
             />
           </div>
         </div>
@@ -84,8 +85,9 @@ export function AccountLedger({
         {(filters.start_date || filters.end_date) && (
           <div className="mt-3">
             <button
+              type="button"
               onClick={() => setFilters({ start_date: '', end_date: '' })}
-              className="text-sm text-blue-600 hover:text-blue-800 underline"
+              className="text-sm font-medium text-[var(--link)] hover:text-[var(--ink)]"
             >
               Clear filters
             </button>
@@ -93,7 +95,6 @@ export function AccountLedger({
         )}
       </div>
 
-      {/* Ledger Table */}
       <LedgerTable
         rows={ledgerRows}
         currency={currency}
@@ -101,10 +102,9 @@ export function AccountLedger({
         isLoading={isLoading}
       />
 
-      {/* Info note */}
       {transactions.length >= 1000 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-sm text-yellow-800">
+        <div className="rounded-xl border border-[rgba(255,197,61,0.38)] bg-[rgba(255,197,61,0.1)] p-4">
+          <p className="text-sm text-[var(--accent-yellow)]">
             <strong>Note:</strong> Showing the most recent 1,000 transactions.
             Use date filters to narrow down the results.
           </p>

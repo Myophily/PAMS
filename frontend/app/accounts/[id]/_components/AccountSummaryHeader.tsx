@@ -1,6 +1,8 @@
 'use client';
 
+import { Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+
 import { formatCurrency, formatPercent } from '@/lib/utils/format';
 import { formatDecimal, isPositive } from '@/lib/utils/decimal';
 import type { DecimalString } from '@/lib/types';
@@ -45,17 +47,18 @@ export function AccountSummaryHeader({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-6">
+      <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{name}</h1>
-          <span className="text-sm text-gray-500">
+          <p className="resend-caption mb-3 uppercase tracking-[0]">
             {type} • {currency}
-          </span>
+          </p>
+          <h1 className="resend-display text-5xl tracking-[0] sm:text-6xl">
+            {name}
+          </h1>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Recalculation indicator */}
           {isRefetching && (
             <Badge variant="warning" className="flex items-center gap-2">
               <Spinner size="sm" />
@@ -63,49 +66,55 @@ export function AccountSummaryHeader({
             </Badge>
           )}
 
-          {/* Delete button */}
           <button
+            type="button"
             onClick={handleDeleteClick}
-            className="px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 transition text-sm font-medium"
+            className="inline-flex h-9 items-center gap-2 rounded-lg border border-[rgba(255,32,71,0.38)] bg-[rgba(255,32,71,0.1)] px-4 text-sm font-medium tracking-[0] text-[var(--accent-red)] transition hover:bg-[rgba(255,32,71,0.16)]"
           >
+            <Trash2 size={15} />
             Delete Account
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Total Value - Primary: KRW, Secondary: Native (only if not KRW) */}
         <div>
-          <div className="text-sm text-gray-600 mb-1">Total Value</div>
-          <div className="text-2xl font-bold text-gray-900">
+          <div className="mb-1 text-sm font-medium tracking-[0] text-[var(--charcoal)]">
+            Total Value
+          </div>
+          <div className="font-mono text-2xl font-semibold text-[var(--ink)]">
             {formatCurrency(totalValueKRW, 'KRW')}
           </div>
           {!isKRWAccount && (
-            <div className="text-sm text-gray-600 mt-1">
+            <div className="mt-1 text-sm text-[var(--charcoal)]">
               ≈ {formatDecimal(totalValue)} {currency}
             </div>
           )}
         </div>
 
-        {/* Cash Balance - Primary: KRW, Secondary: Native (only if not KRW) */}
         <div>
-          <div className="text-sm text-gray-600 mb-1">Cash Balance</div>
-          <div className="text-2xl font-bold text-gray-900">
+          <div className="mb-1 text-sm font-medium tracking-[0] text-[var(--charcoal)]">
+            Cash Balance
+          </div>
+          <div className="font-mono text-2xl font-semibold text-[var(--ink)]">
             {formatCurrency(cashBalanceKRW, 'KRW')}
           </div>
           {!isKRWAccount && (
-            <div className="text-sm text-gray-600 mt-1">
+            <div className="mt-1 text-sm text-[var(--charcoal)]">
               ≈ {formatDecimal(cashBalance)} {currency}
             </div>
           )}
         </div>
 
-        {/* Unrealized P/L - Primary: KRW, Secondary: Percent + Native (only if not KRW) */}
         <div>
-          <div className="text-sm text-gray-600 mb-1">Unrealized P/L</div>
+          <div className="mb-1 text-sm font-medium tracking-[0] text-[var(--charcoal)]">
+            Unrealized P/L
+          </div>
           <div
-            className={`text-2xl font-bold ${
-              isPlPositive ? 'text-green-600' : 'text-red-600'
+            className={`font-mono text-2xl font-semibold ${
+              isPlPositive
+                ? 'text-[var(--accent-green)]'
+                : 'text-[var(--accent-red)]'
             }`}
           >
             {isPlPositive ? '+' : ''}
@@ -113,7 +122,9 @@ export function AccountSummaryHeader({
           </div>
           <div
             className={`text-sm ${
-              isPlPositive ? 'text-green-600' : 'text-red-600'
+              isPlPositive
+                ? 'text-[var(--accent-green)]'
+                : 'text-[var(--accent-red)]'
             }`}
           >
             {isKRWAccount ? (

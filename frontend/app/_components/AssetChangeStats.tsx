@@ -20,20 +20,27 @@ export function AssetChangeStats({ changes }: AssetChangeStatsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       {periods.map(({ label, key, data }) => {
         const isAmountPositive = isPositive(data.amount_krw);
         return (
-          <div key={key} className="bg-white rounded-lg shadow p-4">
-            <div className="text-sm text-gray-600 mb-1">{label}</div>
+          <div
+            key={key}
+            className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-4"
+          >
+            <div className="mb-1 text-sm font-medium tracking-[0] text-[var(--charcoal)]">
+              {label}
+            </div>
             <div
-              className={`text-2xl font-bold ${
-                isAmountPositive ? 'text-green-600' : 'text-red-600'
+              className={`font-mono text-2xl font-semibold ${
+                isAmountPositive
+                  ? 'text-[var(--accent-green)]'
+                  : 'text-[var(--accent-red)]'
               }`}
             >
               {formatPercent(data.percent)}
             </div>
-            <div className="text-sm text-gray-500 mt-1">
+            <div className="mt-1 text-sm text-[var(--mute)]">
               {isAmountPositive ? '+' : ''}
               {formatDecimal(data.amount_krw)} KRW
             </div>

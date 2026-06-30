@@ -1,7 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { createChart, CandlestickSeries, type IChartApi, type CandlestickData as LWCCandlestickData } from 'lightweight-charts';
+import { useEffect, useRef } from 'react';
+
+import {
+  CandlestickSeries,
+  createChart,
+  type CandlestickData as LWCCandlestickData,
+  type IChartApi,
+} from 'lightweight-charts';
+
 import { parseDecimal } from '@/lib/utils/decimal';
 import type { CandlestickData, CandlestickPeriod } from '@/lib/types';
 
@@ -18,7 +25,6 @@ export function AssetCandlestickChart({
 }: AssetCandlestickChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -34,20 +40,20 @@ export function AssetCandlestickChart({
       width: chartContainerRef.current.clientWidth,
       height: 400,
       layout: {
-        background: { color: '#ffffff' },
-        textColor: '#333',
+        background: { color: '#0a0a0c' },
+        textColor: 'rgba(252,253,255,0.7)',
       },
       grid: {
-        vertLines: { color: '#f0f0f0' },
-        horzLines: { color: '#f0f0f0' },
+        vertLines: { color: 'rgba(255,255,255,0.06)' },
+        horzLines: { color: 'rgba(255,255,255,0.06)' },
       },
       timeScale: {
-        borderColor: '#ccc',
+        borderColor: 'rgba(255,255,255,0.14)',
         timeVisible: true,
         secondsVisible: false,
       },
       rightPriceScale: {
-        borderColor: '#ccc',
+        borderColor: 'rgba(255,255,255,0.14)',
       },
     });
 
@@ -55,11 +61,11 @@ export function AssetCandlestickChart({
 
     // Add candlestick series (v5 API)
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#10B981', // Green for gains
-      downColor: '#EF4444', // Red for losses
+      upColor: '#11ff99',
+      downColor: '#ff2047',
       borderVisible: false,
-      wickUpColor: '#10B981',
-      wickDownColor: '#EF4444',
+      wickUpColor: '#11ff99',
+      wickDownColor: '#ff2047',
     });
 
     // Transform data for lightweight-charts
@@ -75,8 +81,6 @@ export function AssetCandlestickChart({
 
     // Fit content
     chart.timeScale().fitContent();
-
-    setIsLoading(false);
 
     // Handle resize
     const handleResize = () => {
@@ -101,9 +105,11 @@ export function AssetCandlestickChart({
 
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">Asset Growth</h3>
-        <div className="flex items-center justify-center h-[400px] text-gray-500">
+      <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-6">
+        <h3 className="mb-4 text-lg font-medium tracking-[0] text-[var(--ink)]">
+          Asset Growth
+        </h3>
+        <div className="flex h-[400px] items-center justify-center text-[var(--mute)]">
           No data available
         </div>
       </div>
@@ -111,39 +117,42 @@ export function AssetCandlestickChart({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      {/* Header with period selector */}
+    <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-gray-900">Asset Growth</h3>
+        <h3 className="text-lg font-medium tracking-[0] text-[var(--ink)]">
+          Asset Growth
+        </h3>
 
-        {/* Period selector buttons */}
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => onPeriodChange('daily')}
-            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+            className={`h-8 rounded-lg border px-3 text-sm font-medium tracking-[0] transition-colors ${
               period === 'daily'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-on)]'
+                : 'border-[var(--hairline-strong)] bg-[var(--surface-elevated)] text-[var(--body)] hover:text-[var(--ink)]'
             }`}
           >
             Daily
           </button>
           <button
+            type="button"
             onClick={() => onPeriodChange('monthly')}
-            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+            className={`h-8 rounded-lg border px-3 text-sm font-medium tracking-[0] transition-colors ${
               period === 'monthly'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-on)]'
+                : 'border-[var(--hairline-strong)] bg-[var(--surface-elevated)] text-[var(--body)] hover:text-[var(--ink)]'
             }`}
           >
             Monthly
           </button>
           <button
+            type="button"
             onClick={() => onPeriodChange('annual')}
-            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+            className={`h-8 rounded-lg border px-3 text-sm font-medium tracking-[0] transition-colors ${
               period === 'annual'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-on)]'
+                : 'border-[var(--hairline-strong)] bg-[var(--surface-elevated)] text-[var(--body)] hover:text-[var(--ink)]'
             }`}
           >
             Annual
@@ -151,14 +160,7 @@ export function AssetCandlestickChart({
         </div>
       </div>
 
-      {/* Chart container */}
       <div ref={chartContainerRef} className="w-full" />
-
-      {isLoading && (
-        <div className="flex items-center justify-center h-[400px]">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-        </div>
-      )}
     </div>
   );
 }

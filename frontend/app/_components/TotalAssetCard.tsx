@@ -1,5 +1,7 @@
 'use client';
 
+import { Eye, EyeOff } from 'lucide-react';
+
 import { useCurrency } from '@/lib/context/currency-context';
 import { usePrivacyToggle } from '@/lib/hooks/usePrivacyToggle';
 import { formatCurrency } from '@/lib/utils/format';
@@ -17,32 +19,37 @@ export function TotalAssetCard({ totalKRW, totalUSD }: TotalAssetCardProps) {
   const displayAmount = currency === 'KRW' ? totalKRW : totalUSD;
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <div className="flex justify-between items-center mb-2">
-        <h2 className="text-gray-600 text-sm font-medium">Total Assets</h2>
+    <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-6">
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h2 className="text-sm font-medium tracking-[0] text-[var(--charcoal)]">
+          Total Assets
+        </h2>
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={togglePrivacy}
-            className="text-gray-400 hover:text-gray-600 transition"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--hairline-strong)] bg-[var(--surface-elevated)] text-[var(--charcoal)] transition hover:text-[var(--ink)]"
             title={isHidden ? 'Show amounts' : 'Hide amounts'}
+            aria-label={isHidden ? 'Show amounts' : 'Hide amounts'}
           >
-            {isHidden ? '👁️' : '👁️‍🗨️'}
+            {isHidden ? <Eye size={17} /> : <EyeOff size={17} />}
           </button>
           <button
+            type="button"
             onClick={toggleCurrency}
-            className="text-sm px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition font-medium"
+            className="h-9 rounded-lg border border-[var(--primary)] bg-[var(--primary)] px-3 text-sm font-medium tracking-[0] text-[var(--primary-on)] transition hover:bg-[var(--surface-light)]"
           >
             {currency === 'KRW' ? 'USD' : 'KRW'}
           </button>
         </div>
       </div>
 
-      <div className="text-4xl font-bold text-gray-900">
+      <div className="resend-display text-4xl tracking-[0] sm:text-5xl">
         {formatCurrency(displayAmount, currency, isHidden)}
       </div>
 
       {!isHidden && (
-        <div className="text-sm text-gray-500 mt-2">
+        <div className="mt-3 text-sm text-[var(--mute)]">
           {currency === 'KRW'
             ? `≈ ${formatCurrency(totalUSD, 'USD')}`
             : `≈ ${formatCurrency(totalKRW, 'KRW')}`}

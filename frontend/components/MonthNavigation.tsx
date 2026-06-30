@@ -1,6 +1,8 @@
 'use client';
 
-import { MonthOption } from '@/lib/types';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+import type { MonthOption } from '@/lib/types';
 import { getAdjacentMonth } from '@/lib/utils/month';
 import { Button } from './ui/Button';
 import { Select } from './ui/Select';
@@ -26,9 +28,8 @@ export function MonthNavigation({
   const hasNext = nextMonth !== null;
 
   return (
-    <div className="bg-white rounded-lg shadow p-4">
+    <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-4">
       <div className="grid grid-cols-[auto_1fr_auto] gap-4 items-center">
-        {/* Previous Button */}
         <Button
           variant="ghost"
           size="md"
@@ -36,11 +37,11 @@ export function MonthNavigation({
           disabled={!hasPrev || disabled}
           className="whitespace-nowrap"
         >
-          <span className="hidden sm:inline">← Previous</span>
-          <span className="sm:hidden">←</span>
+          <ChevronLeft size={16} />
+          <span className="hidden sm:inline">Previous</span>
+          <span className="sm:hidden">Prev</span>
         </Button>
 
-        {/* Month Dropdown */}
         <Select
           value={currentMonth}
           onChange={(e) => onMonthChange(e.target.value)}
@@ -49,7 +50,6 @@ export function MonthNavigation({
           options={availableMonths}
         />
 
-        {/* Next Button */}
         <Button
           variant="ghost"
           size="md"
@@ -57,13 +57,13 @@ export function MonthNavigation({
           disabled={!hasNext || disabled}
           className="whitespace-nowrap"
         >
-          <span className="hidden sm:inline">Next →</span>
-          <span className="sm:hidden">→</span>
+          <span>Next</span>
+          <ChevronRight size={16} />
         </Button>
       </div>
 
       {disabled && (
-        <p className="text-sm text-gray-500 mt-2 text-center">
+        <p className="mt-2 text-center text-sm text-[var(--mute)]">
           Monthly navigation disabled while date range filter is active
         </p>
       )}

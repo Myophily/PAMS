@@ -24,9 +24,11 @@ interface TopAssetsBarChartProps {
 export function TopAssetsBarChart({ assets }: TopAssetsBarChartProps) {
   if (!assets || assets.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">Top Assets</h3>
-        <div className="flex items-center justify-center h-[300px] text-gray-500">
+      <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-6">
+        <h3 className="mb-4 text-lg font-medium tracking-[0] text-[var(--ink)]">
+          Top Assets
+        </h3>
+        <div className="flex h-[300px] items-center justify-center text-[var(--mute)]">
           No data available
         </div>
       </div>
@@ -45,31 +47,41 @@ export function TopAssetsBarChart({ assets }: TopAssetsBarChartProps) {
     .slice(0, 10);
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4">Top Assets</h3>
+    <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-6">
+      <h3 className="mb-4 text-lg font-medium tracking-[0] text-[var(--ink)]">
+        Top Assets
+      </h3>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart
           data={chartData}
           layout="vertical"
           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
         >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis type="number" />
+          <CartesianGrid stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+          <XAxis
+            type="number"
+            tick={{ fill: 'rgba(252,253,255,0.7)', fontSize: 12 }}
+            axisLine={{ stroke: 'rgba(255,255,255,0.14)' }}
+            tickLine={{ stroke: 'rgba(255,255,255,0.14)' }}
+          />
           <YAxis
             dataKey="ticker"
             type="category"
             width={100}
-            tick={{ fontSize: 12 }}
+            tick={{ fill: 'rgba(252,253,255,0.7)', fontSize: 12 }}
+            axisLine={{ stroke: 'rgba(255,255,255,0.14)' }}
+            tickLine={{ stroke: 'rgba(255,255,255,0.14)' }}
           />
           <Tooltip
             formatter={(value: number | undefined) => value ? `₩${value.toLocaleString()}` : ''}
             contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
+              backgroundColor: '#0a0a0c',
+              border: '1px solid rgba(255,255,255,0.14)',
+              borderRadius: '8px',
+              color: '#fcfdff',
             }}
           />
-          <Bar dataKey="value_krw" fill="#3B82F6" radius={[0, 4, 4, 0]} />
+          <Bar dataKey="value_krw" fill="#3b9eff" radius={[0, 6, 6, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

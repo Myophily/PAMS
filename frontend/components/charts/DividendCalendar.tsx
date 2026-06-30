@@ -64,20 +64,20 @@ export function DividendCalendar({
   });
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4">Dividend Calendar - {monthName}</h3>
+    <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-6">
+      <h3 className="mb-4 text-lg font-medium tracking-[0] text-[var(--ink)]">
+        Dividend Calendar - {monthName}
+      </h3>
       <div className="grid grid-cols-7 gap-1">
-        {/* Day headers */}
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
           <div
             key={day}
-            className="text-center text-xs font-medium text-gray-600 py-2"
+            className="py-2 text-center text-xs font-medium text-[var(--charcoal)]"
           >
             {day}
           </div>
         ))}
 
-        {/* Calendar days */}
         {weeks.map((week, weekIndex) =>
           week.map((day, dayIndex) => {
             const hasDividend = day && dividendsByDate[day];
@@ -91,25 +91,25 @@ export function DividendCalendar({
                 className={`min-h-[60px] p-1 border rounded ${
                   day
                     ? hasDividend
-                      ? 'bg-green-50 border-green-300'
-                      : 'bg-white border-gray-200'
-                    : 'bg-gray-50 border-transparent'
+                      ? 'border-[rgba(17,255,153,0.35)] bg-[rgba(17,255,153,0.1)]'
+                      : 'border-[var(--hairline)] bg-[var(--surface-card)]'
+                    : 'border-transparent bg-[rgba(255,255,255,0.03)]'
                 }`}
               >
                 {day && (
                   <>
-                    <div className="text-xs font-medium text-gray-700">
+                    <div className="text-xs font-medium text-[var(--body)]">
                       {day}
                     </div>
                     {hasDividend && (
                       <div className="text-xs mt-1">
-                        <div className="text-green-700 font-medium">
+                        <div className="font-medium text-[var(--accent-green)]">
                           ₩{dividendTotal.toLocaleString()}
                         </div>
                         {dividendsByDate[day].map((div, idx) => (
                           <div
                             key={idx}
-                            className="text-gray-600 truncate"
+                            className="truncate text-[var(--charcoal)]"
                             title={`${div.ticker}: ₩${div.amount.toLocaleString()}`}
                           >
                             {div.ticker}

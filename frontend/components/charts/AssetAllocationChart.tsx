@@ -1,15 +1,15 @@
 'use client';
 
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { parseDecimal } from '@/lib/utils/decimal';
 import type { DecimalString } from '@/lib/types';
 
 const ASSET_COLORS: Record<string, string> = {
-  Stock: '#F97316',
-  Crypto: '#EF4444',
-  Cash: '#3B82F6',
-  Bond: '#86EFAC',
-  Gold: '#22C55E',
+  Stock: '#ff801f',
+  Crypto: '#ff2047',
+  Cash: '#3b9eff',
+  Bond: '#11ff99',
+  Gold: '#ffc53d',
 };
 
 interface AssetAllocationChartProps {
@@ -29,9 +29,11 @@ interface ChartDataEntry {
 export function AssetAllocationChart({ data, riskSummary }: AssetAllocationChartProps) {
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">Asset Allocation</h3>
-        <div className="flex items-center justify-center h-[300px] text-gray-500">
+      <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-6">
+        <h3 className="mb-4 text-lg font-medium tracking-[0] text-[var(--ink)]">
+          Asset Allocation
+        </h3>
+        <div className="flex h-[300px] items-center justify-center text-[var(--mute)]">
           No data available
         </div>
       </div>
@@ -48,8 +50,10 @@ export function AssetAllocationChart({ data, riskSummary }: AssetAllocationChart
   const safePercent = riskSummary ? parseDecimal(riskSummary.safe_assets_percent) : 0;
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-bold text-gray-900 mb-4">Asset Allocation</h3>
+    <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-6">
+      <h3 className="mb-4 text-lg font-medium tracking-[0] text-[var(--ink)]">
+        Asset Allocation
+      </h3>
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>
           <Pie
@@ -72,20 +76,25 @@ export function AssetAllocationChart({ data, riskSummary }: AssetAllocationChart
           </Pie>
           <Tooltip
             formatter={(value: number | undefined) => value ? `₩${value.toLocaleString()}` : ''}
-            contentStyle={{ backgroundColor: 'white', border: '1px solid #ccc', borderRadius: '4px' }}
+            contentStyle={{
+              backgroundColor: '#0a0a0c',
+              border: '1px solid rgba(255,255,255,0.14)',
+              borderRadius: '8px',
+              color: '#fcfdff',
+            }}
           />
         </PieChart>
       </ResponsiveContainer>
       {riskSummary && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
+        <div className="mt-4 border-t border-[var(--hairline)] pt-4">
           <div className="flex justify-center gap-8 text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-500"></div>
-              <span className="font-medium text-gray-700">Risk Assets: {riskPercent.toFixed(1)}%</span>
+              <div className="h-3 w-3 rounded-full bg-[var(--accent-red)]"></div>
+              <span className="font-medium text-[var(--body)]">Risk Assets: {riskPercent.toFixed(1)}%</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span className="font-medium text-gray-700">Safe Assets: {safePercent.toFixed(1)}%</span>
+              <div className="h-3 w-3 rounded-full bg-[var(--accent-blue)]"></div>
+              <span className="font-medium text-[var(--body)]">Safe Assets: {safePercent.toFixed(1)}%</span>
             </div>
           </div>
         </div>

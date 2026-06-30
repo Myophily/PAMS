@@ -42,17 +42,17 @@ export function LedgerTable({
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64 bg-white rounded-lg shadow">
-        <div className="text-gray-500">Loading ledger...</div>
+      <div className="flex h-64 items-center justify-center rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)]">
+        <div className="text-[var(--mute)]">Loading ledger...</div>
       </div>
     );
   }
 
   if (rows.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-8 text-center">
-        <p className="text-gray-500">No transactions to display</p>
-        <p className="text-sm text-gray-400 mt-2">
+      <div className="rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)] p-8 text-center">
+        <p className="text-[var(--mute)]">No transactions to display</p>
+        <p className="mt-2 text-sm text-[var(--ash)]">
           Transactions will appear here once you add them to this account.
         </p>
       </div>
@@ -60,76 +60,76 @@ export function LedgerTable({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="overflow-hidden rounded-xl border border-[var(--hairline-strong)] bg-[var(--surface-card)]">
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
-          <thead className="bg-gray-50 border-b-2 border-gray-200">
+          <thead className="border-b border-[var(--hairline)] bg-[rgba(255,255,255,0.03)]">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0] text-[var(--mute)]">
                 Date
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0] text-[var(--mute)]">
                 Description
               </th>
               {showAccount && (
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0] text-[var(--mute)]">
                   Account
                 </th>
               )}
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0] text-[var(--mute)]">
                 Debit
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0] text-[var(--mute)]">
                 Credit
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0] text-[var(--mute)]">
                 Balance
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-[var(--hairline)]">
             {rows.map((row, index) => (
               <tr
                 key={`${row.id}-${index}`}
-                className="hover:bg-gray-50 transition-colors"
+                className="transition-colors hover:bg-[rgba(255,255,255,0.03)]"
               >
-                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
+                <td className="whitespace-nowrap px-4 py-3 text-sm text-[var(--body)]">
                   {formatDate(row.date)}
                 </td>
                 <td className="px-4 py-3">
-                  <div className="text-sm text-gray-900">{row.description}</div>
+                  <div className="text-sm text-[var(--ink)]">{row.description}</div>
                   {row.counterpartyAccount && (
-                    <div className="text-xs text-gray-500 mt-0.5">
+                    <div className="mt-0.5 text-xs text-[var(--mute)]">
                       {row.counterpartyAccount}
                     </div>
                   )}
                 </td>
                 {showAccount && (
-                  <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm text-[var(--body)]">
                     {row.accountName || '-'}
                   </td>
                 )}
-                <td className="px-4 py-3 text-right text-sm font-mono whitespace-nowrap">
+                <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm">
                   {row.debit !== '0.00' ? (
-                    <span className="text-red-600">
+                    <span className="text-[var(--accent-red)]">
                       {getCurrencySymbol(currency)}
                       {formatDecimal(row.debit)}
                     </span>
                   ) : (
-                    <span className="text-gray-300">-</span>
+                    <span className="text-[var(--stone)]">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-right text-sm font-mono whitespace-nowrap">
+                <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm">
                   {row.credit !== '0.00' ? (
-                    <span className="text-green-600">
+                    <span className="text-[var(--accent-green)]">
                       {getCurrencySymbol(currency)}
                       {formatDecimal(row.credit)}
                     </span>
                   ) : (
-                    <span className="text-gray-300">-</span>
+                    <span className="text-[var(--stone)]">-</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-right text-sm font-mono font-semibold text-gray-900 whitespace-nowrap">
+                <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-sm font-semibold text-[var(--ink)]">
                   {getCurrencySymbol(currency)}
                   {formatDecimal(row.balance)}
                 </td>
@@ -139,17 +139,16 @@ export function LedgerTable({
         </table>
       </div>
 
-      {/* Summary footer */}
-      <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
+      <div className="border-t border-[var(--hairline)] bg-[rgba(255,255,255,0.03)] px-4 py-3">
         <div className="flex justify-between items-center text-sm">
-          <span className="text-gray-600">
+          <span className="text-[var(--charcoal)]">
             {rows.length} transaction{rows.length !== 1 ? 's' : ''}
           </span>
           <div className="flex items-center gap-4">
-            <span className="text-gray-600">
+            <span className="text-[var(--charcoal)]">
               Final Balance:
             </span>
-            <span className="font-semibold text-gray-900">
+            <span className="font-mono font-semibold text-[var(--ink)]">
               {getCurrencySymbol(currency)}
               {rows.length > 0 ? formatDecimal(rows[rows.length - 1].balance) : '0.00'}
             </span>

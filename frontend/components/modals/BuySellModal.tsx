@@ -100,7 +100,7 @@ export function BuySellModal({
     }
 
     // Korean bonds (S_D, etc.)
-    if (KOREAN_BOND_TICKERS.includes(upper as any)) {
+    if ((KOREAN_BOND_TICKERS as readonly string[]).includes(upper)) {
       return 'KRW';
     }
 
